@@ -44,12 +44,13 @@ export interface LoginCredentials {
 }
 
 export interface RegisterData {
-    fullName: string
-    email: string
-    password: string
-    phone?: string
-    role?: UserRole
-}
+        fullName: string
+        email: string
+        password: string
+        phone?: string
+        role?: UserRole
+        confirmPassword?: string
+    }
 
 export interface OnboardingMetrics {
     weight?: number
@@ -96,7 +97,7 @@ const userSlice = createSlice({
         markOnboardingSeen(state) {
             state.onboardingSeen = true
         },
-        completeOnboarding(state, action: PayloadAction<OnboardingMetrics>) {
+        completeOnboarding(state, _action: PayloadAction<OnboardingMetrics>) {
             state.onboardingSeen = true
         },
         setLocale(state, action: PayloadAction<SupportedLocale>) {

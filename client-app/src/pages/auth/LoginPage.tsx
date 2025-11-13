@@ -66,8 +66,10 @@ export const LoginPage = () => {
             <Card shadow="xl" padding="xl" radius="lg" style={{ width: '100%', maxWidth: 400 }}>
                 <Stack gap="lg">
                     <Stack gap={4} align="center">
-                        <Title order={2} variant="gradient" gradient={{ from: 'violet', to: 'purple', deg: 135 }}>
-                            Coach Fit
+                        <Title order={2}>
+                            <Text span variant="gradient" gradient={{ from: 'violet', to: 'purple', deg: 135 }}>
+                                Coach Fit
+                            </Text>
                         </Title>
                         <Text c="dimmed" size="sm">
                             {t('auth.loginTitle')}

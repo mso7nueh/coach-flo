@@ -1,0 +1,7 @@
+services:
+  - type: static
+    name: coach-fit-client
+    buildCommand: cd client-app && npm install && npm run build
+    staticPublishPath: ./client-app/dist
+    pullRequestPreviewsEnabled: false
+

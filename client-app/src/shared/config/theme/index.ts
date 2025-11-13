@@ -3,7 +3,7 @@
  * Основной цвет определяется в colors.ts
  */
 
-import type { MantineThemeOverride } from '@mantine/core'
+import type { MantineThemeOverride, MantineTheme } from '@mantine/core'
 import { PRIMARY_COLOR, SHADOWS, RADIUS, getGradient } from './colors'
 
 export const theme: MantineThemeOverride = {
@@ -40,7 +40,7 @@ export const theme: MantineThemeOverride = {
         radius: 'md',
         withBorder: false,
       },
-      styles: (theme) => ({
+      styles: (theme: MantineTheme) => ({
         root: {
           backgroundColor: theme.white,
           border: `1px solid ${theme.colors.gray[2]}`,
@@ -58,7 +58,7 @@ export const theme: MantineThemeOverride = {
       defaultProps: {
         radius: 'md',
       },
-      styles: (theme) => ({
+      styles: () => ({
         root: {
           fontWeight: 600,
           transition: 'all 0.2s ease-in-out',
@@ -71,7 +71,7 @@ export const theme: MantineThemeOverride = {
     },
     
     AppShell: {
-      styles: (theme) => ({
+      styles: (theme: MantineTheme) => ({
         main: {
           backgroundColor: theme.colors.gray[0],
         },
@@ -101,7 +101,7 @@ export const theme: MantineThemeOverride = {
     },
     
     Title: {
-      styles: (theme) => ({
+      styles: (theme: MantineTheme) => ({
         root: {
           color: theme.colors.gray[9],
         },
@@ -112,7 +112,7 @@ export const theme: MantineThemeOverride = {
       defaultProps: {
         radius: 'md',
       },
-      styles: (theme) => ({
+      styles: (theme: MantineTheme) => ({
         input: {
           borderColor: theme.colors.gray[3],
           transition: 'all 0.2s ease-in-out',

@@ -12,26 +12,20 @@ import {
     Stack,
     Text,
     TextInput,
-    Title,
-    UnstyledButton,
 } from '@mantine/core'
 import { DateInput, TimeInput } from '@mantine/dates'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
-import { IconCheck, IconClock, IconCopy, IconChevronLeft, IconChevronRight, IconEdit, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconCheck, IconClock, IconCopy, IconChevronLeft, IconChevronRight, IconPlus, IconTrash } from '@tabler/icons-react'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
     removeWorkout,
-    removeWorkoutSeries,
-    removeFutureWorkouts,
     scheduleWorkout,
-    setSelectedDate,
     goToToday,
     goToPreviousWeek,
     goToNextWeek,
     updateWorkout,
-    updateWorkoutAttendance,
     type RecurrenceFrequency,
     type DayOfWeek,
 } from '@/app/store/slices/calendarSlice'
@@ -80,7 +74,6 @@ export const CalendarPage = () => {
     const [formState, setFormState] = useState<WorkoutFormState>(buildFormState(selectedDate))
 
     const startDate = dayjs(currentStartDate).startOf('week')
-    const endDate = startDate.add(1, 'week')
 
     const calendarDays = useMemo(() => {
         const days: dayjs.Dayjs[] = []
@@ -201,12 +194,7 @@ export const CalendarPage = () => {
                         <ActionIcon variant="light" onClick={() => dispatch(goToPreviousWeek())}>
                             <IconChevronLeft size={18} />
                         </ActionIcon>
-                        <Button
-                            variant="subtle"
-                            onClick={() => {
-                                dispatch(setCurrentStartDate(dayjs().startOf('week').toISOString()))
-                            }}
-                        >
+                        <Button variant="subtle" onClick={() => dispatch(goToToday())}>
                             {startDate.format('MMM D')} - {startDate.endOf('week').format('MMM D')}
                         </Button>
                         <ActionIcon variant="light" onClick={() => dispatch(goToNextWeek())}>
@@ -249,7 +237,6 @@ export const CalendarPage = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1 }}>
                         {calendarDays.map((day, index) => {
                             const dayWorkouts = getDayWorkouts(day)
-                            const dayOfWeek = day.day()
                             const isFirstDay = index === 0
                             const isCurrentDay = isToday(day)
 

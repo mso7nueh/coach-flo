@@ -24,11 +24,11 @@ export const RegisterPage = () => {
             fullName: (value) => (value.trim().length < 2 ? t('profile.validation.nameRequired') : null),
             email: (value) => (/^\S+@\S+$/.test(value) ? null : t('profile.validation.emailInvalid')),
             password: (value) => (value.length < 6 ? t('auth.passwordTooShort') : null),
-            confirmPassword: (value, values) => (value !== values.password ? t('auth.passwordsDoNotMatch') : null),
+            confirmPassword: (value, values: RegisterData) => (value !== values.password ? t('auth.passwordsDoNotMatch') : null),
         },
     })
 
-    const handleSubmit = (values: Omit<RegisterData, 'confirmPassword'>) => {
+    const handleSubmit = (values: RegisterData) => {
         const mockToken = `token-${nanoid()}`
         dispatch(
             register({
@@ -61,8 +61,10 @@ export const RegisterPage = () => {
             <Card shadow="xl" padding="xl" radius="lg" style={{ width: '100%', maxWidth: 400 }}>
                 <Stack gap="lg">
                     <Stack gap={4} align="center">
-                        <Title order={2} variant="gradient" gradient={{ from: 'violet', to: 'purple', deg: 135 }}>
-                            Coach Fit
+                        <Title order={2}>
+                            <Text span variant="gradient" gradient={{ from: 'violet', to: 'purple', deg: 135 }}>
+                                Coach Fit
+                            </Text>
                         </Title>
                         <Text c="dimmed" size="sm">
                             {t('auth.registerTitle')}

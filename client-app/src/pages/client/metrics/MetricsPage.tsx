@@ -40,8 +40,6 @@ import {
   setMetricsPeriod,
   addBodyMetricEntry,
   addExerciseEntry,
-  type BodyMetricDescriptor,
-  type ExerciseMetricDescriptor,
 } from '@/app/store/slices/metricsSlice'
 import { useDisclosure } from '@mantine/hooks'
 
@@ -72,7 +70,6 @@ export const MetricsPage = () => {
   const { bodyMetrics, bodyMetricEntries, exerciseMetrics, exerciseMetricEntries, period } = useAppSelector(
     (state) => state.metrics,
   )
-  const role = useAppSelector((state) => state.user.role)
   const [selectedMetricId, setSelectedMetricId] = useState<string | null>(bodyMetrics[0]?.id ?? null)
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(exerciseMetrics[0]?.id ?? null)
   const [bodyModalOpened, { open: openBodyModal, close: closeBodyModal }] = useDisclosure(false)

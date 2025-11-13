@@ -182,8 +182,9 @@ const calendarSlice = createSlice({
       // Удаляем все тренировки из серии
       const workout = state.workouts.find((w) => w.id === action.payload)
       if (workout?.recurrence?.seriesId) {
+        const seriesId = workout.recurrence.seriesId
         state.workouts = state.workouts.filter(
-          (w) => !w.recurrence || w.recurrence.seriesId !== workout.recurrence.seriesId,
+          (w) => !w.recurrence || w.recurrence.seriesId !== seriesId,
         )
       } else {
         state.workouts = state.workouts.filter((item) => item.id !== action.payload)
@@ -193,9 +194,10 @@ const calendarSlice = createSlice({
       // Удаляем все будущие тренировки из серии, начиная с указанной даты
       const workout = state.workouts.find((w) => w.id === action.payload.workoutId)
       if (workout?.recurrence?.seriesId) {
+        const seriesId = workout.recurrence.seriesId
         const fromDate = dayjs(action.payload.fromDate)
         state.workouts = state.workouts.filter((w) => {
-          if (w.recurrence?.seriesId === workout.recurrence.seriesId) {
+          if (w.recurrence?.seriesId === seriesId) {
             return dayjs(w.start).isBefore(fromDate) || w.id === action.payload.workoutId
           }
           return true

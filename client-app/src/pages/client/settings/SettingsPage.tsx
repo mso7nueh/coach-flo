@@ -10,11 +10,10 @@ import {
     Title,
 } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
-import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
+import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { setLocale } from '@/app/store/slices/userSlice'
 import {
-    updateNotificationSettings,
     toggleNotificationChannel,
     toggleNotificationType,
     setReminderBeforeMinutes,
@@ -78,19 +77,17 @@ export const SettingsPage = () => {
                             <Switch
                                 label={t('settings.notifications.email')}
                                 checked={notificationSettings.emailEnabled}
-                                onChange={(event) =>
-                                    dispatch(toggleNotificationChannel('email'))
-                                }
+                                onChange={() => dispatch(toggleNotificationChannel('email'))}
                             />
                             <Switch
                                 label={t('settings.notifications.push')}
                                 checked={notificationSettings.pushEnabled}
-                                onChange={(event) => dispatch(toggleNotificationChannel('push'))}
+                                onChange={() => dispatch(toggleNotificationChannel('push'))}
                             />
                             <Switch
                                 label={t('settings.notifications.sms')}
                                 checked={notificationSettings.smsEnabled}
-                                onChange={(event) => dispatch(toggleNotificationChannel('sms'))}
+                                onChange={() => dispatch(toggleNotificationChannel('sms'))}
                             />
                         </Group>
                     </Stack>
@@ -106,31 +103,31 @@ export const SettingsPage = () => {
                                 label={t('settings.notifications.workoutReminders')}
                                 description={t('settings.notifications.workoutRemindersDescription')}
                                 checked={notificationSettings.workoutReminders}
-                                onChange={(event) => dispatch(toggleNotificationType('workout_reminder'))}
+                                onChange={() => dispatch(toggleNotificationType('workout_reminder'))}
                             />
                             <Switch
                                 label={t('settings.notifications.workoutScheduled')}
                                 description={t('settings.notifications.workoutScheduledDescription')}
                                 checked={notificationSettings.workoutScheduled}
-                                onChange={(event) => dispatch(toggleNotificationType('workout_scheduled'))}
+                                onChange={() => dispatch(toggleNotificationType('workout_scheduled'))}
                             />
                             <Switch
                                 label={t('settings.notifications.workoutCompleted')}
                                 description={t('settings.notifications.workoutCompletedDescription')}
                                 checked={notificationSettings.workoutCompleted}
-                                onChange={(event) => dispatch(toggleNotificationType('workout_completed'))}
+                                onChange={() => dispatch(toggleNotificationType('workout_completed'))}
                             />
                             <Switch
                                 label={t('settings.notifications.metricsUpdate')}
                                 description={t('settings.notifications.metricsUpdateDescription')}
                                 checked={notificationSettings.metricsUpdate}
-                                onChange={(event) => dispatch(toggleNotificationType('metrics_update'))}
+                                onChange={() => dispatch(toggleNotificationType('metrics_update'))}
                             />
                             <Switch
                                 label={t('settings.notifications.trainerNote')}
                                 description={t('settings.notifications.trainerNoteDescription')}
                                 checked={notificationSettings.trainerNote}
-                                onChange={(event) => dispatch(toggleNotificationType('trainer_note'))}
+                                onChange={() => dispatch(toggleNotificationType('trainer_note'))}
                             />
                         </Stack>
                     </Stack>

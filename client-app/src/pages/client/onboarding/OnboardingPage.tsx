@@ -8,14 +8,12 @@ import {
     Stack,
     Stepper,
     Text,
-    TextInput,
     Title,
 } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { completeOnboarding, type OnboardingMetrics } from '@/app/store/slices/userSlice'
 import { useState } from 'react'
 import { addBodyMetricEntry, addBodyMetric } from '@/app/store/slices/metricsSlice'
@@ -43,11 +41,10 @@ export const OnboardingPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
-    const user = useAppSelector((state) => state.user)
 
     const [activeStep, setActiveStep] = useState(0)
 
-    const form = useForm<OnboardingMetrics & { confirmPassword?: string }>({
+    const form = useForm<OnboardingMetrics>({
         initialValues: {
             weight: undefined,
             height: undefined,
@@ -85,7 +82,14 @@ export const OnboardingPage = () => {
     }
 
     const handleComplete = () => {
-        const metrics = form.values
+        const metrics: OnboardingMetrics = {
+            weight: form.values.weight,
+            height: form.values.height,
+            age: form.values.age,
+            goals: form.values.goals,
+            restrictions: form.values.restrictions,
+            activityLevel: form.values.activityLevel,
+        }
         dispatch(completeOnboarding(metrics))
 
         if (typeof window !== 'undefined') {
@@ -151,7 +155,7 @@ export const OnboardingPage = () => {
                         <Text c="dimmed">{t('onboarding.welcomeDescription')}</Text>
                     </Stack>
 
-                    <Stepper active={activeStep} onStepClick={setActiveStep} breakpoint="sm">
+                    <Stepper active={activeStep} onStepClick={setActiveStep}>
                         <Stepper.Step label={t('onboarding.steps.profile.title')} description={t('onboarding.steps.profile.description')}>
                             <Stack gap="md" mt="xl">
                                 <NumberInput
