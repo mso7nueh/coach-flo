@@ -8,28 +8,37 @@ import {
     Drawer,
     Group,
     Modal,
+    NumberInput,
     Progress,
     RingProgress,
     SimpleGrid,
     Stack,
     Text,
     TextInput,
+    ThemeIcon,
     Title,
 } from '@mantine/core'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { useTranslation } from 'react-i18next'
 import {
     IconAdjustments,
+    IconAlertTriangle,
     IconArrowDown,
+    IconArrowRight,
     IconArrowUp,
+    IconBell,
     IconCalendar,
+    IconCalendarTime,
     IconDotsVertical,
     IconGripVertical,
     IconPlus,
+    IconTarget,
     IconTrendingUp,
     IconTrash,
-    IconWriting,
+    IconUser,
+    IconEdit,
 } from '@tabler/icons-react'
+import { ResponsiveContainer, LineChart, Line, AreaChart, Area, ReferenceLine } from 'recharts'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import {
@@ -38,6 +47,7 @@ import {
     reorderTiles,
     removeTrainerNote,
     setDashboardPeriod,
+    setMetricGoal,
     toggleTile,
     updateTrainerNote,
 } from '@/app/store/slices/dashboardSlice'
@@ -54,11 +64,20 @@ const periods: { label: string; value: '7d' | '14d' | '30d' }[] = [
 ]
 
 const formatDate = (value: string) => dayjs(value).format('DD MMM, HH:mm')
+const buildChartSeries = (base: number, amplitude: number) => {
+    const now = dayjs()
+    return Array.from({ length: 12 }).map((_, index) => ({
+        label: now
+            .subtract(11 - index, 'day')
+            .format('DD MMM'),
+        value: Number((base + Math.sin(index / 2) * amplitude).toFixed(2)),
+    }))
+}
 
 export const DashboardPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
-    const { tiles, availableTiles, period, trainerNotes, configurationOpened } = useAppSelector(
+    const { tiles, availableTiles, period, trainerNotes, configurationOpened, metricGoals } = useAppSelector(
         (state) => state.dashboard,
     )
     const user = useAppSelector((state) => state.user)
@@ -66,6 +85,9 @@ export const DashboardPage = () => {
     const role = user.role
     const [noteModalOpened, { open: openNoteModal, close: closeNoteModal }] = useDisclosure(false)
     const [noteDraft, setNoteDraft] = useState<TrainerNote | null>(null)
+    const [goalModalOpened, { open: openGoalModal, close: closeGoalModal }] = useDisclosure(false)
+    const [goalMetricId, setGoalMetricId] = useState<string | null>(null)
+    const [goalValue, setGoalValue] = useState<number>(0)
 
     const upcoming = useMemo(
         () =>
@@ -99,6 +121,76 @@ export const DashboardPage = () => {
             setNoteDraft(null)
         }
     }
+
+    const handleOpenGoalModal = (metricId: string) => {
+        setGoalMetricId(metricId)
+        setGoalValue(metricGoals[metricId] ?? 0)
+        openGoalModal()
+    }
+
+    const handleSaveGoal = () => {
+        if (goalMetricId) {
+            dispatch(setMetricGoal({ metricId: goalMetricId, value: goalValue }))
+            closeGoalModal()
+            setGoalMetricId(null)
+            setGoalValue(0)
+        }
+    }
+
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+    const goalInfo = useMemo(
+        () => ({
+            headline: t('dashboard.goal.generalGoal'),
+            description: t('dashboard.goal.description'),
+            milestone: 'City2Surf 10km Challenge',
+            daysLeft: 35,
+            progress: 65,
+        }),
+        [t],
+    )
+
+    const primaryChartData = useMemo(
+        () => ({
+            weight: buildChartSeries(74.4, 0.7),
+            sleep: buildChartSeries(6.8, 0.4),
+            heartRate: buildChartSeries(66, 3),
+            steps: buildChartSeries(7500, 500),
+        }),
+        [],
+    )
+
+    const limitationItems = useMemo(
+        () => [
+            { id: 'lim-1', title: t('dashboard.limitations.items.leg'), date: 'Oct 29' },
+            { id: 'lim-2', title: t('dashboard.limitations.items.physio'), date: 'Jul 12' },
+        ],
+        [t],
+    )
+
+    const progressPhotos = useMemo(
+        () => [
+            { id: 'photo-1', label: '10/22', accent: '#7c3aed' },
+            { id: 'photo-2', label: '06/22', accent: '#f97316' },
+        ],
+        [],
+    )
+
+    const notesPreview = trainerNotes.slice(0, 3)
+
+    const updatesFeed = useMemo(() => {
+        const workoutUpdates = recent.map((workout) => ({
+            id: workout.id,
+            title: workout.title,
+            subtitle: t('dashboard.updates.workoutLogged', { date: dayjs(workout.start).format('DD MMM, HH:mm') }),
+        }))
+        const noteUpdates = trainerNotes.map((note) => ({
+            id: note.id,
+            title: note.title,
+            subtitle: dayjs(note.updatedAt).format('DD MMM, HH:mm'),
+        }))
+        return [...workoutUpdates, ...noteUpdates].slice(0, 5)
+    }, [recent, trainerNotes, t])
 
     const totalWorkouts = workouts.length
     const completedWorkouts = workouts.filter((w) => w.attendance === 'completed').length
@@ -322,6 +414,505 @@ export const DashboardPage = () => {
                 })}
             </SimpleGrid>
 
+            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
+                <Card withBorder padding="xl">
+                    <Stack gap="md">
+                        <Group justify="space-between" align="flex-start">
+                            <Stack gap={4} style={{ flex: 1 }}>
+                                <Text size="sm" c="dimmed" fw={600}>
+                                    {t('dashboard.goal.cardTitle')}
+                                </Text>
+                                <Title order={4}>{goalInfo.headline}</Title>
+                                <Text size="sm" c="dimmed">
+                                    {goalInfo.description}
+                                </Text>
+                            </Stack>
+                            <RingProgress
+                                size={80}
+                                thickness={8}
+                                sections={[{ value: goalInfo.progress, color: 'violet' }]}
+                                label={
+                                    <Text size="sm" ta="center" fw={700}>
+                                        {goalInfo.progress}%
+                                    </Text>
+                                }
+                            />
+                        </Group>
+                        <Card withBorder radius="lg" padding="md">
+                            <Group justify="space-between" align="center">
+                                <Stack gap={2}>
+                                    <Text size="xs" c="dimmed">
+                                        {t('dashboard.goal.nextEvent')}
+                                    </Text>
+                                    <Group gap="xs">
+                                        <ThemeIcon variant="light" color="violet" size="md" radius="lg">
+                                            <IconCalendarTime size={16} />
+                                        </ThemeIcon>
+                                        <Text fw={600}>{goalInfo.milestone}</Text>
+                                    </Group>
+                                </Stack>
+                                <Stack gap={0} align="flex-end">
+                                    <Text fw={700} size="lg">
+                                        {goalInfo.daysLeft}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {t('dashboard.goal.daysLeft', { count: goalInfo.daysLeft })}
+                                    </Text>
+                                </Stack>
+                            </Group>
+                        </Card>
+                    </Stack>
+                </Card>
+
+                <Card withBorder padding="xl">
+                    <Stack gap="md">
+                        <Group gap="sm">
+                            <Avatar size="lg" radius="xl" color="violet">
+                                {user.fullName
+                                    .split(' ')
+                                    .map((part) => part[0])
+                                    .join('')
+                                    .slice(0, 2)}
+                            </Avatar>
+                            <Stack gap={2}>
+                                <Title order={5}>{user.fullName}</Title>
+                                <Text size="sm" c="dimmed">
+                                    {user.email}
+                                </Text>
+                            </Stack>
+                        </Group>
+                        <Divider />
+                        <Stack gap="sm">
+                            <Group gap="sm">
+                                <ThemeIcon variant="light" color="violet" radius="md">
+                                    <IconUser size={16} />
+                                </ThemeIcon>
+                                <Stack gap={0}>
+                                    <Text size="xs" c="dimmed">
+                                        {t('dashboard.profileCard.role')}
+                                    </Text>
+                                    <Text fw={600}>{role === 'trainer' ? t('common.roleTrainer') : t('common.roleClient')}</Text>
+                                </Stack>
+                            </Group>
+                            <Group gap="sm">
+                                <ThemeIcon variant="light" color="indigo" radius="md">
+                                    <IconCalendar size={16} />
+                                </ThemeIcon>
+                                <Stack gap={0}>
+                                    <Text size="xs" c="dimmed">
+                                        {t('dashboard.profileCard.timezone')}
+                                    </Text>
+                                    <Text fw={600}>{timezone}</Text>
+                                </Stack>
+                            </Group>
+                            {user.trainer && (
+                                <Group gap="sm">
+                                    <ThemeIcon variant="light" color="teal" radius="md">
+                                        <IconUser size={16} />
+                                    </ThemeIcon>
+                                    <Stack gap={0}>
+                                        <Text size="xs" c="dimmed">
+                                            {t('dashboard.profileCard.trainer')}
+                                        </Text>
+                                        <Text fw={600}>{user.trainer.fullName}</Text>
+                                    </Stack>
+                                </Group>
+                            )}
+                        </Stack>
+                    </Stack>
+                </Card>
+
+                <Card withBorder padding="xl">
+                    <Group justify="space-between" mb="md">
+                        <Stack gap={0}>
+                            <Text size="sm" c="dimmed" fw={600}>
+                                {t('dashboard.updates.title')}
+                            </Text>
+                            <Title order={4}>{t('dashboard.updates.subtitle')}</Title>
+                        </Stack>
+                    </Group>
+                    <Stack gap="sm">
+                        {updatesFeed.length === 0 ? (
+                            <Text c="dimmed">{t('dashboard.updates.empty')}</Text>
+                        ) : (
+                            updatesFeed.map((update) => (
+                                <Card key={update.id} withBorder radius="md" padding="md">
+                                    <Group align="flex-start" gap="sm">
+                                        <ThemeIcon variant="light" color="violet" radius="md">
+                                            <IconBell size={16} />
+                                        </ThemeIcon>
+                                        <Stack gap={2} style={{ flex: 1 }}>
+                                            <Text fw={600}>{update.title}</Text>
+                                            <Text size="xs" c="dimmed">
+                                                {update.subtitle}
+                                            </Text>
+                                        </Stack>
+                                        <ActionIcon variant="subtle" color="gray">
+                                            <IconArrowRight size={16} />
+                                        </ActionIcon>
+                                    </Group>
+                                </Card>
+                            ))
+                        )}
+                    </Stack>
+                </Card>
+            </SimpleGrid>
+
+            <Card withBorder padding="xl">
+                <Stack gap="lg">
+                    <Group justify="space-between" align="flex-start">
+                        <Stack gap={0}>
+                            <Text size="sm" c="dimmed" fw={600}>
+                                {t('dashboard.bodyOverview.title')}
+                            </Text>
+                            <Title order={4}>{t('dashboard.bodyOverview.subtitle')}</Title>
+                        </Stack>
+                        <Badge variant="light">{t('dashboard.periods.30d')}</Badge>
+                    </Group>
+                    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-violet-0)' }}>
+                            <Stack gap="sm">
+                                <Group justify="space-between" align="center">
+                                    <Stack gap={0}>
+                                        <Group gap="xs">
+                                            <Text size="sm" c="dimmed">
+                                                {t('dashboard.bodyOverview.weight')}
+                                            </Text>
+                                            {metricGoals.weight && (
+                                                <Badge variant="dot" size="xs" color="gray">
+                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.weight.toFixed(1)} {t('dashboard.bodyOverview.weightUnit')}
+                                                </Badge>
+                                            )}
+                                        </Group>
+                                        <Group gap="xs">
+                                            <Text fw={700} size="xl">
+                                                74.4 kg
+                                            </Text>
+                                            <Badge color="red" variant="light">
+                                                -0.8%
+                                            </Badge>
+                                        </Group>
+                                    </Stack>
+                                    <Group gap="xs">
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="sm"
+                                            onClick={() => handleOpenGoalModal('weight')}
+                                        >
+                                            <IconEdit size={16} />
+                                        </ActionIcon>
+                                        <ThemeIcon radius="xl" variant="light" color="violet">
+                                            <IconTrendingUp size={18} />
+                                        </ThemeIcon>
+                                    </Group>
+                                </Group>
+                                <ResponsiveContainer width="100%" height={120}>
+                                    <LineChart data={primaryChartData.weight}>
+                                        <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={3} dot={false} />
+                                        {metricGoals.weight && (
+                                            <ReferenceLine
+                                                y={metricGoals.weight}
+                                                stroke="#cbd5e1"
+                                                strokeWidth={1}
+                                                strokeDasharray="5 5"
+                                                strokeOpacity={0.4}
+                                            />
+                                        )}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </Stack>
+                        </Card>
+                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-teal-0)' }}>
+                            <Stack gap="sm">
+                                <Group justify="space-between" align="center">
+                                    <Stack gap={0}>
+                                        <Group gap="xs">
+                                            <Text size="sm" c="dimmed">
+                                                {t('dashboard.bodyOverview.sleep')}
+                                            </Text>
+                                            {metricGoals.sleep && (
+                                                <Badge variant="dot" size="xs" color="gray">
+                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.sleep.toFixed(1)} {t('dashboard.bodyOverview.sleepUnit')}
+                                                </Badge>
+                                            )}
+                                        </Group>
+                                        <Group gap="xs">
+                                            <Text fw={700} size="xl">
+                                                6 h 46 m
+                                            </Text>
+                                            <Badge color="green" variant="light">
+                                                +0.3h
+                                            </Badge>
+                                        </Group>
+                                    </Stack>
+                                    <Group gap="xs">
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="sm"
+                                            onClick={() => handleOpenGoalModal('sleep')}
+                                        >
+                                            <IconEdit size={16} />
+                                        </ActionIcon>
+                                        <ThemeIcon radius="xl" variant="light" color="teal">
+                                            <IconTarget size={18} />
+                                        </ThemeIcon>
+                                    </Group>
+                                </Group>
+                                <ResponsiveContainer width="100%" height={120}>
+                                    <AreaChart data={primaryChartData.sleep}>
+                                        <defs>
+                                            <linearGradient id="sleepGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4} />
+                                                <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={2} fill="url(#sleepGradient)" />
+                                        {metricGoals.sleep && (
+                                            <ReferenceLine
+                                                y={metricGoals.sleep}
+                                                stroke="#cbd5e1"
+                                                strokeWidth={1}
+                                                strokeDasharray="5 5"
+                                                strokeOpacity={0.4}
+                                            />
+                                        )}
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </Stack>
+                        </Card>
+                    </SimpleGrid>
+                    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-red-0)' }}>
+                            <Stack gap="sm">
+                                <Group justify="space-between" align="center">
+                                    <Stack gap={0}>
+                                        <Group gap="xs">
+                                            <Text size="sm" c="dimmed">
+                                                {t('dashboard.bodyOverview.heartRate')}
+                                            </Text>
+                                            {metricGoals.heartRate && (
+                                                <Badge variant="dot" size="xs" color="gray">
+                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.heartRate.toFixed(0)} {t('dashboard.bodyOverview.heartRateUnit')}
+                                                </Badge>
+                                            )}
+                                        </Group>
+                                        <Group gap="xs">
+                                            <Text fw={700} size="xl">
+                                                66 bpm
+                                            </Text>
+                                            <Badge color="green" variant="light">
+                                                -5.7%
+                                            </Badge>
+                                        </Group>
+                                    </Stack>
+                                    <Group gap="xs">
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="sm"
+                                            onClick={() => handleOpenGoalModal('heartRate')}
+                                        >
+                                            <IconEdit size={16} />
+                                        </ActionIcon>
+                                        <ThemeIcon radius="xl" variant="light" color="red">
+                                            <IconTrendingUp size={18} />
+                                        </ThemeIcon>
+                                    </Group>
+                                </Group>
+                                <ResponsiveContainer width="100%" height={120}>
+                                    <LineChart data={primaryChartData.heartRate}>
+                                        <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={3} dot={false} />
+                                        {metricGoals.heartRate && (
+                                            <ReferenceLine
+                                                y={metricGoals.heartRate}
+                                                stroke="#cbd5e1"
+                                                strokeWidth={1}
+                                                strokeDasharray="5 5"
+                                                strokeOpacity={0.4}
+                                            />
+                                        )}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </Stack>
+                        </Card>
+                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
+                            <Stack gap="sm">
+                                <Group justify="space-between" align="center">
+                                    <Stack gap={0}>
+                                        <Group gap="xs">
+                                            <Text size="sm" c="dimmed">
+                                                {t('dashboard.bodyOverview.steps')}
+                                            </Text>
+                                            {metricGoals.steps && (
+                                                <Badge variant="dot" size="xs" color="gray">
+                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.steps.toFixed(0)} {t('dashboard.bodyOverview.stepsUnit')}
+                                                </Badge>
+                                            )}
+                                        </Group>
+                                        <Group gap="xs">
+                                            <Text fw={700} size="xl">
+                                                7 503
+                                            </Text>
+                                            <Badge color="green" variant="light">
+                                                +4.2%
+                                            </Badge>
+                                        </Group>
+                                    </Stack>
+                                    <Group gap="xs">
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="sm"
+                                            onClick={() => handleOpenGoalModal('steps')}
+                                        >
+                                            <IconEdit size={16} />
+                                        </ActionIcon>
+                                        <ThemeIcon radius="xl" variant="light" color="blue">
+                                            <IconTrendingUp size={18} />
+                                        </ThemeIcon>
+                                    </Group>
+                                </Group>
+                                <ResponsiveContainer width="100%" height={120}>
+                                    <AreaChart data={primaryChartData.steps}>
+                                        <defs>
+                                            <linearGradient id="stepsGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} fill="url(#stepsGradient)" />
+                                        {metricGoals.steps && (
+                                            <ReferenceLine
+                                                y={metricGoals.steps}
+                                                stroke="#cbd5e1"
+                                                strokeWidth={1}
+                                                strokeDasharray="5 5"
+                                                strokeOpacity={0.4}
+                                            />
+                                        )}
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </Stack>
+                        </Card>
+                    </SimpleGrid>
+                </Stack>
+            </Card>
+
+            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
+                <Card withBorder padding="xl">
+                    <Group justify="space-between" mb="md">
+                        <Stack gap={0}>
+                            <Text size="sm" c="dimmed">
+                                {t('dashboard.notesTitle')}
+                            </Text>
+                            <Title order={4}>{t('common.trainerNotes')}</Title>
+                        </Stack>
+                        {role === 'trainer' && (
+                            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => openNoteModal()}>
+                                {t('common.add')}
+                            </Button>
+                        )}
+                    </Group>
+                    <Stack gap="sm">
+                        {notesPreview.length === 0 ? (
+                            <Text c="dimmed">{t('dashboard.emptyNotes')}</Text>
+                        ) : (
+                            notesPreview.map((note) => (
+                                <Card key={note.id} withBorder padding="md" radius="md">
+                                    <Stack gap={4}>
+                                        <Group justify="space-between" align="flex-start">
+                                            <Stack gap={2} style={{ flex: 1 }}>
+                                                <Text fw={600}>{note.title}</Text>
+                                                <Text size="sm" c="dimmed">
+                                                    {note.content}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    {dayjs(note.updatedAt).format('DD MMM, HH:mm')}
+                                                </Text>
+                                            </Stack>
+                                            {role === 'trainer' && (
+                                                <Group gap="xs">
+                                                    <ActionIcon variant="subtle" onClick={() => { setNoteDraft(note); openNoteModal() }}>
+                                                        <IconDotsVertical size={16} />
+                                                    </ActionIcon>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color="red"
+                                                        onClick={() => dispatch(removeTrainerNote(note.id))}
+                                                    >
+                                                        <IconTrash size={16} />
+                                                    </ActionIcon>
+                                                </Group>
+                                            )}
+                                        </Group>
+                                    </Stack>
+                                </Card>
+                            ))
+                        )}
+                    </Stack>
+                </Card>
+
+                <Card withBorder padding="xl">
+                    <Stack gap="md">
+                        <Group justify="space-between">
+                            <Text fw={600}>{t('dashboard.limitations.title')}</Text>
+                        </Group>
+                        <Stack gap="sm">
+                            {limitationItems.map((item) => (
+                                <Group key={item.id} align="flex-start" gap="sm">
+                                    <ThemeIcon variant="light" color="red" radius="md">
+                                        <IconAlertTriangle size={16} />
+                                    </ThemeIcon>
+                                    <Stack gap={2} style={{ flex: 1 }}>
+                                        <Text fw={600}>{item.title}</Text>
+                                        <Text size="xs" c="dimmed">
+                                            {item.date}
+                                        </Text>
+                                    </Stack>
+                                </Group>
+                            ))}
+                        </Stack>
+                    </Stack>
+                </Card>
+
+                <Card withBorder padding="xl">
+                    <Group justify="space-between" mb="md">
+                        <Stack gap={0}>
+                            <Text size="sm" c="dimmed">
+                                {t('dashboard.photos.title')}
+                            </Text>
+                            <Title order={4}>{t('dashboard.photos.subtitle')}</Title>
+                        </Stack>
+                    </Group>
+                    <SimpleGrid cols={2} spacing="md">
+                        {progressPhotos.map((photo) => (
+                            <Card
+                                key={photo.id}
+                                radius="lg"
+                                padding="lg"
+                                withBorder={false}
+                                style={{
+                                    background: `linear-gradient(135deg, ${photo.accent} 0%, rgba(15, 23, 42, 0.9) 100%)`,
+                                    color: 'white',
+                                    minHeight: '120px',
+                                }}
+                            >
+                                <Stack align="center" gap="xs" justify="center" style={{ height: '100%' }}>
+                                    <Text fw={700} size="lg">
+                                        {photo.label}
+                                    </Text>
+                                    <Text size="xs" c="white" style={{ opacity: 0.8 }}>
+                                        {t('dashboard.photos.compare')}
+                                    </Text>
+                                </Stack>
+                            </Card>
+                        ))}
+                    </SimpleGrid>
+                </Card>
+            </SimpleGrid>
+
             <SimpleGrid cols={{ base: 1, md: 2 }}>
                 <Card withBorder>
                     <Group justify="space-between" mb="md">
@@ -388,48 +979,6 @@ export const DashboardPage = () => {
                     </Stack>
                 </Card>
             </SimpleGrid>
-
-            {role === 'trainer' ? (
-                <Card withBorder>
-                    <Group justify="space-between" mb="md">
-                        <Stack gap={0}>
-                            <Text c="dimmed">{t('common.trainerNotes')}</Text>
-                            <Title order={4}>{t('dashboard.notesTitle')}</Title>
-                        </Stack>
-                        <Button leftSection={<IconWriting size={16} />} onClick={() => openNoteModal()}>
-                            {t('common.add')}
-                        </Button>
-                    </Group>
-                    <Stack gap="sm">
-                        {trainerNotes.length === 0 ? <Text c="dimmed">{t('dashboard.emptyNotes')}</Text> : null}
-                        {trainerNotes.map((note) => (
-                            <Card key={note.id} withBorder padding="md">
-                                <Group justify="space-between" align="flex-start">
-                                    <Stack gap={4} flex={1}>
-                                        <Text fw={600}>{note.title}</Text>
-                                        <Text size="sm">{note.content}</Text>
-                                        <Text size="xs" c="dimmed">
-                                            {dayjs(note.updatedAt).format('DD MMM YYYY, HH:mm')}
-                                        </Text>
-                                    </Stack>
-                                    <Group gap="xs">
-                                        <ActionIcon variant="subtle" onClick={() => { setNoteDraft(note); openNoteModal() }}>
-                                            <IconDotsVertical size={16} />
-                                        </ActionIcon>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="red"
-                                            onClick={() => dispatch(removeTrainerNote(note.id))}
-                                        >
-                                            <IconTrash size={16} />
-                                        </ActionIcon>
-                                    </Group>
-                                </Group>
-                            </Card>
-                        ))}
-                    </Stack>
-                </Card>
-            ) : null}
 
             <Drawer
                 opened={configurationOpened}
@@ -527,6 +1076,43 @@ export const DashboardPage = () => {
                             {t('common.cancel')}
                         </Button>
                         <Button onClick={handleSaveNote}>{t('common.save')}</Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal opened={goalModalOpened} onClose={closeGoalModal} title={t('dashboard.bodyOverview.setGoal')} size="md">
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        {goalMetricId === 'weight' && t('dashboard.bodyOverview.weight')}
+                        {goalMetricId === 'sleep' && t('dashboard.bodyOverview.sleep')}
+                        {goalMetricId === 'heartRate' && t('dashboard.bodyOverview.heartRate')}
+                        {goalMetricId === 'steps' && t('dashboard.bodyOverview.steps')}
+                    </Text>
+                    <NumberInput
+                        label={t('dashboard.bodyOverview.goal')}
+                        placeholder={t('dashboard.bodyOverview.goalPlaceholder')}
+                        value={goalValue}
+                        onChange={(value) => setGoalValue(typeof value === 'number' ? value : 0)}
+                        suffix={
+                            goalMetricId === 'weight'
+                                ? t('dashboard.bodyOverview.weightUnit')
+                                : goalMetricId === 'sleep'
+                                    ? t('dashboard.bodyOverview.sleepUnit')
+                                    : goalMetricId === 'heartRate'
+                                        ? t('dashboard.bodyOverview.heartRateUnit')
+                                        : goalMetricId === 'steps'
+                                            ? t('dashboard.bodyOverview.stepsUnit')
+                                            : ''
+                        }
+                        min={0}
+                        step={goalMetricId === 'weight' ? 0.1 : goalMetricId === 'sleep' ? 0.5 : goalMetricId === 'heartRate' ? 1 : goalMetricId === 'steps' ? 100 : 1}
+                        decimalScale={goalMetricId === 'weight' || goalMetricId === 'sleep' ? 1 : 0}
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={closeGoalModal}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button onClick={handleSaveGoal}>{t('common.save')}</Button>
                     </Group>
                 </Stack>
             </Modal>

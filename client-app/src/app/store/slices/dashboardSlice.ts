@@ -19,12 +19,18 @@ export interface TrainerNote {
     updatedAt: string
 }
 
+export interface MetricGoal {
+    metricId: string
+    value: number
+}
+
 interface DashboardState {
     tiles: DashboardTile[]
     availableTiles: DashboardTile[]
     period: MetricPeriod
     trainerNotes: TrainerNote[]
     configurationOpened: boolean
+    metricGoals: Record<string, number>
 }
 
 const sampleTiles: DashboardTile[] = [
@@ -112,6 +118,10 @@ const initialState: DashboardState = {
     period: '7d',
     trainerNotes,
     configurationOpened: false,
+    metricGoals: {
+        weight: 72.0,
+        sleep: 8.0,
+    },
 }
 
 const dashboardSlice = createSlice({
@@ -157,6 +167,9 @@ const dashboardSlice = createSlice({
         closeConfiguration(state) {
             state.configurationOpened = false
         },
+        setMetricGoal(state, action: PayloadAction<{ metricId: string; value: number }>) {
+            state.metricGoals[action.payload.metricId] = action.payload.value
+        },
     },
 })
 
@@ -168,6 +181,7 @@ export const {
     removeTrainerNote,
     openConfiguration,
     closeConfiguration,
+    setMetricGoal,
 } = dashboardSlice.actions
 export default dashboardSlice.reducer
 

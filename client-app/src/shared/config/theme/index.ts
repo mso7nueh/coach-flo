@@ -6,6 +6,30 @@
 import type { MantineThemeOverride, MantineTheme } from '@mantine/core'
 import { PRIMARY_COLOR, SHADOWS, RADIUS, getGradient } from './colors'
 
+const buildFieldStyles = (theme: MantineTheme) => ({
+  label: {
+    fontWeight: 600,
+    color: theme.colors.gray[7],
+    marginBottom: theme.spacing.xs,
+    fontSize: theme.fontSizes.sm,
+  },
+  input: {
+    borderColor: theme.colors.gray[3],
+    backgroundColor: 'rgba(248, 249, 255, 0.9)',
+    borderWidth: 1.5,
+    transition: 'all 0.2s ease',
+    boxShadow: 'inset 0 1px 2px rgba(15, 23, 42, 0.05)',
+    '&::placeholder': {
+      color: theme.colors.gray[5],
+    },
+    '&:focus, &:focus-within': {
+      borderColor: theme.colors[PRIMARY_COLOR][5],
+      boxShadow: `0 0 0 3px rgba(129, 140, 248, 0.2)`,
+      backgroundColor: 'white',
+    },
+  },
+})
+
 export const theme: MantineThemeOverride = {
   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
   primaryColor: PRIMARY_COLOR,
@@ -111,38 +135,116 @@ export const theme: MantineThemeOverride = {
     TextInput: {
       defaultProps: {
         radius: 'md',
+        variant: 'filled',
       },
-      styles: (theme: MantineTheme) => ({
-        input: {
-          borderColor: theme.colors.gray[3],
-          transition: 'all 0.2s ease-in-out',
-          '&:focus': {
-            borderColor: theme.colors[PRIMARY_COLOR][6],
-            boxShadow: `0 0 0 3px ${theme.colors[PRIMARY_COLOR][0]}`,
-          },
-        },
-      }),
+      styles: (theme: MantineTheme) => buildFieldStyles(theme),
+    },
+    
+    PasswordInput: {
+      defaultProps: {
+        radius: 'md',
+        variant: 'filled',
+      },
+      styles: (theme: MantineTheme) => buildFieldStyles(theme),
+    },
+    
+    NumberInput: {
+      defaultProps: {
+        radius: 'md',
+        variant: 'filled',
+      },
+      styles: (theme: MantineTheme) => buildFieldStyles(theme),
     },
     
     Select: {
       defaultProps: {
         radius: 'md',
+        variant: 'filled',
       },
+      styles: (theme: MantineTheme) => buildFieldStyles(theme),
+    },
+    
+    Textarea: {
+      defaultProps: {
+        radius: 'md',
+        variant: 'filled',
+        minRows: 3,
+      },
+      styles: (theme: MantineTheme) => buildFieldStyles(theme),
+    },
+    
+    DateInput: {
+      defaultProps: {
+        radius: 'md',
+        variant: 'filled',
+      },
+      styles: (theme: MantineTheme) => buildFieldStyles(theme),
+    },
+    
+    TimeInput: {
+      defaultProps: {
+        radius: 'md',
+        variant: 'filled',
+      },
+      styles: (theme: MantineTheme) => buildFieldStyles(theme),
     },
     
     Modal: {
       defaultProps: {
-        radius: 'lg',
+        radius: 'xl',
+        padding: 'xl',
         overlayProps: {
-          backgroundOpacity: 0.55,
-          blur: 3,
+          color: '#0b0c16',
+          backgroundOpacity: 0.65,
+          blur: 6,
+        },
+        transitionProps: {
+          transition: 'pop',
+          duration: 200,
         },
       },
-      styles: {
+      styles: (theme: MantineTheme) => ({
         content: {
-          boxShadow: SHADOWS.xl,
+          border: `1px solid ${theme.colors.gray[2]}`,
+          background: theme.white,
+          boxShadow: '0 25px 70px rgba(21, 21, 43, 0.18)',
+          position: 'relative',
+          overflow: 'hidden',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            opacity: 0.07,
+            backgroundImage: `linear-gradient(135deg, ${theme.colors[PRIMARY_COLOR][5]} 0%, ${theme.colors.pink[4]} 100%)`,
+            pointerEvents: 'none',
+          },
         },
-      },
+        header: {
+          paddingBottom: theme.spacing.sm,
+          marginBottom: theme.spacing.xs,
+          borderBottom: `1px solid ${theme.colors.gray[2]}`,
+        },
+        title: {
+          fontWeight: 700,
+          fontSize: theme.fontSizes.xl,
+          color: theme.colors.gray[8],
+        },
+        body: {
+          paddingTop: theme.spacing.sm,
+          position: 'relative',
+        },
+        close: {
+          color: theme.colors.gray[6],
+          borderRadius: '50%',
+          border: `1px solid ${theme.colors.gray[2]}`,
+          backgroundColor: theme.white,
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            backgroundColor: theme.colors[PRIMARY_COLOR][0],
+            color: theme.colors[PRIMARY_COLOR][6],
+          },
+        },
+      }),
     },
     
     Drawer: {

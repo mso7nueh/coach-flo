@@ -41,6 +41,9 @@ interface MetricsState {
   bodyMetricEntries: BodyMetricEntry[]
   exerciseMetrics: ExerciseMetricDescriptor[]
   exerciseMetricEntries: ExerciseMetricEntry[]
+  bodyMetricGoals: Record<string, number>
+  exerciseMetricGoals: Record<string, { weight?: number; repetitions?: number }>
+  bodyMetricStartValues: Record<string, number>
 }
 
 const today = dayjs()
@@ -91,6 +94,12 @@ const initialState: MetricsState = {
   bodyMetricEntries: bodyEntries,
   exerciseMetrics: exerciseDescriptors,
   exerciseMetricEntries: exerciseEntries,
+  bodyMetricGoals: {
+    weight: 72.0,
+    sleep: 8.0,
+  },
+  exerciseMetricGoals: {},
+  bodyMetricStartValues: {},
 }
 
 const metricsSlice = createSlice({
@@ -142,6 +151,23 @@ const metricsSlice = createSlice({
         state.exerciseMetricEntries[index] = action.payload
       }
     },
+    setBodyMetricGoal(state, action: PayloadAction<{ metricId: string; value: number }>) {
+      state.bodyMetricGoals[action.payload.metricId] = action.payload.value
+    },
+    setExerciseMetricGoal(state, action: PayloadAction<{ exerciseId: string; weight?: number; repetitions?: number }>) {
+      if (!state.exerciseMetricGoals[action.payload.exerciseId]) {
+        state.exerciseMetricGoals[action.payload.exerciseId] = {}
+      }
+      if (action.payload.weight !== undefined) {
+        state.exerciseMetricGoals[action.payload.exerciseId].weight = action.payload.weight
+      }
+      if (action.payload.repetitions !== undefined) {
+        state.exerciseMetricGoals[action.payload.exerciseId].repetitions = action.payload.repetitions
+      }
+    },
+    setBodyMetricStartValue(state, action: PayloadAction<{ metricId: string; value: number }>) {
+      state.bodyMetricStartValues[action.payload.metricId] = action.payload.value
+    },
   },
 })
 
@@ -153,6 +179,9 @@ export const {
   addExerciseMetric,
   addExerciseEntry,
   updateExerciseEntry,
+  setBodyMetricGoal,
+  setExerciseMetricGoal,
+  setBodyMetricStartValue,
 } = metricsSlice.actions
 export default metricsSlice.reducer
 

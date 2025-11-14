@@ -17,7 +17,7 @@ import {
   UnstyledButton,
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
-import { IconPlus, IconCalendarCheck } from '@tabler/icons-react'
+import { IconActivity, IconAdjustments, IconCalendarCheck, IconPlus, IconScale, IconTarget } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
@@ -40,6 +40,8 @@ import {
   setMetricsPeriod,
   addBodyMetricEntry,
   addExerciseEntry,
+  setBodyMetricGoal,
+  setExerciseMetricGoal,
 } from '@/app/store/slices/metricsSlice'
 import { useDisclosure } from '@mantine/hooks'
 
@@ -67,7 +69,7 @@ interface ExerciseMetricForm {
 export const MetricsPage = () => {
   const { t } = useTranslation()
   const dispatch = useAppDispatch()
-  const { bodyMetrics, bodyMetricEntries, exerciseMetrics, exerciseMetricEntries, period } = useAppSelector(
+  const { bodyMetrics, bodyMetricEntries, exerciseMetrics, exerciseMetricEntries, period, bodyMetricGoals, exerciseMetricGoals, bodyMetricStartValues } = useAppSelector(
     (state) => state.metrics,
   )
   const [selectedMetricId, setSelectedMetricId] = useState<string | null>(bodyMetrics[0]?.id ?? null)
@@ -75,6 +77,13 @@ export const MetricsPage = () => {
   const [bodyModalOpened, { open: openBodyModal, close: closeBodyModal }] = useDisclosure(false)
   const [exerciseModalOpened, { open: openExerciseModal, close: closeExerciseModal }] = useDisclosure(false)
   const [bulkModalOpened, { open: openBulkModal, close: closeBulkModal }] = useDisclosure(false)
+  const [bodyGoalModalOpened, { open: openBodyGoalModal, close: closeBodyGoalModal }] = useDisclosure(false)
+  const [exerciseGoalModalOpened, { open: openExerciseGoalModal, close: closeExerciseGoalModal }] = useDisclosure(false)
+  const [goalMetricId, setGoalMetricId] = useState<string | null>(null)
+  const [goalValue, setGoalValue] = useState<number>(0)
+  const [goalExerciseId, setGoalExerciseId] = useState<string | null>(null)
+  const [goalWeight, setGoalWeight] = useState<number>(0)
+  const [goalRepetitions, setGoalRepetitions] = useState<number>(0)
   const [bodyForm, setBodyForm] = useState<BodyMetricForm>({
     metricId: bodyMetrics[0]?.id ?? '',
     value: 0,
@@ -88,6 +97,14 @@ export const MetricsPage = () => {
     sets: 1,
   })
   const [bulkForm, setBulkForm] = useState<Record<string, number>>({})
+  const selectedMetricForModal = useMemo(
+    () => bodyMetrics.find((metric) => metric.id === bodyForm.metricId),
+    [bodyMetrics, bodyForm.metricId],
+  )
+  const selectedExerciseForModal = useMemo(
+    () => exerciseMetrics.find((exercise) => exercise.id === exerciseForm.exerciseId),
+    [exerciseMetrics, exerciseForm.exerciseId],
+  )
 
   const getFilteredEntries = (metricId: string, entries: typeof bodyMetricEntries) => {
     const filtered = entries.filter((entry) => entry.metricId === metricId).sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
@@ -111,6 +128,30 @@ export const MetricsPage = () => {
     }))
   }, [selectedMetric, bodyMetricEntries, period])
 
+  const bodyChartDomain = useMemo(() => {
+    if (!selectedMetric || chartData.length === 0) return undefined
+    const values = chartData.map((d) => d.value)
+    const minValue = Math.min(...values)
+    const maxValue = Math.max(...values)
+    const goal = bodyMetricGoals[selectedMetric.id]
+    
+    if (goal !== undefined && goal !== null) {
+      const allValues = [...values, goal]
+      const allMin = Math.min(...allValues)
+      const allMax = Math.max(...allValues)
+      const range = allMax - allMin || 1
+      const padding = Math.max(range * 0.15, (allMax - allMin) * 0.1)
+      const center = (allMin + allMax) / 2
+      const domainMin = Math.max(0, center - range / 2 - padding)
+      const domainMax = center + range / 2 + padding
+      return [domainMin, domainMax]
+    }
+    
+    const range = maxValue - minValue || 1
+    const padding = Math.max(range * 0.15, (maxValue - minValue) * 0.1)
+    return [Math.max(0, minValue - padding), maxValue + padding]
+  }, [chartData, selectedMetric, bodyMetricGoals])
+
   const selectedExercise = useMemo(() => exerciseMetrics.find((e) => e.id === selectedExerciseId) ?? null, [exerciseMetrics, selectedExerciseId])
 
   const exerciseChartData = useMemo(() => {
@@ -132,18 +173,47 @@ export const MetricsPage = () => {
     }))
   }, [selectedExercise, exerciseMetricEntries, period])
 
+  const exerciseChartDomain = useMemo(() => {
+    if (!selectedExercise || exerciseChartData.length === 0) return undefined
+    const weights = exerciseChartData.map((d) => d.weight)
+    const minWeight = Math.min(...weights)
+    const maxWeight = Math.max(...weights)
+    const goal = exerciseMetricGoals[selectedExercise.id]?.weight
+    
+    if (goal !== undefined && goal !== null) {
+      const allWeights = [...weights, goal]
+      const allMin = Math.min(...allWeights)
+      const allMax = Math.max(...allWeights)
+      const range = allMax - allMin || 1
+      const padding = Math.max(range * 0.15, (allMax - allMin) * 0.1)
+      const center = (allMin + allMax) / 2
+      const domainMin = Math.max(0, center - range / 2 - padding)
+      const domainMax = center + range / 2 + padding
+      return [domainMin, domainMax]
+    }
+    
+    const range = maxWeight - minWeight || 1
+    const padding = Math.max(range * 0.15, (maxWeight - minWeight) * 0.1)
+    return [Math.max(0, minWeight - padding), maxWeight + padding]
+  }, [exerciseChartData, selectedExercise, exerciseMetricGoals])
+
   const latestBodyValues = useMemo(() => {
     return bodyMetrics.map((metric) => {
       const entries = bodyMetricEntries
         .filter((entry) => entry.metricId === metric.id)
-        .sort((a, b) => dayjs(b.recordedAt).diff(dayjs(a.recordedAt)))
+        .sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
+      const sortedByDate = [...entries].sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
+      const startValue = sortedByDate[0]
+      const latestEntries = [...entries].sort((a, b) => dayjs(b.recordedAt).diff(dayjs(a.recordedAt)))
+      
       return {
         metric,
-        latest: entries[0],
-        history: entries.slice(0, 6),
+        latest: latestEntries[0],
+        start: startValue ? { value: startValue.value, recordedAt: startValue.recordedAt } : bodyMetricStartValues[metric.id] ? { value: bodyMetricStartValues[metric.id], recordedAt: '' } : null,
+        history: latestEntries.slice(0, 6),
       }
     })
-  }, [bodyMetrics, bodyMetricEntries])
+  }, [bodyMetrics, bodyMetricEntries, bodyMetricStartValues])
 
   const exerciseSummaries = useMemo(() => {
     return exerciseMetrics.map((exercise) => {
@@ -226,6 +296,39 @@ export const MetricsPage = () => {
     closeBulkModal()
   }
 
+  const handleOpenBodyGoalModal = (metricId: string) => {
+    setGoalMetricId(metricId)
+    setGoalValue(bodyMetricGoals[metricId] ?? 0)
+    openBodyGoalModal()
+  }
+
+  const handleSaveBodyGoal = () => {
+    if (goalMetricId) {
+      dispatch(setBodyMetricGoal({ metricId: goalMetricId, value: goalValue }))
+      closeBodyGoalModal()
+      setGoalMetricId(null)
+      setGoalValue(0)
+    }
+  }
+
+  const handleOpenExerciseGoalModal = (exerciseId: string) => {
+    setGoalExerciseId(exerciseId)
+    const goals = exerciseMetricGoals[exerciseId]
+    setGoalWeight(goals?.weight ?? 0)
+    setGoalRepetitions(goals?.repetitions ?? 0)
+    openExerciseGoalModal()
+  }
+
+  const handleSaveExerciseGoal = () => {
+    if (goalExerciseId) {
+      dispatch(setExerciseMetricGoal({ exerciseId: goalExerciseId, weight: goalWeight || undefined, repetitions: goalRepetitions || undefined }))
+      closeExerciseGoalModal()
+      setGoalExerciseId(null)
+      setGoalWeight(0)
+      setGoalRepetitions(0)
+    }
+  }
+
   return (
     <Stack gap="xl">
       <Group justify="space-between" align="flex-start">
@@ -234,14 +337,14 @@ export const MetricsPage = () => {
           <Title order={2}>{t('metricsPage.bodyMetrics')}</Title>
         </Stack>
         <Group gap="md">
-          <SegmentedControl
-            value={period}
-            onChange={(value) => dispatch(setMetricsPeriod(value as typeof period))}
-            data={periodSegments.map((segment) => ({
-              label: t(`metricsPage.period.${segment.value}`),
-              value: segment.value,
-            }))}
-          />
+        <SegmentedControl
+          value={period}
+          onChange={(value) => dispatch(setMetricsPeriod(value as typeof period))}
+          data={periodSegments.map((segment) => ({
+            label: t(`metricsPage.period.${segment.value}`),
+            value: segment.value,
+          }))}
+        />
           <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openBulkModal}>
             {t('metricsPage.bulkUpdate')}
           </Button>
@@ -268,7 +371,10 @@ export const MetricsPage = () => {
                   <Stack gap="xs">
                     {bodyMetrics.map((metric) => {
                       const isSelected = metric.id === selectedMetricId
-                      const latest = latestBodyValues.find((v) => v.metric.id === metric.id)?.latest
+                      const metricData = latestBodyValues.find((v) => v.metric.id === metric.id)
+                      const latest = metricData?.latest
+                      const start = metricData?.start
+                      const goal = bodyMetricGoals[metric.id]
                       return (
                         <UnstyledButton
                           key={metric.id}
@@ -282,24 +388,35 @@ export const MetricsPage = () => {
                           }}
                         >
                           <Stack gap={4}>
-                            <Group justify="space-between">
+                    <Group justify="space-between">
                               <Text fw={600} size="sm">
                                 {metric.label}
                               </Text>
-                              {metric.latestChange !== undefined && (
-                                <Badge
-                                  size="xs"
-                                  variant={metric.latestChange >= 0 ? 'light' : 'filled'}
-                                  color={metric.latestChange >= 0 ? 'green' : 'red'}
-                                >
-                                  {metric.latestChange > 0 ? '+' : ''}
-                                  {metric.latestChange} {metric.unit}
-                                </Badge>
-                              )}
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color="gray"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleOpenBodyGoalModal(metric.id)
+                                }}
+                              >
+                                <IconTarget size={14} />
+                              </ActionIcon>
                             </Group>
                             <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
                               {latest ? `${latest.value.toFixed(2)} ${metric.unit}` : `— ${metric.unit}`}
                             </Text>
+                            {start && (
+                              <Text size="xs" c="dimmed">
+                                {t('metricsPage.startValue')}: {start.value.toFixed(2)} {metric.unit}
+                              </Text>
+                            )}
+                            {goal && (
+                              <Badge variant="dot" size="xs" color="violet">
+                                {t('metricsPage.goal')}: {goal.toFixed(2)} {metric.unit}
+                              </Badge>
+                            )}
                             {latest && (
                               <Text size="xs" c="dimmed">
                                 {dayjs(latest.recordedAt).format('D MMM YYYY')}
@@ -324,51 +441,71 @@ export const MetricsPage = () => {
                         <Badge variant="light" size="lg">
                           {selectedMetric.unit}
                         </Badge>
+                        {bodyMetricGoals[selectedMetric.id] && (
+                          <Badge variant="dot" color="violet">
+                            {t('metricsPage.goal')}: {bodyMetricGoals[selectedMetric.id].toFixed(2)} {selectedMetric.unit}
+                          </Badge>
+                        )}
+                        {latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.start && (
+                          <Badge variant="light" color="gray">
+                            {t('metricsPage.startValue')}: {latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.start?.value.toFixed(2)} {selectedMetric.unit}
+                          </Badge>
+                        )}
                       </Group>
-                      <Button
-                        variant="light"
-                        color="violet"
-                        leftSection={<IconCalendarCheck size={16} />}
-                        onClick={() => {
-                          const today = new Date()
-                          const existingEntry = bodyMetricEntries
-                            .filter((entry) => entry.metricId === selectedMetric.id)
-                            .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(today), 'day'))
-                          
-                          const latestEntry = latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.latest
-                          
-                          if (existingEntry) {
-                            setBodyForm({
-                              metricId: selectedMetric.id,
-                              value: existingEntry.value,
-                              recordedAt: today,
-                            })
-                          } else if (latestEntry) {
-                            setBodyForm({
-                              metricId: selectedMetric.id,
-                              value: latestEntry.value,
-                              recordedAt: today,
-                            })
-                          } else {
-                            setBodyForm({
-                              metricId: selectedMetric.id,
-                              value: 0,
-                              recordedAt: today,
-                            })
-                          }
-                          openBodyModal()
-                        }}
-                      >
+                      <Group gap="xs">
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconTarget size={14} />}
+                          onClick={() => handleOpenBodyGoalModal(selectedMetric.id)}
+                        >
+                          {t('metricsPage.setGoal')}
+                        </Button>
+                        <Button
+                          variant="light"
+                          color="violet"
+                          leftSection={<IconCalendarCheck size={16} />}
+                          onClick={() => {
+                            const today = new Date()
+                            const existingEntry = bodyMetricEntries
+                              .filter((entry) => entry.metricId === selectedMetric.id)
+                              .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(today), 'day'))
+                            
+                            const latestEntry = latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.latest
+                            
+                            if (existingEntry) {
+                              setBodyForm({
+                                metricId: selectedMetric.id,
+                                value: existingEntry.value,
+                                recordedAt: today,
+                              })
+                            } else if (latestEntry) {
+                              setBodyForm({
+                                metricId: selectedMetric.id,
+                                value: latestEntry.value,
+                                recordedAt: today,
+                              })
+                            } else {
+                              setBodyForm({
+                                metricId: selectedMetric.id,
+                                value: 0,
+                                recordedAt: today,
+                              })
+                            }
+                            openBodyModal()
+                          }}
+                        >
                         {bodyMetricEntries
                           .filter((entry) => entry.metricId === selectedMetric.id)
                           .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(), 'day'))
                           ? t('metricsPage.updateToday')
                           : t('metricsPage.addToday')}
                       </Button>
+                      </Group>
                     </Group>
                     {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={400}>
-                        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <AreaChart data={chartData} margin={{ top: 10, right: 80, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id={`colorGradient-${selectedMetric.id}`} x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#7950f2" stopOpacity={0.4} />
@@ -389,6 +526,7 @@ export const MetricsPage = () => {
                             tickLine={false}
                             axisLine={false}
                             width={60}
+                            domain={bodyChartDomain}
                           />
                           <Tooltip
                             contentStyle={{
@@ -424,12 +562,30 @@ export const MetricsPage = () => {
                             animationEasing="ease-out"
                             name={selectedMetric.label}
                           />
-                          {selectedMetric.target && (
+                          {bodyMetricGoals[selectedMetric.id] && (
                             <ReferenceLine
-                              y={selectedMetric.target}
-                              stroke="#22c55e"
-                              strokeDasharray="5 5"
-                              label={{ value: `Цель: ${selectedMetric.target}`, position: 'right', fill: '#22c55e' }}
+                              y={bodyMetricGoals[selectedMetric.id]}
+                              stroke="#7c3aed"
+                              strokeWidth={2}
+                              strokeDasharray="6 4"
+                              strokeOpacity={0.7}
+                              label={{
+                                value: `${t('metricsPage.goal')}: ${bodyMetricGoals[selectedMetric.id].toFixed(2)} ${selectedMetric.unit}`,
+                                position: 'insideTopRight',
+                                fill: '#7c3aed',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                offset: 5,
+                              }}
+                            />
+                          )}
+                          {latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.start && (
+                            <ReferenceLine
+                              y={latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.start?.value}
+                              stroke="#94a3b8"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              strokeOpacity={0.5}
                             />
                           )}
                         </AreaChart>
@@ -438,7 +594,7 @@ export const MetricsPage = () => {
                       <Stack gap="md" align="center" py="xl">
                         <Text c="dimmed" size="lg">
                           {t('metricsPage.noData')}
-                        </Text>
+                    </Text>
                         <Button leftSection={<IconPlus size={16} />} onClick={openBodyModal}>
                           {t('metricsPage.addValue')}
                         </Button>
@@ -448,8 +604,8 @@ export const MetricsPage = () => {
                 ) : (
                   <Text c="dimmed">{t('metricsPage.selectMetric')}</Text>
                 )}
-              </Stack>
-            </Card>
+                  </Stack>
+                </Card>
           </Group>
         </Tabs.Panel>
 
@@ -471,6 +627,11 @@ export const MetricsPage = () => {
                       const todayEntry = exerciseMetricEntries
                         .filter((entry) => entry.exerciseId === exercise.id)
                         .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
+                      const entries = exerciseMetricEntries
+                        .filter((entry) => entry.exerciseId === exercise.id)
+                        .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
+                      const startValue = entries[0]
+                      const goals = exerciseMetricGoals[exercise.id]
                       
                       return (
                         <UnstyledButton
@@ -496,13 +657,36 @@ export const MetricsPage = () => {
                                   </Badge>
                                 )}
                               </Group>
-                              <Badge size="xs" variant="light">
-                                {exercise.muscleGroup}
-                              </Badge>
-                            </Group>
+                              <Group gap="xs">
+                                <ActionIcon
+                                  size="xs"
+                                  variant="subtle"
+                                  color="gray"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenExerciseGoalModal(exercise.id)
+                                  }}
+                                >
+                                  <IconTarget size={14} />
+                                </ActionIcon>
+                                <Badge size="xs" variant="light">
+                                  {exercise.muscleGroup}
+                                </Badge>
+                </Group>
+              </Group>
                             <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
                               {summary?.latest ? `${summary.latest.weight.toFixed(2)} кг` : '— кг'}
-                            </Text>
+                          </Text>
+                            {startValue && (
+                              <Text size="xs" c="dimmed">
+                                {t('metricsPage.startValue')}: {startValue.weight.toFixed(2)} кг
+                              </Text>
+                            )}
+                            {goals?.weight && (
+                              <Badge variant="dot" size="xs" color="violet">
+                                {t('metricsPage.goal')}: {goals.weight.toFixed(2)} кг
+                              </Badge>
+                            )}
                             {summary?.latest && (
                               <Group justify="space-between" align="center">
                                 <Text size="xs" c="dimmed">
@@ -562,7 +746,7 @@ export const MetricsPage = () => {
             </Card>
 
             <Card withBorder style={{ flex: 1 }} padding="xl">
-              <Stack gap="lg">
+          <Stack gap="lg">
                 {selectedExercise ? (
                   <>
                     <Group justify="space-between" align="center">
@@ -571,46 +755,69 @@ export const MetricsPage = () => {
                         <Badge variant="light" size="lg">
                           {selectedExercise.muscleGroup}
                         </Badge>
+                        {exerciseMetricGoals[selectedExercise.id]?.weight && (
+                          <Badge variant="dot" color="violet">
+                            {t('metricsPage.goal')}: {exerciseMetricGoals[selectedExercise.id]?.weight?.toFixed(2)} кг
+                          </Badge>
+                        )}
+                        {exerciseMetricEntries
+                          .filter((entry) => entry.exerciseId === selectedExercise.id)
+                          .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0] && (
+                          <Badge variant="light" color="gray">
+                            {t('metricsPage.startValue')}: {exerciseMetricEntries
+                              .filter((entry) => entry.exerciseId === selectedExercise.id)
+                              .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0].weight.toFixed(2)} кг
+                          </Badge>
+                        )}
                       </Group>
-                      <Button
-                        variant="light"
-                        color="violet"
-                        leftSection={<IconCalendarCheck size={16} />}
-                        onClick={() => {
-                          const today = new Date()
-                          const existingEntry = exerciseMetricEntries
-                            .filter((entry) => entry.exerciseId === selectedExercise.id)
-                            .find((entry) => dayjs(entry.date).isSame(dayjs(today), 'day'))
-                          
-                          const summary = exerciseSummaries.find((s) => s.exercise.id === selectedExercise.id)
-                          
-                          if (existingEntry) {
-                            setExerciseForm({
-                              exerciseId: selectedExercise.id,
-                              date: today,
-                              weight: existingEntry.weight,
-                              repetitions: existingEntry.repetitions,
-                              sets: existingEntry.sets,
-                            })
-                          } else if (summary?.latest) {
-                            setExerciseForm({
-                              exerciseId: selectedExercise.id,
-                              date: today,
-                              weight: summary.latest.weight,
-                              repetitions: summary.latest.repetitions,
-                              sets: summary.latest.sets,
-                            })
-                          } else {
-                            setExerciseForm({
-                              exerciseId: selectedExercise.id,
-                              date: today,
-                              weight: 0,
-                              repetitions: 0,
-                              sets: 1,
-                            })
-                          }
-                          openExerciseModal()
-                        }}
+                      <Group gap="xs">
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconTarget size={14} />}
+                          onClick={() => handleOpenExerciseGoalModal(selectedExercise.id)}
+                        >
+                          {t('metricsPage.setGoal')}
+                        </Button>
+                        <Button
+                          variant="light"
+                          color="violet"
+                          leftSection={<IconCalendarCheck size={16} />}
+                          onClick={() => {
+                            const today = new Date()
+                            const existingEntry = exerciseMetricEntries
+                              .filter((entry) => entry.exerciseId === selectedExercise.id)
+                              .find((entry) => dayjs(entry.date).isSame(dayjs(today), 'day'))
+                            
+                            const summary = exerciseSummaries.find((s) => s.exercise.id === selectedExercise.id)
+                            
+                            if (existingEntry) {
+                              setExerciseForm({
+                                exerciseId: selectedExercise.id,
+                                date: today,
+                                weight: existingEntry.weight,
+                                repetitions: existingEntry.repetitions,
+                                sets: existingEntry.sets,
+                              })
+                            } else if (summary?.latest) {
+                              setExerciseForm({
+                                exerciseId: selectedExercise.id,
+                                date: today,
+                                weight: summary.latest.weight,
+                                repetitions: summary.latest.repetitions,
+                                sets: summary.latest.sets,
+                              })
+                            } else {
+                              setExerciseForm({
+                                exerciseId: selectedExercise.id,
+                                date: today,
+                                weight: 0,
+                                repetitions: 0,
+                                sets: 1,
+                              })
+                            }
+                            openExerciseModal()
+                          }}
                       >
                         {exerciseMetricEntries
                           .filter((entry) => entry.exerciseId === selectedExercise.id)
@@ -618,10 +825,11 @@ export const MetricsPage = () => {
                           ? t('metricsPage.updateToday')
                           : t('metricsPage.addToday')}
                       </Button>
+                      </Group>
                     </Group>
                     {exerciseChartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={400}>
-                        <LineChart data={exerciseChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <LineChart data={exerciseChartData} margin={{ top: 10, right: 80, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#667eea" stopOpacity={0.3} />
@@ -647,6 +855,7 @@ export const MetricsPage = () => {
                             tickLine={false}
                             axisLine={false}
                             width={60}
+                            domain={exerciseChartDomain}
                           />
                           <YAxis
                             yAxisId="right"
@@ -720,13 +929,45 @@ export const MetricsPage = () => {
                             animationEasing="ease-out"
                             name="repetitions"
                           />
+                          {exerciseMetricGoals[selectedExercise.id]?.weight && (
+                            <ReferenceLine
+                              yAxisId="left"
+                              y={exerciseMetricGoals[selectedExercise.id]?.weight}
+                              stroke="#7c3aed"
+                              strokeWidth={2}
+                              strokeDasharray="6 4"
+                              strokeOpacity={0.7}
+                              label={{
+                                value: `${t('metricsPage.goal')}: ${exerciseMetricGoals[selectedExercise.id]?.weight?.toFixed(2)} кг`,
+                                position: 'insideTopRight',
+                                fill: '#7c3aed',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                offset: 5,
+                              }}
+                            />
+                          )}
+                          {exerciseMetricEntries
+                            .filter((entry) => entry.exerciseId === selectedExercise.id)
+                            .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0] && (
+                            <ReferenceLine
+                              yAxisId="left"
+                              y={exerciseMetricEntries
+                                .filter((entry) => entry.exerciseId === selectedExercise.id)
+                                .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0].weight}
+                              stroke="#94a3b8"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              strokeOpacity={0.5}
+                            />
+                          )}
                         </LineChart>
                       </ResponsiveContainer>
                     ) : (
                       <Stack gap="md" align="center" py="xl">
                         <Text c="dimmed" size="lg">
                           {t('metricsPage.noData')}
-                        </Text>
+                    </Text>
                         <Button leftSection={<IconPlus size={16} />} onClick={openExerciseModal}>
                           {t('metricsPage.addValue')}
                         </Button>
@@ -736,18 +977,41 @@ export const MetricsPage = () => {
                 ) : (
                   <Text c="dimmed">{t('metricsPage.selectExercise')}</Text>
                 )}
-              </Stack>
-            </Card>
+                  </Stack>
+                </Card>
           </Group>
         </Tabs.Panel>
       </Tabs>
 
       <Modal opened={bodyModalOpened} onClose={closeBodyModal} title={t('metricsPage.addValue')} size="md">
         <Stack gap="md">
+          <Card
+            radius="lg"
+            padding="md"
+            withBorder={false}
+            style={{
+              background: 'linear-gradient(135deg, rgba(129, 140, 248, 0.95) 0%, rgba(168, 85, 247, 0.95) 100%)',
+              color: 'white',
+              boxShadow: '0 20px 50px rgba(18, 18, 43, 0.25)',
+            }}
+          >
+            <Group gap="sm" align="flex-start">
+              <ActionIcon size="lg" radius="xl" variant="white" color="dark">
+                <IconScale size={20} />
+              </ActionIcon>
+              <Stack gap={2} style={{ color: 'white' }}>
+                <Text fw={600}>{selectedMetricForModal?.label ?? t('metricsPage.metric')}</Text>
+                <Text size="xs" c="white" style={{ opacity: 0.85 }}>
+                  {t('metricsPage.addValue')}
+                </Text>
+              </Stack>
+            </Group>
+          </Card>
           <Select
             label={t('metricsPage.metric')}
             data={bodyMetrics.map((m) => ({ value: m.id, label: m.label }))}
             value={bodyForm.metricId}
+            leftSection={<IconScale size={16} />}
             onChange={(value) => value && setBodyForm((state) => ({ ...state, metricId: value }))}
             required
           />
@@ -771,6 +1035,7 @@ export const MetricsPage = () => {
             min={0}
             step={0.1}
             required
+            leftSection={<IconActivity size={16} />}
             suffix={` ${bodyMetrics.find((m) => m.id === bodyForm.metricId)?.unit ?? ''}`}
             placeholder={t('metricsPage.valuePlaceholder')}
           />
@@ -780,17 +1045,40 @@ export const MetricsPage = () => {
             </Button>
             <Button onClick={handleAddBodyMetric} disabled={!bodyForm.metricId || !bodyForm.recordedAt || bodyForm.value <= 0}>
               {t('common.save')}
-            </Button>
-          </Group>
-        </Stack>
+                </Button>
+              </Group>
+                        </Stack>
       </Modal>
 
       <Modal opened={exerciseModalOpened} onClose={closeExerciseModal} title={t('metricsPage.addExerciseValue')} size="md">
         <Stack gap="md">
+          <Card
+            radius="lg"
+            padding="md"
+            withBorder={false}
+            style={{
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(147, 51, 234, 0.95) 100%)',
+              color: 'white',
+              boxShadow: '0 20px 50px rgba(18, 18, 43, 0.25)',
+            }}
+          >
+            <Group gap="sm" align="flex-start">
+              <ActionIcon size="lg" radius="xl" variant="white" color="dark">
+                <IconActivity size={20} />
+              </ActionIcon>
+              <Stack gap={2} style={{ color: 'white' }}>
+                <Text fw={600}>{selectedExerciseForModal?.label ?? t('metricsPage.exercise')}</Text>
+                <Text size="xs" c="white" style={{ opacity: 0.85 }}>
+                  {t('metricsPage.addExerciseValue')}
+                            </Text>
+                          </Stack>
+            </Group>
+          </Card>
           <Select
             label={t('metricsPage.exercise')}
             data={exerciseMetrics.map((e) => ({ value: e.id, label: e.label }))}
             value={exerciseForm.exerciseId}
+            leftSection={<IconActivity size={16} />}
             onChange={(value) => value && setExerciseForm((state) => ({ ...state, exerciseId: value }))}
             required
           />
@@ -815,6 +1103,7 @@ export const MetricsPage = () => {
               min={0}
               step={0.5}
               required
+              leftSection={<IconActivity size={16} />}
               suffix=" кг"
               placeholder={t('metricsPage.weightPlaceholder')}
             />
@@ -824,6 +1113,7 @@ export const MetricsPage = () => {
               onChange={(value) => setExerciseForm((state) => ({ ...state, repetitions: Number(value) || 0 }))}
               min={0}
               required
+              leftSection={<IconActivity size={16} />}
               placeholder={t('metricsPage.repetitionsPlaceholder')}
             />
           </Group>
@@ -833,6 +1123,7 @@ export const MetricsPage = () => {
             onChange={(value) => setExerciseForm((state) => ({ ...state, sets: Number(value) || 1 }))}
             min={1}
             required
+            leftSection={<IconAdjustments size={16} />}
             placeholder={t('metricsPage.setsPlaceholder')}
           />
           <Group justify="flex-end">
@@ -851,6 +1142,28 @@ export const MetricsPage = () => {
 
       <Modal opened={bulkModalOpened} onClose={closeBulkModal} title={t('metricsPage.bulkUpdate')} size="lg">
         <Stack gap="md">
+          <Card
+            radius="lg"
+            padding="md"
+            withBorder={false}
+            style={{
+              background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.95) 0%, rgba(59, 130, 246, 0.95) 100%)',
+              color: 'white',
+              boxShadow: '0 20px 50px rgba(18, 18, 43, 0.25)',
+            }}
+          >
+            <Group gap="sm" align="flex-start">
+              <ActionIcon size="lg" radius="xl" variant="white" color="dark">
+                <IconAdjustments size={20} />
+              </ActionIcon>
+              <Stack gap={2} style={{ color: 'white' }}>
+                <Text fw={600}>{t('metricsPage.bulkUpdate')}</Text>
+                <Text size="xs" c="white" style={{ opacity: 0.85 }}>
+                  {t('metricsPage.bulkUpdateDescription')}
+                            </Text>
+                          </Stack>
+            </Group>
+          </Card>
           <Text size="sm" c="dimmed">
             {t('metricsPage.bulkUpdateDescription')}
           </Text>
@@ -867,6 +1180,7 @@ export const MetricsPage = () => {
                     [metric.id]: Number(value) || 0,
                   }))
                 }
+                leftSection={<IconActivity size={16} />}
                 rightSection={<Text size="xs" c="dimmed">{metric.unit}</Text>}
                 min={0}
                 step={0.1}
@@ -880,6 +1194,63 @@ export const MetricsPage = () => {
             <Button onClick={handleBulkAdd}>{t('common.save')}</Button>
           </Group>
         </Stack>
+      </Modal>
+
+      <Modal opened={bodyGoalModalOpened} onClose={closeBodyGoalModal} title={t('metricsPage.setGoal')} size="md">
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {goalMetricId && bodyMetrics.find((m) => m.id === goalMetricId)?.label}
+          </Text>
+          <NumberInput
+            label={t('metricsPage.goal')}
+            placeholder={t('metricsPage.goalPlaceholder')}
+            value={goalValue}
+            onChange={(value) => setGoalValue(typeof value === 'number' ? value : 0)}
+            suffix={goalMetricId ? ` ${bodyMetrics.find((m) => m.id === goalMetricId)?.unit ?? ''}` : ''}
+            min={0}
+            step={goalMetricId === 'weight' || goalMetricId === 'muscleMass' ? 0.1 : goalMetricId === 'sleep' ? 0.5 : 1}
+            decimalScale={goalMetricId === 'weight' || goalMetricId === 'muscleMass' || goalMetricId === 'sleep' ? 1 : 0}
+          />
+          <Group justify="flex-end">
+            <Button variant="default" onClick={closeBodyGoalModal}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSaveBodyGoal}>{t('common.save')}</Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal opened={exerciseGoalModalOpened} onClose={closeExerciseGoalModal} title={t('metricsPage.setGoal')} size="md">
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {goalExerciseId && exerciseMetrics.find((e) => e.id === goalExerciseId)?.label}
+          </Text>
+          <NumberInput
+            label={t('metricsPage.goalWeight')}
+            placeholder={t('metricsPage.goalPlaceholder')}
+            value={goalWeight}
+            onChange={(value) => setGoalWeight(typeof value === 'number' ? value : 0)}
+            suffix=" кг"
+            min={0}
+            step={0.5}
+            decimalScale={1}
+          />
+          <NumberInput
+            label={t('metricsPage.goalRepetitions')}
+            placeholder={t('metricsPage.goalPlaceholder')}
+            value={goalRepetitions}
+            onChange={(value) => setGoalRepetitions(typeof value === 'number' ? value : 0)}
+            min={0}
+            step={1}
+            decimalScale={0}
+          />
+          <Group justify="flex-end">
+            <Button variant="default" onClick={closeExerciseGoalModal}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSaveExerciseGoal}>{t('common.save')}</Button>
+          </Group>
+          </Stack>
       </Modal>
     </Stack>
   )
