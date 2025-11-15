@@ -527,6 +527,7 @@ export const MetricsPage = () => {
                             axisLine={false}
                             width={60}
                             domain={bodyChartDomain}
+                            tickFormatter={(value) => value.toFixed(2)}
                           />
                           <Tooltip
                             contentStyle={{
@@ -856,6 +857,7 @@ export const MetricsPage = () => {
                             axisLine={false}
                             width={60}
                             domain={exerciseChartDomain}
+                            tickFormatter={(value) => value.toFixed(2)}
                           />
                           <YAxis
                             yAxisId="right"
@@ -865,6 +867,7 @@ export const MetricsPage = () => {
                             tickLine={false}
                             axisLine={false}
                             width={60}
+                            tickFormatter={(value) => value.toFixed(0)}
                           />
                           <Tooltip
                             contentStyle={{

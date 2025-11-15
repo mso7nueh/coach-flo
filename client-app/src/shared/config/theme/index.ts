@@ -22,7 +22,7 @@ const buildFieldStyles = (theme: MantineTheme) => ({
     '&::placeholder': {
       color: theme.colors.gray[5],
     },
-    '&:focus, &:focus-within': {
+    '&:focus, &:focusWithin': {
       borderColor: theme.colors[PRIMARY_COLOR][5],
       boxShadow: `0 0 0 3px rgba(129, 140, 248, 0.2)`,
       backgroundColor: 'white',

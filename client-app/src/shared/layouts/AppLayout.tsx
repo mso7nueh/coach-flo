@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
-import { setLocale, switchRole, logout } from '@/app/store/slices/userSlice'
+import { setLocale, logout } from '@/app/store/slices/userSlice'
 import { useId } from 'react'
 import { IconChevronDown, IconLogout, IconSettings, IconUser, IconUserEdit } from '@tabler/icons-react'
 
@@ -18,12 +18,23 @@ export const AppLayout = () => {
     const labelId = useId()
     const location = useLocation()
 
-    const items = [
+    const isClient = role === 'client'
+
+    const clientItems = [
         { to: '/dashboard', label: t('common.dashboard') },
         { to: '/calendar', label: t('common.calendar') },
         { to: '/program', label: t('common.program') },
         { to: '/metrics', label: t('common.metrics') },
     ]
+
+    const trainerItems = [
+        { to: '/trainer/clients', label: t('common.clients') },
+        { to: '/trainer/library', label: t('common.library') },
+        { to: '/trainer/calendar', label: t('common.trainerCalendar') },
+        { to: '/trainer/finances', label: t('common.finances') },
+    ]
+
+    const items = isClient ? clientItems : trainerItems
 
     const handleLocaleChange = (value: 'ru' | 'en') => {
         dispatch(setLocale(value))
@@ -39,7 +50,6 @@ export const AppLayout = () => {
             .slice(0, 2)
     }
 
-    const isClient = role === 'client'
     const headerHeight = isClient ? 70 : 60
 
     return (
@@ -130,7 +140,7 @@ export const AppLayout = () => {
                                                         {user.fullName}
                                                     </Text>
                                                     <Text size="xs" c="dimmed">
-                                                        {t('common.roleClient')}
+                                                        {role === 'client' ? t('common.roleClient') : t('common.roleTrainer')}
                                                     </Text>
                                                 </Stack>
                                                 <IconChevronDown size={16} style={{ opacity: 0.6 }} />
@@ -209,20 +219,6 @@ export const AppLayout = () => {
                                 </Text>
                             </Group>
                             <Group gap="lg">
-                                <Stack gap={2}>
-                                    <Text size="xs" c="dimmed">
-                                        {t('common.roleClient')} / {t('common.roleTrainer')}
-                                    </Text>
-                                    <SegmentedControl
-                                        value={role}
-                                        onChange={(value) => dispatch(switchRole(value as 'client' | 'trainer'))}
-                                        data={[
-                                            { label: t('common.roleClient'), value: 'client' },
-                                            { label: t('common.roleTrainer'), value: 'trainer' },
-                                        ]}
-                                        size="xs"
-                                    />
-                                </Stack>
                                 <SegmentedControl
                                     aria-labelledby={labelId}
                                     value={locale}
@@ -233,6 +229,57 @@ export const AppLayout = () => {
                                     ]}
                                     size="xs"
                                 />
+                                <Menu shadow="md" width={280} position="bottom-end">
+                                    <Menu.Target>
+                                        <UnstyledButton>
+                                            <Group gap="sm">
+                                                <Avatar size="md" color="violet">
+                                                    {getInitials(user.fullName)}
+                                                </Avatar>
+                                                <Stack gap={0} visibleFrom="sm">
+                                                    <Text size="sm" fw={500}>
+                                                        {user.fullName}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {t('common.roleTrainer')}
+                                                    </Text>
+                                                </Stack>
+                                                <IconChevronDown size={16} style={{ opacity: 0.6 }} />
+                                            </Group>
+                                        </UnstyledButton>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        <Menu.Label>
+                                            <Stack gap={4}>
+                                                <Text size="sm" fw={600}>
+                                                    {user.fullName}
+                                                </Text>
+                                                <Text size="xs" c="dimmed">
+                                                    {user.email}
+                                                </Text>
+                                            </Stack>
+                                        </Menu.Label>
+                                        <Divider />
+                                        <Menu.Item leftSection={<IconUser size={16} />} component={NavLink} to="/profile">
+                                            {t('common.profile')}
+                                        </Menu.Item>
+                                        <Menu.Item leftSection={<IconUserEdit size={16} />} component={NavLink} to="/profile/edit">
+                                            {t('common.editProfile')}
+                                        </Menu.Item>
+                                        <Divider />
+                                        <Menu.Item leftSection={<IconSettings size={16} />} component={NavLink} to="/settings">
+                                            {t('common.settings')}
+                                        </Menu.Item>
+                                        <Divider />
+                                        <Menu.Item
+                                            leftSection={<IconLogout size={16} />}
+                                            color="red"
+                                            onClick={() => dispatch(logout())}
+                                        >
+                                            {t('common.logout')}
+                                        </Menu.Item>
+                                    </Menu.Dropdown>
+                                </Menu>
                             </Group>
                         </>
                     )}

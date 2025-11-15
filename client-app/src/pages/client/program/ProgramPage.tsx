@@ -17,7 +17,7 @@ import {
 import { DateInput, TimeInput } from '@mantine/dates'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { useDisclosure } from '@mantine/hooks'
-import { IconCalendar, IconCopy, IconDeviceFloppy, IconDotsVertical, IconEdit, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconCalendar, IconCopy, IconDeviceFloppy, IconDotsVertical, IconEdit, IconPlus, IconTrash, IconFlame, IconClock, IconRepeat, IconBarbell, IconStretching } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -242,20 +242,55 @@ export const ProgramPage = () => {
                     {(dragProvided) => (
                       <Card
                         withBorder
-                        padding="sm"
+                        padding="md"
                         radius="md"
                         ref={dragProvided.innerRef}
                         {...dragProvided.draggableProps}
                         {...dragProvided.dragHandleProps}
                         onClick={() => handleDayClick(day.id)}
-                        bg={day.id === selectedDayId ? 'violet.1' : undefined}
+                        style={{
+                          backgroundColor: day.id === selectedDayId ? 'var(--mantine-color-violet-1)' : 'var(--mantine-color-white)',
+                          borderColor: day.id === selectedDayId ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)',
+                          borderWidth: day.id === selectedDayId ? 2 : 1,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (day.id !== selectedDayId) {
+                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)'
+                            e.currentTarget.style.borderColor = 'var(--mantine-color-violet-3)'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (day.id !== selectedDayId) {
+                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-white)'
+                            e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)'
+                          }
+                        }}
                       >
-                        <Group justify="space-between">
-                          <Text fw={600}>{day.name}</Text>
+                        <Group justify="space-between" align="flex-start">
+                          <Stack gap={4} style={{ flex: 1 }}>
+                            <Group gap="xs">
+                              <Badge 
+                                variant="light" 
+                                color="violet"
+                                size="sm"
+                                style={{ minWidth: '28px', justifyContent: 'center' }}
+                              >
+                                {(day.order ?? index) + 1}
+                              </Badge>
+                              <Text fw={600} size="sm" c={day.id === selectedDayId ? 'violet.7' : 'gray.8'}>
+                                {day.name}
+                              </Text>
+                            </Group>
+                            <Text size="xs" c="dimmed" ml={36}>
+                              {day.blocks.reduce((sum, block) => sum + block.exercises.length, 0)} {t('program.exercises')}
+                            </Text>
+                          </Stack>
                           {role === 'trainer' ? (
                             <Menu position="right-start">
                               <Menu.Target>
-                                <ActionIcon variant="subtle">
+                                <ActionIcon variant="subtle" color="gray">
                                   <IconDotsVertical size={16} />
                                 </ActionIcon>
                               </Menu.Target>
@@ -334,56 +369,207 @@ export const ProgramPage = () => {
                 </Group>
               ) : null}
             </Group>
-            <SimpleGrid cols={{ base: 1, md: 3 }}>
-              {selectedDay.blocks.map((block) => (
-                <Card key={block.id} withBorder>
-                  <Stack gap="md">
-                    <Group justify="space-between">
-                      <Text fw={600}>{t(`program.sections.${block.type}`)}</Text>
-                      <Badge variant="light">{block.exercises.length}</Badge>
-                    </Group>
-                    <Stack gap="sm">
-                      {block.exercises.map((exercise) => (
-                        <Card key={exercise.id} padding="sm" withBorder>
-                          <Group justify="space-between" align="flex-start">
-                            <Stack gap={2} style={{ flex: 1 }}>
-                              <Text fw={600}>{exercise.title}</Text>
-                              <Text size="sm" c="dimmed">
-                                {exercise.sets} {t('program.sets')} × {exercise.reps ?? exercise.duration ?? '-'}
-                                {exercise.rest ? ` · ${t('program.rest')}: ${exercise.rest}` : ''}
-                                {exercise.weight ? ` · ${t('program.weight')}: ${exercise.weight}` : ''}
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+              {selectedDay.blocks.map((block) => {
+                const getBlockConfig = () => {
+                  switch (block.type) {
+                    case 'warmup':
+                      return {
+                        icon: <IconStretching size={24} />,
+                        color: 'blue',
+                        gradient: { from: 'blue.1', to: 'blue.0' },
+                        borderColor: 'blue.3',
+                      }
+                    case 'main':
+                      return {
+                        icon: <IconFlame size={24} />,
+                        color: 'violet',
+                        gradient: { from: 'violet.1', to: 'violet.0' },
+                        borderColor: 'violet.3',
+                      }
+                    case 'cooldown':
+                      return {
+                        icon: <IconStretching size={24} />,
+                        color: 'green',
+                        gradient: { from: 'green.1', to: 'green.0' },
+                        borderColor: 'green.3',
+                      }
+                    default:
+                      return {
+                        icon: <IconBarbell size={24} />,
+                        color: 'gray',
+                        gradient: { from: 'gray.1', to: 'gray.0' },
+                        borderColor: 'gray.3',
+                      }
+                  }
+                }
+                const config = getBlockConfig()
+                
+                return (
+                  <Card 
+                    key={block.id} 
+                    withBorder 
+                    padding="lg"
+                    style={{
+                      borderColor: `var(--mantine-color-${config.borderColor})`,
+                      backgroundColor: `var(--mantine-color-${config.gradient.to})`,
+                    }}
+                  >
+                    <Stack gap="md">
+                      <Group justify="space-between" mb="xs">
+                        <Group gap="sm">
+                          <div style={{ 
+                            padding: '8px', 
+                            borderRadius: '8px', 
+                            backgroundColor: `var(--mantine-color-${config.color}-1)`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                            {config.icon}
+                          </div>
+                          <Text fw={700} size="lg" c={`${config.color}.7`}>
+                            {t(`program.sections.${block.type}`)}
+                          </Text>
+                        </Group>
+                        <Badge 
+                          variant="light" 
+                          color={config.color}
+                          size="lg"
+                          style={{ fontWeight: 600 }}
+                        >
+                          {block.exercises.length}
+                        </Badge>
+                      </Group>
+                      <Stack gap="sm">
+                        {block.exercises.map((exercise, index) => (
+                          <Card 
+                            key={exercise.id} 
+                            padding="md" 
+                            withBorder
+                            style={{
+                              backgroundColor: 'var(--mantine-color-white)',
+                              borderColor: `var(--mantine-color-${config.color}-2)`,
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-2px)'
+                              e.currentTarget.style.boxShadow = 'var(--mantine-shadow-sm)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)'
+                              e.currentTarget.style.boxShadow = 'none'
+                            }}
+                          >
+                            <Group justify="space-between" align="flex-start">
+                              <Stack gap="xs" style={{ flex: 1 }}>
+                                <Group gap="xs">
+                                  <Badge 
+                                    variant="light" 
+                                    color={config.color}
+                                    size="sm"
+                                    style={{ minWidth: '24px', justifyContent: 'center' }}
+                                  >
+                                    {index + 1}
+                                  </Badge>
+                                  <Text fw={600} size="sm">{exercise.title}</Text>
+                                </Group>
+                                <Group gap="md" wrap="wrap">
+                                  {exercise.sets && (
+                                    <Group gap={4}>
+                                      <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
+                                      <Text size="xs" c="dimmed">
+                                        {exercise.sets} {t('program.sets')}
+                                      </Text>
+                                    </Group>
+                                  )}
+                                  {exercise.reps && (
+                                    <Group gap={4}>
+                                      <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                      <Text size="xs" c="dimmed">
+                                        {exercise.reps} {t('program.reps')}
+                                      </Text>
+                                    </Group>
+                                  )}
+                                  {exercise.duration && (
+                                    <Group gap={4}>
+                                      <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                      <Text size="xs" c="dimmed">
+                                        {exercise.duration}
+                                      </Text>
+                                    </Group>
+                                  )}
+                                  {exercise.rest && (
+                                    <Group gap={4}>
+                                      <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                      <Text size="xs" c="dimmed">
+                                        {t('program.rest')}: {exercise.rest}
+                                      </Text>
+                                    </Group>
+                                  )}
+                                  {exercise.weight && (
+                                    <Badge variant="light" color={config.color} size="sm">
+                                      {exercise.weight}
+                                    </Badge>
+                                  )}
+                                </Group>
+                              </Stack>
+                              {role === 'trainer' && (
+                                <Group gap="xs">
+                                  <ActionIcon 
+                                    variant="subtle" 
+                                    size="sm" 
+                                    color={config.color}
+                                    onClick={() => handleEditExercise(exercise, block.id)}
+                                  >
+                                    <IconEdit size={14} />
+                                  </ActionIcon>
+                                  <ActionIcon
+                                    variant="subtle"
+                                    size="sm"
+                                    color="red"
+                                    onClick={() => handleDeleteExercise(exercise.id, block.id)}
+                                  >
+                                    <IconTrash size={14} />
+                                  </ActionIcon>
+                                </Group>
+                              )}
+                            </Group>
+                          </Card>
+                        ))}
+                        {block.exercises.length === 0 ? (
+                          <Card 
+                            padding="xl" 
+                            style={{ 
+                              backgroundColor: 'var(--mantine-color-gray-0)',
+                              borderStyle: 'dashed',
+                              borderColor: `var(--mantine-color-${config.color}-3)`,
+                            }}
+                          >
+                            <Stack align="center" gap="xs">
+                              <Text c="dimmed" size="sm" ta="center">
+                                {t('program.noExercises')}
                               </Text>
                             </Stack>
-                            {role === 'trainer' && (
-                              <Group gap="xs">
-                                <ActionIcon variant="subtle" size="sm" onClick={() => handleEditExercise(exercise, block.id)}>
-                                  <IconEdit size={14} />
-                                </ActionIcon>
-                                <ActionIcon
-                                  variant="subtle"
-                                  size="sm"
-                                  color="red"
-                                  onClick={() => handleDeleteExercise(exercise.id, block.id)}
-                                >
-                                  <IconTrash size={14} />
-                                </ActionIcon>
-                              </Group>
-                            )}
-                          </Group>
-                        </Card>
-                      ))}
-                      {block.exercises.length === 0 ? (
-                        <Text c="dimmed">{t('program.emptyState')}</Text>
+                          </Card>
+                        ) : null}
+                      </Stack>
+                      {role === 'trainer' ? (
+                        <Button 
+                          variant="light" 
+                          color={config.color}
+                          leftSection={<IconPlus size={16} />} 
+                          onClick={() => handleAddExercise(block.id)}
+                          fullWidth
+                          mt="sm"
+                        >
+                          {t('program.addExercise')}
+                        </Button>
                       ) : null}
                     </Stack>
-                    {role === 'trainer' ? (
-                      <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => handleAddExercise(block.id)}>
-                        {t('common.add')}
-                      </Button>
-                    ) : null}
-                  </Stack>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
             </SimpleGrid>
           </Stack>
         ) : (

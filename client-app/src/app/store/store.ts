@@ -5,6 +5,10 @@ import calendarReducer from './slices/calendarSlice'
 import programReducer from './slices/programSlice'
 import metricsReducer from './slices/metricsSlice'
 import notificationsReducer from './slices/notificationsSlice'
+import clientsReducer from './slices/clientsSlice'
+import libraryReducer from './slices/librarySlice'
+import financesReducer from './slices/financesSlice'
+import trainerCalendarReducer from './slices/trainerCalendarSlice'
 
 export const store = configureStore({
   reducer: {
@@ -14,6 +18,10 @@ export const store = configureStore({
     program: programReducer,
     metrics: metricsReducer,
     notifications: notificationsReducer,
+    clients: clientsReducer,
+    library: libraryReducer,
+    finances: financesReducer,
+    trainerCalendar: trainerCalendarReducer,
   },
 })
 

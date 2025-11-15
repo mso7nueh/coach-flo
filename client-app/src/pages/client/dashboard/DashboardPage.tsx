@@ -9,33 +9,24 @@ import {
     Group,
     Modal,
     NumberInput,
-    Progress,
-    RingProgress,
+    Select,
     SimpleGrid,
     Stack,
     Text,
     TextInput,
-    ThemeIcon,
     Title,
 } from '@mantine/core'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { useTranslation } from 'react-i18next'
 import {
-    IconAdjustments,
     IconAlertTriangle,
     IconArrowDown,
-    IconArrowRight,
     IconArrowUp,
-    IconBell,
-    IconCalendar,
     IconCalendarTime,
     IconDotsVertical,
     IconGripVertical,
     IconPlus,
-    IconTarget,
-    IconTrendingUp,
     IconTrash,
-    IconUser,
     IconEdit,
 } from '@tabler/icons-react'
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area, ReferenceLine } from 'recharts'
@@ -195,601 +186,329 @@ export const DashboardPage = () => {
     const totalWorkouts = workouts.length
     const completedWorkouts = workouts.filter((w) => w.attendance === 'completed').length
     const attendanceRate = totalWorkouts > 0 ? Math.round((completedWorkouts / totalWorkouts) * 100) : 0
-    const nextWorkout = upcoming[0]
     const todayWorkouts = workouts.filter((w) => dayjs(w.start).isSame(dayjs(), 'day')).length
 
     return (
-        <Stack gap="xl">
-            <Group justify="space-between">
-                <Stack gap={0}>
-                    <Text c="dimmed">{t('dashboard.greeting', { name: user.fullName })}</Text>
-                    <Title order={2}>{t('dashboard.metricsTitle')}</Title>
-                </Stack>
-                <Group gap="sm">
-                    <Group gap={4}>
-                        {periods.map((item) => (
-                            <Button
-                                key={item.value}
-                                size="xs"
-                                variant={item.value === period ? 'filled' : 'light'}
-                                onClick={() => dispatch(setDashboardPeriod(item.value))}
-                            >
-                                {t(`dashboard.periods.${item.value}`)}
-                            </Button>
-                        ))}
-                    </Group>
-                    <Button leftSection={<IconAdjustments size={16} />} variant="light" onClick={() => dispatch(openConfiguration())}>
-                        {t('dashboard.configureMetrics')}
-                    </Button>
+        <Stack gap="lg">
+            <Group justify="space-between" mb="md">
+                <Title order={2}>{t('dashboard.greeting', { name: user.fullName })}</Title>
+                <Group gap="xs">
+                    {periods.map((item) => (
+                        <Button
+                            key={item.value}
+                            size="xs"
+                            variant={item.value === period ? 'filled' : 'light'}
+                            onClick={() => dispatch(setDashboardPeriod(item.value))}
+                        >
+                            {t(`dashboard.periods.${item.value}`)}
+                        </Button>
+                    ))}
                 </Group>
             </Group>
 
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-                <Card
-                    withBorder
-                    padding="xl"
-                    style={{
-                        position: 'relative',
-                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
-                        borderColor: 'var(--mantine-color-violet-2)',
-                    }}
-                >
-                    <Group justify="space-between" mb="md">
-                        <Text size="sm" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                <Card withBorder padding="md">
+                    <Stack gap="xs">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                             {t('dashboard.stats.totalWorkouts')}
                         </Text>
-                        <Avatar size="lg" color="violet" variant="light" radius="md">
-                            <IconCalendar size={22} />
-                        </Avatar>
-                    </Group>
-                    <Title order={1} mb={8} c="violet.7" style={{ fontSize: '2.5rem' }}>
-                        {totalWorkouts}
-                    </Title>
-                    <Text size="sm" c="dimmed" fw={500}>
-                        {t('dashboard.stats.forPeriod', { period: t(`dashboard.periods.${period}`).toLowerCase() })}
-                    </Text>
+                        <Group gap="md" align="flex-end">
+                            <Title order={2} c="gray.9">
+                                {totalWorkouts}
+                            </Title>
+                            <Text size="xs" c="dimmed">
+                                {t('dashboard.stats.forPeriod', { period: t(`dashboard.periods.${period}`).toLowerCase() })}
+                            </Text>
+                        </Group>
+                    </Stack>
                 </Card>
 
-                <Card
-                    withBorder
-                    padding="xl"
-                    style={{
-                        background: `linear-gradient(135deg, rgba(${attendanceRate >= 80 ? '34, 197, 94' : attendanceRate >= 60 ? '234, 179, 8' : '239, 68, 68'}, 0.05) 0%, rgba(${attendanceRate >= 80 ? '22, 163, 74' : attendanceRate >= 60 ? '202, 138, 4' : '220, 38, 38'}, 0.05) 100%)`,
-                        borderColor: attendanceRate >= 80 ? 'var(--mantine-color-green-2)' : attendanceRate >= 60 ? 'var(--mantine-color-yellow-2)' : 'var(--mantine-color-red-2)',
-                    }}
-                >
-                    <Group justify="space-between" mb="md">
-                        <Text size="sm" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
+                <Card withBorder padding="md">
+                    <Stack gap="xs">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                             {t('dashboard.stats.attendance')}
                         </Text>
-                        <RingProgress
-                            size={56}
-                            thickness={6}
-                            sections={[{ value: attendanceRate, color: attendanceRate >= 80 ? 'green' : attendanceRate >= 60 ? 'yellow' : 'red' }]}
-                            label={
-                                <Text size="sm" ta="center" fw={800} c={attendanceRate >= 80 ? 'green.7' : attendanceRate >= 60 ? 'yellow.7' : 'red.7'}>
-                                    {attendanceRate}%
-                                </Text>
-                            }
-                        />
-                    </Group>
-                    <Title order={2} mb={8} c={attendanceRate >= 80 ? 'green.7' : attendanceRate >= 60 ? 'yellow.7' : 'red.7'}>
-                        {completedWorkouts}/{totalWorkouts}
-                    </Title>
-                    <Progress
-                        value={attendanceRate}
-                        color={attendanceRate >= 80 ? 'green' : attendanceRate >= 60 ? 'yellow' : 'red'}
-                        size="lg"
-                        radius="xl"
-                        style={{ height: '10px' }}
-                    />
+                        <Group gap="md" align="flex-end">
+                            <Title order={2} c="gray.9">
+                                {completedWorkouts}/{totalWorkouts}
+                            </Title>
+                            <Badge color={attendanceRate >= 80 ? 'green' : attendanceRate >= 60 ? 'yellow' : 'red'} variant="light">
+                                {attendanceRate}%
+                            </Badge>
+                        </Group>
+                    </Stack>
                 </Card>
 
-                <Card
-                    withBorder
-                    padding="xl"
-                    style={{
-                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%)',
-                        borderColor: 'var(--mantine-color-violet-2)',
-                    }}
-                >
-                    <Group justify="space-between" mb="md">
-                        <Text size="sm" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
+                <Card withBorder padding="md">
+                    <Stack gap="xs">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                             {t('dashboard.stats.today')}
                         </Text>
-                        <Badge variant="filled" color="violet" size="xl" radius="md" style={{ fontSize: '14px', padding: '8px 12px' }}>
-                            {todayWorkouts}
-                        </Badge>
-                    </Group>
-                    <Title order={2} mb={8} c="violet.7">
-                        {todayWorkouts > 0
-                            ? `${todayWorkouts} ${todayWorkouts === 1 ? t('dashboard.stats.workout_one') : todayWorkouts <= 4 ? t('dashboard.stats.workout_few') : t('dashboard.stats.workout_many')}`
-                            : t('dashboard.stats.noWorkouts')}
-                    </Title>
-                    <Text size="sm" c="dimmed" fw={500}>
-                        {dayjs().format('DD MMMM YYYY')}
-                    </Text>
-                </Card>
-
-                {nextWorkout && (
-                    <Card
-                        withBorder
-                        padding="xl"
-                        style={{
-                            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%)',
-                            borderColor: 'var(--mantine-color-violet-2)',
-                        }}
-                    >
-                        <Group justify="space-between" mb="md">
-                            <Text size="sm" c="dimmed" fw={600} tt="uppercase" style={{ letterSpacing: '0.5px' }}>
-                                {t('dashboard.stats.next')}
-                            </Text>
-                            <Avatar size="lg" color="violet" variant="light" radius="md">
-                                <IconCalendar size={22} />
-                            </Avatar>
+                        <Group gap="md" align="flex-end">
+                            <Title order={2} c="gray.9">
+                                {todayWorkouts > 0
+                                    ? `${todayWorkouts} ${todayWorkouts === 1 ? t('dashboard.stats.workout_one') : todayWorkouts <= 4 ? t('dashboard.stats.workout_few') : t('dashboard.stats.workout_many')}`
+                                    : t('dashboard.stats.noWorkouts')}
+                            </Title>
                         </Group>
-                        <Title order={3} mb={8} lineClamp={1} c="violet.7">
-                            {nextWorkout.title}
-                        </Title>
-                        <Text size="sm" c="dimmed" fw={500}>
-                            {formatDate(nextWorkout.start)}
-                        </Text>
-                    </Card>
-                )}
+                    </Stack>
+                </Card>
             </SimpleGrid>
 
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }}>
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
                 {tiles.map((tile) => {
-                    const isPercentage = tile.value?.toString().includes('%')
                     const isTrend = tile.secondaryValue?.includes('↑') || tile.secondaryValue?.includes('↓')
                     const trendUp = tile.secondaryValue?.includes('↑')
-                    const numericValue = parseFloat(tile.value?.toString().replace(/[^\d.-]/g, '') || '0')
 
                     return (
-                        <Card
-                            key={tile.id}
-                            withBorder
-                            h="100%"
-                            padding="lg"
-                            style={{
-                                position: 'relative',
-                                overflow: 'hidden',
-                                background: 'white',
-                                transition: 'all 0.3s ease',
-                            }}
-                        >
-                            <Group justify="space-between" mb="md">
-                                <Group gap="sm">
-                                    <Avatar size="md" color="violet" variant="light" radius="md">
-                                        <IconTrendingUp size={18} />
-                                    </Avatar>
-                                    <Stack gap={2}>
-                                        <Text fw={700} size="sm" c="gray.7">
-                                            {t(tile.labelKey)}
-                                        </Text>
-                                        <Badge variant="light" size="xs" color="gray">
-                                            {t(`dashboard.periods.${tile.period}`)}
-                                        </Badge>
-                                    </Stack>
-                                </Group>
-                            </Group>
-                            <Stack gap="sm">
-                                <Group gap="xs" align="flex-end" wrap="nowrap">
-                                    <Title order={2} style={{ lineHeight: 1.2, fontSize: '2rem' }} c="gray.9">
-                                        {tile.value}
-                                    </Title>
+                        <Card key={tile.id} withBorder padding="md">
+                            <Stack gap="xs">
+                                <Group justify="space-between" align="flex-start">
+                                    <Text size="xs" c="dimmed" fw={600}>
+                                        {t(tile.labelKey)}
+                                    </Text>
                                     {isTrend && (
-                                        <Group gap={4} style={{ marginBottom: '4px' }}>
+                                        <Group gap={2}>
                                             {trendUp ? (
-                                                <IconArrowUp size={20} color="var(--mantine-color-green-6)" strokeWidth={2.5} />
+                                                <IconArrowUp size={14} color="var(--mantine-color-green-6)" />
                                             ) : (
-                                                <IconArrowDown size={20} color="var(--mantine-color-red-6)" strokeWidth={2.5} />
+                                                <IconArrowDown size={14} color="var(--mantine-color-red-6)" />
                                             )}
                                             {tile.secondaryValue && (
-                                                <Text size="sm" c={trendUp ? 'green.7' : 'red.7'} fw={700}>
+                                                <Text size="xs" c={trendUp ? 'green.7' : 'red.7'} fw={600}>
                                                     {tile.secondaryValue.replace('↑', '').replace('↓', '')}
                                                 </Text>
                                             )}
                                         </Group>
                                     )}
-                                    {!isTrend && tile.secondaryValue && (
-                                        <Text size="sm" c="dimmed" fw={500}>
-                                            {tile.secondaryValue}
-                                        </Text>
-                                    )}
                                 </Group>
-                                {isPercentage && (
-                                    <Progress
-                                        value={numericValue}
-                                        color="violet"
-                                        size="lg"
-                                        radius="xl"
-                                        mt="md"
-                                        style={{ height: '10px' }}
-                                    />
-                                )}
+                                <Title order={3} c="gray.9">
+                                    {tile.value}
+                                </Title>
                             </Stack>
                         </Card>
                     )
                 })}
             </SimpleGrid>
 
-            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
-                <Card withBorder padding="xl">
+            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
+                <Card withBorder padding="md">
                     <Stack gap="md">
-                        <Group justify="space-between" align="flex-start">
-                            <Stack gap={4} style={{ flex: 1 }}>
-                                <Text size="sm" c="dimmed" fw={600}>
-                                    {t('dashboard.goal.cardTitle')}
-                                </Text>
-                                <Title order={4}>{goalInfo.headline}</Title>
-                                <Text size="sm" c="dimmed">
-                                    {goalInfo.description}
-                                </Text>
-                            </Stack>
-                            <RingProgress
-                                size={80}
-                                thickness={8}
-                                sections={[{ value: goalInfo.progress, color: 'violet' }]}
-                                label={
-                                    <Text size="sm" ta="center" fw={700}>
-                                        {goalInfo.progress}%
-                                    </Text>
-                                }
-                            />
-                        </Group>
-                        <Card withBorder radius="lg" padding="md">
-                            <Group justify="space-between" align="center">
-                                <Stack gap={2}>
-                                    <Text size="xs" c="dimmed">
-                                        {t('dashboard.goal.nextEvent')}
-                                    </Text>
-                                    <Group gap="xs">
-                                        <ThemeIcon variant="light" color="violet" size="md" radius="lg">
-                                            <IconCalendarTime size={16} />
-                                        </ThemeIcon>
-                                        <Text fw={600}>{goalInfo.milestone}</Text>
-                                    </Group>
-                                </Stack>
-                                <Stack gap={0} align="flex-end">
-                                    <Text fw={700} size="lg">
-                                        {goalInfo.daysLeft}
-                                    </Text>
-                                    <Text size="xs" c="dimmed">
-                                        {t('dashboard.goal.daysLeft', { count: goalInfo.daysLeft })}
-                                    </Text>
-                                </Stack>
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                            {t('dashboard.goal.cardTitle')}
+                        </Text>
+                        <Stack gap="xs">
+                            <Text fw={600} size="sm">{goalInfo.headline}</Text>
+                            <Text size="xs" c="dimmed">{goalInfo.description}</Text>
+                        </Stack>
+                        <Group justify="space-between" align="center" mt="xs">
+                            <Group gap="xs">
+                                <IconCalendarTime size={16} />
+                                <Text size="xs" fw={500}>{goalInfo.milestone}</Text>
                             </Group>
-                        </Card>
+                            <Badge variant="light" size="lg">
+                                {goalInfo.daysLeft} {t('dashboard.goal.daysLeft', { count: goalInfo.daysLeft })}
+                            </Badge>
+                        </Group>
                     </Stack>
                 </Card>
 
-                <Card withBorder padding="xl">
+                <Card withBorder padding="md">
                     <Stack gap="md">
-                        <Group gap="sm">
-                            <Avatar size="lg" radius="xl" color="violet">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                            {t('dashboard.profileCard.role')}
+                        </Text>
+                        <Group gap="xs">
+                            <Avatar size="sm" radius="xl" color="violet">
                                 {user.fullName
                                     .split(' ')
                                     .map((part) => part[0])
                                     .join('')
                                     .slice(0, 2)}
                             </Avatar>
-                            <Stack gap={2}>
-                                <Title order={5}>{user.fullName}</Title>
-                                <Text size="sm" c="dimmed">
-                                    {user.email}
-                                </Text>
+                            <Stack gap={0}>
+                                <Text fw={600} size="sm">{user.fullName}</Text>
+                                <Text size="xs" c="dimmed">{user.email}</Text>
                             </Stack>
                         </Group>
                         <Divider />
-                        <Stack gap="sm">
-                            <Group gap="sm">
-                                <ThemeIcon variant="light" color="violet" radius="md">
-                                    <IconUser size={16} />
-                                </ThemeIcon>
-                                <Stack gap={0}>
-                                    <Text size="xs" c="dimmed">
-                                        {t('dashboard.profileCard.role')}
-                                    </Text>
-                                    <Text fw={600}>{role === 'trainer' ? t('common.roleTrainer') : t('common.roleClient')}</Text>
-                                </Stack>
-                            </Group>
-                            <Group gap="sm">
-                                <ThemeIcon variant="light" color="indigo" radius="md">
-                                    <IconCalendar size={16} />
-                                </ThemeIcon>
-                                <Stack gap={0}>
-                                    <Text size="xs" c="dimmed">
-                                        {t('dashboard.profileCard.timezone')}
-                                    </Text>
-                                    <Text fw={600}>{timezone}</Text>
-                                </Stack>
-                            </Group>
+                        <Stack gap="xs">
+                            <Text size="xs" c="dimmed">{t('dashboard.profileCard.timezone')}</Text>
+                            <Text size="sm" fw={500}>{timezone}</Text>
                             {user.trainer && (
-                                <Group gap="sm">
-                                    <ThemeIcon variant="light" color="teal" radius="md">
-                                        <IconUser size={16} />
-                                    </ThemeIcon>
-                                    <Stack gap={0}>
-                                        <Text size="xs" c="dimmed">
-                                            {t('dashboard.profileCard.trainer')}
-                                        </Text>
-                                        <Text fw={600}>{user.trainer.fullName}</Text>
-                                    </Stack>
-                                </Group>
+                                <>
+                                    <Text size="xs" c="dimmed" mt="xs">{t('dashboard.profileCard.trainer')}</Text>
+                                    <Text size="sm" fw={500}>{user.trainer.fullName}</Text>
+                                </>
                             )}
                         </Stack>
                     </Stack>
                 </Card>
 
-                <Card withBorder padding="xl">
-                    <Group justify="space-between" mb="md">
-                        <Stack gap={0}>
-                            <Text size="sm" c="dimmed" fw={600}>
-                                {t('dashboard.updates.title')}
-                            </Text>
-                            <Title order={4}>{t('dashboard.updates.subtitle')}</Title>
-                        </Stack>
-                    </Group>
-                    <Stack gap="sm">
-                        {updatesFeed.length === 0 ? (
-                            <Text c="dimmed">{t('dashboard.updates.empty')}</Text>
-                        ) : (
-                            updatesFeed.map((update) => (
-                                <Card key={update.id} withBorder radius="md" padding="md">
-                                    <Group align="flex-start" gap="sm">
-                                        <ThemeIcon variant="light" color="violet" radius="md">
-                                            <IconBell size={16} />
-                                        </ThemeIcon>
-                                        <Stack gap={2} style={{ flex: 1 }}>
-                                            <Text fw={600}>{update.title}</Text>
-                                            <Text size="xs" c="dimmed">
-                                                {update.subtitle}
-                                            </Text>
-                                        </Stack>
-                                        <ActionIcon variant="subtle" color="gray">
-                                            <IconArrowRight size={16} />
-                                        </ActionIcon>
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                            {t('dashboard.updates.title')}
+                        </Text>
+                        <Stack gap="xs">
+                            {updatesFeed.length === 0 ? (
+                                <Text size="sm" c="dimmed">{t('dashboard.updates.empty')}</Text>
+                            ) : (
+                                updatesFeed.slice(0, 5).map((update) => (
+                                    <Group key={update.id} gap="xs" align="flex-start">
+                                        <Text size="xs" c="dimmed" style={{ minWidth: '60px' }}>
+                                            {update.subtitle.split(' • ')[1] || update.subtitle}
+                                        </Text>
+                                        <Text size="xs" fw={500} style={{ flex: 1 }}>
+                                            {update.title}
+                                        </Text>
                                     </Group>
-                                </Card>
-                            ))
-                        )}
+                                ))
+                            )}
+                        </Stack>
                     </Stack>
                 </Card>
             </SimpleGrid>
 
-            <Card withBorder padding="xl">
-                <Stack gap="lg">
-                    <Group justify="space-between" align="flex-start">
-                        <Stack gap={0}>
-                            <Text size="sm" c="dimmed" fw={600}>
-                                {t('dashboard.bodyOverview.title')}
-                            </Text>
-                            <Title order={4}>{t('dashboard.bodyOverview.subtitle')}</Title>
-                        </Stack>
-                        <Badge variant="light">{t('dashboard.periods.30d')}</Badge>
+            <Card withBorder padding="md">
+                <Stack gap="md">
+                    <Group justify="space-between" align="center">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                            {t('dashboard.bodyOverview.title')}
+                        </Text>
+                        <Group gap="xs">
+                            <Select
+                                size="xs"
+                                value="30d"
+                                data={[
+                                    { value: '7d', label: t('dashboard.periods.7d') },
+                                    { value: '14d', label: t('dashboard.periods.14d') },
+                                    { value: '30d', label: t('dashboard.periods.30d') },
+                                ]}
+                                style={{ width: '120px' }}
+                            />
+                            <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={() => dispatch(openConfiguration())}>
+                                {t('dashboard.configureMetrics')}
+                            </Button>
+                        </Group>
                     </Group>
-                    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-violet-0)' }}>
-                            <Stack gap="sm">
-                                <Group justify="space-between" align="center">
-                                    <Stack gap={0}>
-                                        <Group gap="xs">
-                                            <Text size="sm" c="dimmed">
-                                                {t('dashboard.bodyOverview.weight')}
-                                            </Text>
-                                            {metricGoals.weight && (
-                                                <Badge variant="dot" size="xs" color="gray">
-                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.weight.toFixed(1)} {t('dashboard.bodyOverview.weightUnit')}
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Group gap="xs">
-                                            <Text fw={700} size="xl">
-                                                74.4 kg
-                                            </Text>
-                                            <Badge color="red" variant="light">
-                                                -0.8%
-                                            </Badge>
+                    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+                        <Card withBorder padding="md">
+                            <Stack gap="xs">
+                                <Group justify="space-between" align="flex-start">
+                                    <Stack gap={2}>
+                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.weight')}</Text>
+                                        <Group gap="xs" align="flex-end">
+                                            <Text fw={700} size="lg">74.4</Text>
+                                            <Text size="sm" c="dimmed">{t('dashboard.bodyOverview.weightUnit')}</Text>
+                                            <Badge size="xs" color="red" variant="light">↓ 0.8%</Badge>
                                         </Group>
                                     </Stack>
-                                    <Group gap="xs">
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
-                                            size="sm"
-                                            onClick={() => handleOpenGoalModal('weight')}
-                                        >
-                                            <IconEdit size={16} />
-                                        </ActionIcon>
-                                        <ThemeIcon radius="xl" variant="light" color="violet">
-                                            <IconTrendingUp size={18} />
-                                        </ThemeIcon>
-                                    </Group>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('weight')}>
+                                        <IconEdit size={14} />
+                                    </ActionIcon>
                                 </Group>
-                                <ResponsiveContainer width="100%" height={120}>
-                                    <LineChart data={primaryChartData.weight}>
-                                        <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={3} dot={false} />
+                                <ResponsiveContainer width="100%" height={100}>
+                                    <LineChart data={primaryChartData.weight} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                                        <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2} dot={false} />
                                         {metricGoals.weight && (
                                             <ReferenceLine
                                                 y={metricGoals.weight}
-                                                stroke="#cbd5e1"
-                                                strokeWidth={1}
-                                                strokeDasharray="5 5"
-                                                strokeOpacity={0.4}
+                                                stroke="#7c3aed"
+                                                strokeWidth={1.5}
+                                                strokeDasharray="4 4"
+                                                strokeOpacity={0.5}
                                             />
                                         )}
                                     </LineChart>
                                 </ResponsiveContainer>
                             </Stack>
                         </Card>
-                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-teal-0)' }}>
-                            <Stack gap="sm">
-                                <Group justify="space-between" align="center">
-                                    <Stack gap={0}>
-                                        <Group gap="xs">
-                                            <Text size="sm" c="dimmed">
-                                                {t('dashboard.bodyOverview.sleep')}
-                                            </Text>
-                                            {metricGoals.sleep && (
-                                                <Badge variant="dot" size="xs" color="gray">
-                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.sleep.toFixed(1)} {t('dashboard.bodyOverview.sleepUnit')}
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Group gap="xs">
-                                            <Text fw={700} size="xl">
-                                                6 h 46 m
-                                            </Text>
-                                            <Badge color="green" variant="light">
-                                                +0.3h
-                                            </Badge>
+                        <Card withBorder padding="md">
+                            <Stack gap="xs">
+                                <Group justify="space-between" align="flex-start">
+                                    <Stack gap={2}>
+                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.sleep')}</Text>
+                                        <Group gap="xs" align="flex-end">
+                                            <Text fw={700} size="lg">6 h 46 m</Text>
+                                            <Badge size="xs" color="green" variant="light">+0.3h</Badge>
                                         </Group>
                                     </Stack>
-                                    <Group gap="xs">
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
-                                            size="sm"
-                                            onClick={() => handleOpenGoalModal('sleep')}
-                                        >
-                                            <IconEdit size={16} />
-                                        </ActionIcon>
-                                        <ThemeIcon radius="xl" variant="light" color="teal">
-                                            <IconTarget size={18} />
-                                        </ThemeIcon>
-                                    </Group>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('sleep')}>
+                                        <IconEdit size={14} />
+                                    </ActionIcon>
                                 </Group>
-                                <ResponsiveContainer width="100%" height={120}>
-                                    <AreaChart data={primaryChartData.sleep}>
-                                        <defs>
-                                            <linearGradient id="sleepGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4} />
-                                                <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={2} fill="url(#sleepGradient)" />
+                                <ResponsiveContainer width="100%" height={100}>
+                                    <AreaChart data={primaryChartData.sleep} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                                        <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={2} fill="#06b6d4" fillOpacity={0.2} />
                                         {metricGoals.sleep && (
                                             <ReferenceLine
                                                 y={metricGoals.sleep}
-                                                stroke="#cbd5e1"
-                                                strokeWidth={1}
-                                                strokeDasharray="5 5"
-                                                strokeOpacity={0.4}
+                                                stroke="#7c3aed"
+                                                strokeWidth={1.5}
+                                                strokeDasharray="4 4"
+                                                strokeOpacity={0.5}
                                             />
                                         )}
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </Stack>
                         </Card>
-                    </SimpleGrid>
-                    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-red-0)' }}>
-                            <Stack gap="sm">
-                                <Group justify="space-between" align="center">
-                                    <Stack gap={0}>
-                                        <Group gap="xs">
-                                            <Text size="sm" c="dimmed">
-                                                {t('dashboard.bodyOverview.heartRate')}
-                                            </Text>
-                                            {metricGoals.heartRate && (
-                                                <Badge variant="dot" size="xs" color="gray">
-                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.heartRate.toFixed(0)} {t('dashboard.bodyOverview.heartRateUnit')}
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Group gap="xs">
-                                            <Text fw={700} size="xl">
-                                                66 bpm
-                                            </Text>
-                                            <Badge color="green" variant="light">
-                                                -5.7%
-                                            </Badge>
+                        <Card withBorder padding="md">
+                            <Stack gap="xs">
+                                <Group justify="space-between" align="flex-start">
+                                    <Stack gap={2}>
+                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.heartRate')}</Text>
+                                        <Group gap="xs" align="flex-end">
+                                            <Text fw={700} size="lg">66</Text>
+                                            <Text size="sm" c="dimmed">{t('dashboard.bodyOverview.heartRateUnit')}</Text>
+                                            <Badge size="xs" color="green" variant="light">↓ 5.7%</Badge>
                                         </Group>
                                     </Stack>
-                                    <Group gap="xs">
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
-                                            size="sm"
-                                            onClick={() => handleOpenGoalModal('heartRate')}
-                                        >
-                                            <IconEdit size={16} />
-                                        </ActionIcon>
-                                        <ThemeIcon radius="xl" variant="light" color="red">
-                                            <IconTrendingUp size={18} />
-                                        </ThemeIcon>
-                                    </Group>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('heartRate')}>
+                                        <IconEdit size={14} />
+                                    </ActionIcon>
                                 </Group>
-                                <ResponsiveContainer width="100%" height={120}>
-                                    <LineChart data={primaryChartData.heartRate}>
-                                        <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={3} dot={false} />
+                                <ResponsiveContainer width="100%" height={100}>
+                                    <LineChart data={primaryChartData.heartRate} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                                        <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={2} dot={false} />
                                         {metricGoals.heartRate && (
                                             <ReferenceLine
                                                 y={metricGoals.heartRate}
-                                                stroke="#cbd5e1"
-                                                strokeWidth={1}
-                                                strokeDasharray="5 5"
-                                                strokeOpacity={0.4}
+                                                stroke="#7c3aed"
+                                                strokeWidth={1.5}
+                                                strokeDasharray="4 4"
+                                                strokeOpacity={0.5}
                                             />
                                         )}
                                     </LineChart>
                                 </ResponsiveContainer>
                             </Stack>
                         </Card>
-                        <Card radius="lg" padding="lg" withBorder style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
-                            <Stack gap="sm">
-                                <Group justify="space-between" align="center">
-                                    <Stack gap={0}>
-                                        <Group gap="xs">
-                                            <Text size="sm" c="dimmed">
-                                                {t('dashboard.bodyOverview.steps')}
-                                            </Text>
-                                            {metricGoals.steps && (
-                                                <Badge variant="dot" size="xs" color="gray">
-                                                    {t('dashboard.bodyOverview.goal')}: {metricGoals.steps.toFixed(0)} {t('dashboard.bodyOverview.stepsUnit')}
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Group gap="xs">
-                                            <Text fw={700} size="xl">
-                                                7 503
-                                            </Text>
-                                            <Badge color="green" variant="light">
-                                                +4.2%
-                                            </Badge>
+                        <Card withBorder padding="md">
+                            <Stack gap="xs">
+                                <Group justify="space-between" align="flex-start">
+                                    <Stack gap={2}>
+                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.steps')}</Text>
+                                        <Group gap="xs" align="flex-end">
+                                            <Text fw={700} size="lg">7 503</Text>
+                                            <Badge size="xs" color="green" variant="light">+4.2%</Badge>
                                         </Group>
                                     </Stack>
-                                    <Group gap="xs">
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
-                                            size="sm"
-                                            onClick={() => handleOpenGoalModal('steps')}
-                                        >
-                                            <IconEdit size={16} />
-                                        </ActionIcon>
-                                        <ThemeIcon radius="xl" variant="light" color="blue">
-                                            <IconTrendingUp size={18} />
-                                        </ThemeIcon>
-                                    </Group>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('steps')}>
+                                        <IconEdit size={14} />
+                                    </ActionIcon>
                                 </Group>
-                                <ResponsiveContainer width="100%" height={120}>
-                                    <AreaChart data={primaryChartData.steps}>
-                                        <defs>
-                                            <linearGradient id="stepsGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} fill="url(#stepsGradient)" />
+                                <ResponsiveContainer width="100%" height={100}>
+                                    <AreaChart data={primaryChartData.steps} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.2} />
                                         {metricGoals.steps && (
                                             <ReferenceLine
                                                 y={metricGoals.steps}
-                                                stroke="#cbd5e1"
-                                                strokeWidth={1}
-                                                strokeDasharray="5 5"
-                                                strokeOpacity={0.4}
+                                                stroke="#7c3aed"
+                                                strokeWidth={1.5}
+                                                strokeDasharray="4 4"
+                                                strokeOpacity={0.5}
                                             />
                                         )}
                                     </AreaChart>
@@ -800,182 +519,166 @@ export const DashboardPage = () => {
                 </Stack>
             </Card>
 
-            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
-                <Card withBorder padding="xl">
-                    <Group justify="space-between" mb="md">
-                        <Stack gap={0}>
-                            <Text size="sm" c="dimmed">
+            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Group justify="space-between" align="center">
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                                 {t('dashboard.notesTitle')}
                             </Text>
-                            <Title order={4}>{t('common.trainerNotes')}</Title>
-                        </Stack>
-                        {role === 'trainer' && (
-                            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => openNoteModal()}>
-                                {t('common.add')}
-                            </Button>
-                        )}
-                    </Group>
-                    <Stack gap="sm">
-                        {notesPreview.length === 0 ? (
-                            <Text c="dimmed">{t('dashboard.emptyNotes')}</Text>
-                        ) : (
-                            notesPreview.map((note) => (
-                                <Card key={note.id} withBorder padding="md" radius="md">
-                                    <Stack gap={4}>
-                                        <Group justify="space-between" align="flex-start">
-                                            <Stack gap={2} style={{ flex: 1 }}>
-                                                <Text fw={600}>{note.title}</Text>
-                                                <Text size="sm" c="dimmed">
-                                                    {note.content}
-                                                </Text>
-                                                <Text size="xs" c="dimmed">
-                                                    {dayjs(note.updatedAt).format('DD MMM, HH:mm')}
-                                                </Text>
-                                            </Stack>
-                                            {role === 'trainer' && (
-                                                <Group gap="xs">
-                                                    <ActionIcon variant="subtle" onClick={() => { setNoteDraft(note); openNoteModal() }}>
-                                                        <IconDotsVertical size={16} />
-                                                    </ActionIcon>
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="red"
-                                                        onClick={() => dispatch(removeTrainerNote(note.id))}
-                                                    >
-                                                        <IconTrash size={16} />
-                                                    </ActionIcon>
-                                                </Group>
-                                            )}
-                                        </Group>
-                                    </Stack>
-                                </Card>
-                            ))
-                        )}
-                    </Stack>
-                </Card>
-
-                <Card withBorder padding="xl">
-                    <Stack gap="md">
-                        <Group justify="space-between">
-                            <Text fw={600}>{t('dashboard.limitations.title')}</Text>
+                            {role === 'trainer' && (
+                                <ActionIcon size="xs" variant="subtle" onClick={() => openNoteModal()}>
+                                    <IconPlus size={14} />
+                                </ActionIcon>
+                            )}
                         </Group>
-                        <Stack gap="sm">
-                            {limitationItems.map((item) => (
-                                <Group key={item.id} align="flex-start" gap="sm">
-                                    <ThemeIcon variant="light" color="red" radius="md">
-                                        <IconAlertTriangle size={16} />
-                                    </ThemeIcon>
-                                    <Stack gap={2} style={{ flex: 1 }}>
-                                        <Text fw={600}>{item.title}</Text>
-                                        <Text size="xs" c="dimmed">
-                                            {item.date}
-                                        </Text>
-                                    </Stack>
-                                </Group>
-                            ))}
+                        <Stack gap="xs">
+                            {notesPreview.length === 0 ? (
+                                <Text size="sm" c="dimmed">{t('dashboard.emptyNotes')}</Text>
+                            ) : (
+                                notesPreview.map((note) => (
+                                    <Group key={note.id} justify="space-between" align="flex-start" gap="xs">
+                                        <Stack gap={2} style={{ flex: 1 }}>
+                                            <Text size="sm" fw={500}>{note.title}</Text>
+                                            <Text size="xs" c="dimmed" lineClamp={2}>{note.content}</Text>
+                                            <Text size="xs" c="dimmed">{dayjs(note.updatedAt).format('DD MMM, HH:mm')}</Text>
+                                        </Stack>
+                                        {role === 'trainer' && (
+                                            <ActionIcon size="xs" variant="subtle" color="red" onClick={() => dispatch(removeTrainerNote(note.id))}>
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        )}
+                                    </Group>
+                                ))
+                            )}
                         </Stack>
                     </Stack>
                 </Card>
 
-                <Card withBorder padding="xl">
-                    <Group justify="space-between" mb="md">
-                        <Stack gap={0}>
-                            <Text size="sm" c="dimmed">
-                                {t('dashboard.photos.title')}
-                            </Text>
-                            <Title order={4}>{t('dashboard.photos.subtitle')}</Title>
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                            {t('dashboard.limitations.title')}
+                        </Text>
+                        <Stack gap="xs">
+                            {limitationItems.length === 0 ? (
+                                <Text size="sm" c="dimmed">{t('dashboard.noLimitations')}</Text>
+                            ) : (
+                                limitationItems.map((item) => (
+                                    <Group key={item.id} gap="xs" align="flex-start">
+                                        <IconAlertTriangle size={14} color="var(--mantine-color-red-6)" />
+                                        <Stack gap={0} style={{ flex: 1 }}>
+                                            <Text size="sm" fw={500}>{item.title}</Text>
+                                            <Text size="xs" c="dimmed">{item.date}</Text>
+                                        </Stack>
+                                    </Group>
+                                ))
+                            )}
                         </Stack>
-                    </Group>
-                    <SimpleGrid cols={2} spacing="md">
-                        {progressPhotos.map((photo) => (
-                            <Card
-                                key={photo.id}
-                                radius="lg"
-                                padding="lg"
-                                withBorder={false}
-                                style={{
-                                    background: `linear-gradient(135deg, ${photo.accent} 0%, rgba(15, 23, 42, 0.9) 100%)`,
-                                    color: 'white',
-                                    minHeight: '120px',
-                                }}
-                            >
-                                <Stack align="center" gap="xs" justify="center" style={{ height: '100%' }}>
-                                    <Text fw={700} size="lg">
-                                        {photo.label}
-                                    </Text>
-                                    <Text size="xs" c="white" style={{ opacity: 0.8 }}>
-                                        {t('dashboard.photos.compare')}
-                                    </Text>
-                                </Stack>
-                            </Card>
-                        ))}
-                    </SimpleGrid>
+                    </Stack>
+                </Card>
+
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                            {t('dashboard.photos.title')}
+                        </Text>
+                        <SimpleGrid cols={2} spacing="xs">
+                            {progressPhotos.length === 0 ? (
+                                <Text size="sm" c="dimmed" style={{ gridColumn: '1 / -1' }}>{t('dashboard.noPhotos')}</Text>
+                            ) : (
+                                progressPhotos.map((photo) => (
+                                    <Card
+                                        key={photo.id}
+                                        withBorder
+                                        padding="md"
+                                        style={{
+                                            background: `linear-gradient(135deg, ${photo.accent} 0%, rgba(15, 23, 42, 0.9) 100%)`,
+                                            color: 'white',
+                                            minHeight: '80px',
+                                        }}
+                                    >
+                                        <Stack align="center" gap={2} justify="center" style={{ height: '100%' }}>
+                                            <Text fw={700} size="sm">{photo.label}</Text>
+                                            <Text size="xs" c="white" style={{ opacity: 0.8 }}>{t('dashboard.photos.compare')}</Text>
+                                        </Stack>
+                                    </Card>
+                                ))
+                            )}
+                        </SimpleGrid>
+                    </Stack>
                 </Card>
             </SimpleGrid>
 
-            <SimpleGrid cols={{ base: 1, md: 2 }}>
-                <Card withBorder>
-                    <Group justify="space-between" mb="md">
-                        <Title order={4}>{t('dashboard.upcomingSessions')}</Title>
-                        <Badge variant="light">{upcoming.length}</Badge>
-                    </Group>
-                    <Stack gap="sm">
-                        {upcoming.map((workout) => (
-                            <Card key={workout.id} withBorder radius="md" padding="md">
-                                <Group justify="space-between" align="flex-start">
-                                    <Stack gap={4}>
-                                        <Text fw={600}>{workout.title}</Text>
-                                        <Text size="sm" c="dimmed">
-                                            {formatDate(workout.start)}
-                                        </Text>
-                                    </Stack>
-                                    <Badge variant="dot">{t(`calendar.status.${workout.attendance}`)}</Badge>
-                                </Group>
-                            </Card>
-                        ))}
-                        {upcoming.length === 0 ? <Text c="dimmed">{t('calendar.upcoming')}</Text> : null}
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Group justify="space-between" align="center">
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                                {t('dashboard.upcomingSessions')}
+                            </Text>
+                            <Badge size="sm" variant="light">{upcoming.length}</Badge>
+                        </Group>
+                        <Stack gap="xs">
+                            {upcoming.length === 0 ? (
+                                <Text size="sm" c="dimmed">{t('calendar.upcoming')}</Text>
+                            ) : (
+                                upcoming.map((workout) => (
+                                    <Group key={workout.id} justify="space-between" align="flex-start" gap="xs">
+                                        <Stack gap={2} style={{ flex: 1 }}>
+                                            <Text size="sm" fw={500}>{workout.title}</Text>
+                                            <Text size="xs" c="dimmed">{formatDate(workout.start)}</Text>
+                                        </Stack>
+                                        <Badge size="xs" variant="dot">{t(`calendar.status.${workout.attendance}`)}</Badge>
+                                    </Group>
+                                ))
+                            )}
+                        </Stack>
                     </Stack>
                 </Card>
-                <Card withBorder>
-                    <Group justify="space-between" mb="md">
-                        <Title order={4}>{t('calendar.pastSessions')}</Title>
-                        <Badge variant="light">{recent.length}</Badge>
-                    </Group>
-                    <Stack gap="sm">
-                        {recent.map((workout) => (
-                            <Card key={workout.id} withBorder radius="md" padding="md">
-                                <Group justify="space-between" align="center">
-                                    <Stack gap={4}>
-                                        <Text fw={600}>{workout.title}</Text>
-                                        <Text size="sm" c="dimmed">
-                                            {formatDate(workout.start)}
-                                        </Text>
-                                    </Stack>
-                                    <Group gap="xs">
-                                        <Button
-                                            size="xs"
-                                            variant={workout.attendance === 'completed' ? 'filled' : 'outline'}
-                                            onClick={() =>
-                                                dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: 'completed' }))
-                                            }
-                                        >
-                                            {t('calendar.attendance.markPresent')}
-                                        </Button>
-                                        <Button
-                                            size="xs"
-                                            variant={workout.attendance === 'missed' ? 'filled' : 'outline'}
-                                            color="red"
-                                            onClick={() =>
-                                                dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: 'missed' }))
-                                            }
-                                        >
-                                            {t('calendar.attendance.markMissed')}
-                                        </Button>
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Group justify="space-between" align="center">
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                                {t('calendar.pastSessions')}
+                            </Text>
+                            <Badge size="sm" variant="light">{recent.length}</Badge>
+                        </Group>
+                        <Stack gap="xs">
+                            {recent.length === 0 ? (
+                                <Text size="sm" c="dimmed">{t('calendar.pastSessions')}</Text>
+                            ) : (
+                                recent.map((workout) => (
+                                    <Group key={workout.id} justify="space-between" align="center" gap="xs">
+                                        <Stack gap={2} style={{ flex: 1 }}>
+                                            <Text size="sm" fw={500}>{workout.title}</Text>
+                                            <Text size="xs" c="dimmed">{formatDate(workout.start)}</Text>
+                                        </Stack>
+                                        <Group gap="xs">
+                                            <Button
+                                                size="xs"
+                                                variant={workout.attendance === 'completed' ? 'filled' : 'light'}
+                                                onClick={() =>
+                                                    dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: 'completed' }))
+                                                }
+                                            >
+                                                {t('calendar.attendance.markPresent')}
+                                            </Button>
+                                            <Button
+                                                size="xs"
+                                                variant={workout.attendance === 'missed' ? 'filled' : 'light'}
+                                                color="red"
+                                                onClick={() =>
+                                                    dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: 'missed' }))
+                                                }
+                                            >
+                                                {t('calendar.attendance.markMissed')}
+                                            </Button>
+                                        </Group>
                                     </Group>
-                                </Group>
-                            </Card>
-                        ))}
-                        {recent.length === 0 ? <Text c="dimmed">{t('calendar.pastSessions')}</Text> : null}
+                                ))
+                            )}
+                        </Stack>
                     </Stack>
                 </Card>
             </SimpleGrid>

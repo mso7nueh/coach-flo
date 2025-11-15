@@ -1,8 +1,9 @@
-import { Avatar, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Avatar, Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
-import { IconMail, IconPhone, IconUserEdit } from '@tabler/icons-react'
+import { IconMail, IconPhone, IconUserEdit, IconCopy, IconCheck } from '@tabler/icons-react'
 import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
 
 const getInitials = (name: string) => {
     return name
@@ -16,6 +17,16 @@ const getInitials = (name: string) => {
 export const ProfilePage = () => {
     const { t } = useTranslation()
     const user = useAppSelector((state) => state.user)
+    const [codeCopied, setCodeCopied] = useState(false)
+    const isTrainer = user.role === 'trainer'
+
+    const handleCopyCode = async () => {
+        if (user.trainerConnectionCode) {
+            await navigator.clipboard.writeText(user.trainerConnectionCode)
+            setCodeCopied(true)
+            setTimeout(() => setCodeCopied(false), 2000)
+        }
+    }
 
     return (
         <Stack gap="xl">
@@ -34,9 +45,9 @@ export const ProfilePage = () => {
                         </Avatar>
                         <Stack gap={4}>
                             <Title order={3}>{user.fullName}</Title>
-                            <Text c="dimmed" size="sm">
-                                {t('common.roleClient')}
-                            </Text>
+                            <Badge color="violet" variant="light">
+                                {isTrainer ? t('common.roleTrainer') : t('common.roleClient')}
+                            </Badge>
                         </Stack>
                     </Group>
 
@@ -70,7 +81,42 @@ export const ProfilePage = () => {
                 </Stack>
             </Card>
 
-            {user.trainer && (
+            {isTrainer && user.trainerConnectionCode && (
+                <Card withBorder padding="xl">
+                    <Stack gap="md">
+                        <Title order={4}>{t('profile.connectionCode')}</Title>
+                        <Group gap="md">
+                            <Text size="lg" fw={600} style={{ fontFamily: 'monospace', letterSpacing: '2px' }}>
+                                {user.trainerConnectionCode}
+                            </Text>
+                            <Button
+                                variant="light"
+                                size="sm"
+                                leftSection={codeCopied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                                onClick={handleCopyCode}
+                            >
+                                {codeCopied ? t('profile.codeCopied') : t('profile.copyCode')}
+                            </Button>
+                        </Group>
+                        <Text size="sm" c="dimmed">
+                            {t('profile.connectionCodeDescription')}
+                        </Text>
+                    </Stack>
+                </Card>
+            )}
+
+            {isTrainer && user.trainer?.description && (
+                <Card withBorder padding="xl">
+                    <Stack gap="md">
+                        <Title order={4}>{t('profile.description')}</Title>
+                        <Text size="sm" c="dimmed">
+                            {user.trainer.description}
+                        </Text>
+                    </Stack>
+                </Card>
+            )}
+
+            {!isTrainer && user.trainer && (
                 <Card withBorder padding="xl">
                     <Stack gap="md">
                         <Title order={4}>{t('common.myTrainer')}</Title>
@@ -82,8 +128,13 @@ export const ProfilePage = () => {
                                 <Text fw={600} size="lg">
                                     {user.trainer.fullName}
                                 </Text>
+                                {user.trainer.description && (
+                                    <Text size="sm" c="dimmed" mt="xs">
+                                        {user.trainer.description}
+                                    </Text>
+                                )}
                                 {user.trainer.email && (
-                                    <Group gap="xs">
+                                    <Group gap="xs" mt="xs">
                                         <IconMail size={16} color="var(--mantine-color-gray-6)" />
                                         <Text size="sm" c="dimmed">
                                             {user.trainer.email}

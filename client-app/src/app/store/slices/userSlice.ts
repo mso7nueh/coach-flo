@@ -8,6 +8,9 @@ export interface TrainerInfo {
     fullName: string
     email?: string
     phone?: string
+    avatar?: string
+    description?: string
+    connectionCode?: string
 }
 
 interface UserState {
@@ -20,6 +23,7 @@ interface UserState {
     onboardingSeen: boolean
     locale: SupportedLocale
     trainer?: TrainerInfo
+    trainerConnectionCode?: string
     isAuthenticated: boolean
     token?: string
 }
@@ -34,6 +38,7 @@ const initialState: UserState = {
     onboardingSeen: false,
     locale: 'ru',
     trainer: undefined,
+    trainerConnectionCode: undefined,
     isAuthenticated: false,
     token: undefined,
 }
@@ -50,6 +55,7 @@ export interface RegisterData {
         phone?: string
         role?: UserRole
         confirmPassword?: string
+        trainerCode?: string
     }
 
 export interface OnboardingMetrics {
@@ -106,6 +112,26 @@ const userSlice = createSlice({
         updateProfile(state, action: PayloadAction<Partial<Pick<UserState, 'fullName' | 'email' | 'phone' | 'avatar'>>>) {
             return { ...state, ...action.payload }
         },
+        updateTrainerProfile(state, action: PayloadAction<Partial<Pick<TrainerInfo, 'fullName' | 'email' | 'phone' | 'avatar' | 'description'>>>) {
+            if (state.role === 'trainer') {
+                if (!state.trainer) {
+                    state.trainer = {
+                        id: state.id,
+                        fullName: state.fullName,
+                        email: state.email,
+                        phone: state.phone,
+                        avatar: state.avatar,
+                    }
+                }
+                state.trainer = { ...state.trainer, ...action.payload }
+            }
+        },
+        generateConnectionCode(state) {
+            if (state.role === 'trainer') {
+                const code = Math.random().toString(36).substring(2, 8).toUpperCase()
+                state.trainerConnectionCode = code
+            }
+        },
         logout(state) {
             return {
                 ...initialState,
@@ -123,6 +149,8 @@ export const {
     completeOnboarding,
     setLocale,
     updateProfile,
+    updateTrainerProfile,
+    generateConnectionCode,
     logout,
 } = userSlice.actions
 export default userSlice.reducer

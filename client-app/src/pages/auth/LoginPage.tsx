@@ -1,15 +1,18 @@
-import { Button, Card, Stack, Text, TextInput, Title, PasswordInput } from '@mantine/core'
+import { Button, Card, SegmentedControl, Stack, Text, TextInput, Title, PasswordInput } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { login, type LoginCredentials } from '@/app/store/slices/userSlice'
 import { nanoid } from '@reduxjs/toolkit'
+import { useState } from 'react'
+import type { UserRole } from '@/app/store/slices/userSlice'
 
 export const LoginPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
+    const [role, setRole] = useState<UserRole>('client')
 
     const form = useForm<LoginCredentials>({
         initialValues: {
@@ -25,30 +28,50 @@ export const LoginPage = () => {
     const handleSubmit = (values: LoginCredentials) => {
         const mockToken = `token-${nanoid()}`
         const onboardingSeen = localStorage.getItem('coach-fit-onboarding-seen') === 'true'
-        dispatch(
-            login({
-                user: {
-                    id: 'client-001',
-                    fullName: 'Алексей Петров',
-                    email: values.email,
-                    phone: '+7 (999) 123-45-67',
-                    role: 'client',
-                    onboardingSeen,
-                    locale: 'ru',
-                    trainer: {
+
+        if (role === 'trainer') {
+            dispatch(
+                login({
+                    user: {
                         id: 'trainer-001',
                         fullName: 'Иван Сидоров',
-                        email: 'ivan.sidorov@coachfit.com',
+                        email: values.email,
                         phone: '+7 (999) 765-43-21',
+                        role: 'trainer',
+                        onboardingSeen: true,
+                        locale: 'ru',
+                        trainerConnectionCode: 'TRAINER123',
                     },
-                },
-                token: mockToken,
-            }),
-        )
-        if (onboardingSeen) {
-            navigate('/dashboard')
+                    token: mockToken,
+                }),
+            )
+            navigate('/trainer/clients')
         } else {
-            navigate('/onboarding')
+            dispatch(
+                login({
+                    user: {
+                        id: 'client-001',
+                        fullName: 'Алексей Петров',
+                        email: values.email,
+                        phone: '+7 (999) 123-45-67',
+                        role: 'client',
+                        onboardingSeen,
+                        locale: 'ru',
+                        trainer: {
+                            id: 'trainer-001',
+                            fullName: 'Иван Сидоров',
+                            email: 'ivan.sidorov@coachfit.com',
+                            phone: '+7 (999) 765-43-21',
+                        },
+                    },
+                    token: mockToken,
+                }),
+            )
+            if (onboardingSeen) {
+                navigate('/dashboard')
+            } else {
+                navigate('/onboarding')
+            }
         }
     }
 
@@ -77,6 +100,15 @@ export const LoginPage = () => {
                     </Stack>
                     <form onSubmit={form.onSubmit(handleSubmit)}>
                         <Stack gap="md">
+                            <SegmentedControl
+                                value={role}
+                                onChange={(value) => setRole(value as UserRole)}
+                                data={[
+                                    { label: t('common.roleClient'), value: 'client' },
+                                    { label: t('common.roleTrainer'), value: 'trainer' },
+                                ]}
+                                fullWidth
+                            />
                             <TextInput
                                 label={t('profile.email')}
                                 placeholder={t('profile.emailPlaceholder')}
