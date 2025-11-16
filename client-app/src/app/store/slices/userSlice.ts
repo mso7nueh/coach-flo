@@ -23,6 +23,7 @@ interface UserState {
     onboardingSeen: boolean
     locale: SupportedLocale
     trainer?: TrainerInfo
+    onboardingMetrics?: OnboardingMetrics
     trainerConnectionCode?: string
     isAuthenticated: boolean
     token?: string
@@ -83,6 +84,7 @@ const userSlice = createSlice({
             state.onboardingSeen = action.payload.user.onboardingSeen
             state.locale = action.payload.user.locale
             state.trainer = action.payload.user.trainer
+            state.onboardingMetrics = action.payload.user.onboardingMetrics
         },
         register(state, action: PayloadAction<{ user: Omit<UserState, 'isAuthenticated' | 'token'>; token: string }>) {
             state.isAuthenticated = true
@@ -96,6 +98,7 @@ const userSlice = createSlice({
             state.onboardingSeen = action.payload.user.onboardingSeen
             state.locale = action.payload.user.locale
             state.trainer = action.payload.user.trainer
+            state.onboardingMetrics = action.payload.user.onboardingMetrics
         },
         switchRole(state, action: PayloadAction<UserRole>) {
             state.role = action.payload
@@ -103,14 +106,39 @@ const userSlice = createSlice({
         markOnboardingSeen(state) {
             state.onboardingSeen = true
         },
-        completeOnboarding(state, _action: PayloadAction<OnboardingMetrics>) {
+        completeOnboarding(state, action: PayloadAction<OnboardingMetrics>) {
             state.onboardingSeen = true
+            state.onboardingMetrics = action.payload
+        },
+        linkTrainer(state, action: PayloadAction<{ connectionCode: string }>) {
+            // В мок-режиме просто создаём тренера по коду
+            if (state.role === 'client') {
+                state.trainer = {
+                    id: `trainer-${action.payload.connectionCode}`,
+                    fullName: `Coach ${action.payload.connectionCode}`,
+                    connectionCode: action.payload.connectionCode,
+                }
+            }
+        },
+        unlinkTrainer(state) {
+            if (state.role === 'client') {
+                state.trainer = undefined
+            }
         },
         setLocale(state, action: PayloadAction<SupportedLocale>) {
             state.locale = action.payload
         },
         updateProfile(state, action: PayloadAction<Partial<Pick<UserState, 'fullName' | 'email' | 'phone' | 'avatar'>>>) {
             return { ...state, ...action.payload }
+        },
+        updateOnboardingMetrics(state, action: PayloadAction<Partial<OnboardingMetrics>>) {
+            if (!state.onboardingMetrics) {
+                state.onboardingMetrics = {}
+            }
+            state.onboardingMetrics = {
+                ...state.onboardingMetrics,
+                ...action.payload,
+            }
         },
         updateTrainerProfile(state, action: PayloadAction<Partial<Pick<TrainerInfo, 'fullName' | 'email' | 'phone' | 'avatar' | 'description'>>>) {
             if (state.role === 'trainer') {
@@ -147,8 +175,11 @@ export const {
     switchRole,
     markOnboardingSeen,
     completeOnboarding,
+    linkTrainer,
+    unlinkTrainer,
     setLocale,
     updateProfile,
+    updateOnboardingMetrics,
     updateTrainerProfile,
     generateConnectionCode,
     logout,

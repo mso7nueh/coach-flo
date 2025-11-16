@@ -25,7 +25,7 @@ export interface Exercise {
     notes?: string
     imageUrl?: string
     videoUrl?: string
-    visibility: 'all' | 'client' // 'all' - видно всем клиентам, 'client' - только конкретному клиенту
+    visibility: 'all' | 'client' | 'trainer' // 'all' - видно всем клиентам, 'client' - только конкретному клиенту, 'trainer' - только тренеру
     clientId?: string // ID клиента, если visibility === 'client'
 }
 

@@ -69,9 +69,16 @@ interface ExerciseMetricForm {
 export const MetricsPage = () => {
   const { t } = useTranslation()
   const dispatch = useAppDispatch()
-  const { bodyMetrics, bodyMetricEntries, exerciseMetrics, exerciseMetricEntries, period, bodyMetricGoals, exerciseMetricGoals, bodyMetricStartValues } = useAppSelector(
-    (state) => state.metrics,
-  )
+  const {
+    bodyMetrics,
+    bodyMetricEntries,
+    exerciseMetrics,
+    exerciseMetricEntries,
+    period,
+    bodyMetricGoals,
+    exerciseMetricGoals,
+    bodyMetricStartValues,
+  } = useAppSelector((state) => state.metrics)
   const [selectedMetricId, setSelectedMetricId] = useState<string | null>(bodyMetrics[0]?.id ?? null)
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(exerciseMetrics[0]?.id ?? null)
   const [bodyModalOpened, { open: openBodyModal, close: closeBodyModal }] = useDisclosure(false)
@@ -230,6 +237,7 @@ export const MetricsPage = () => {
       }
     })
   }, [exerciseMetrics, exerciseMetricEntries])
+
 
   const handleAddBodyMetric = () => {
     if (bodyForm.metricId && bodyForm.recordedAt && bodyForm.value > 0) {

@@ -12,7 +12,10 @@ import {
     Text,
     TextInput,
     Title,
+    NumberInput,
+    Radio,
 } from '@mantine/core'
+import { DateInput } from '@mantine/dates'
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
@@ -21,7 +24,11 @@ import {
     removeClient,
     setSearchQuery,
     setSelectedClient,
+    updateClient,
+    checkAndDeactivateExpiredClients,
+    type Client,
 } from '@/app/store/slices/clientsSlice'
+import { useState, useEffect } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { useForm } from '@mantine/form'
 import {
@@ -38,8 +45,18 @@ import { useNavigate } from 'react-router-dom'
 interface AddClientForm {
     fullName: string
     email?: string
-    phone?: string
     format: 'online' | 'offline' | 'both'
+    workoutsPackage?: number
+    packageExpiryDate?: Date | null
+}
+
+interface EditClientForm {
+    weight?: number
+    height?: number
+    age?: number
+    activityLevel?: 'low' | 'medium' | 'high'
+    goals: string[]
+    restrictions: string[]
 }
 
 export const ClientsPage = () => {
@@ -50,13 +67,16 @@ export const ClientsPage = () => {
     const trainerConnectionCode = useAppSelector((state) => state.user.trainerConnectionCode)
     const trainerName = useAppSelector((state) => state.user.fullName)
     const [addModalOpened, { open: openAddModal, close: closeAddModal }] = useDisclosure(false)
+    const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false)
+    const [editingClient, setEditingClient] = useState<Client | null>(null)
 
     const form = useForm<AddClientForm>({
         initialValues: {
             fullName: '',
             email: '',
-            phone: '',
             format: 'both',
+            workoutsPackage: undefined,
+            packageExpiryDate: null,
         },
         validate: {
             fullName: (value) => (value.trim().length < 2 ? t('trainer.clients.addClientModal.nameRequired') : null),
@@ -72,12 +92,34 @@ export const ClientsPage = () => {
         },
     })
 
+    const editForm = useForm<EditClientForm>({
+        initialValues: {
+            weight: undefined,
+            height: undefined,
+            age: undefined,
+            activityLevel: undefined,
+            goals: [],
+            restrictions: [],
+        },
+    })
+
+    useEffect(() => {
+        dispatch(checkAndDeactivateExpiredClients())
+    }, [dispatch])
+
     const filteredClients = clients.filter((client) =>
         client.fullName.toLowerCase().includes(searchQuery.toLowerCase()),
     )
 
     const handleAddClient = (values: AddClientForm) => {
-        dispatch(addClient(values))
+        dispatch(addClient({
+            fullName: values.fullName,
+            email: values.email,
+            format: values.format,
+            workoutsPackage: values.workoutsPackage,
+            packageExpiryDate: values.packageExpiryDate?.toISOString(),
+            isActive: true,
+        }))
         
         if (values.email && trainerConnectionCode) {
             const invitationLink = `${window.location.origin}/register?code=${trainerConnectionCode}`
@@ -95,6 +137,38 @@ export const ClientsPage = () => {
         
         form.reset()
         closeAddModal()
+    }
+
+    const handleOpenEditClient = (client: Client) => {
+        setEditingClient(client)
+        editForm.setValues({
+            weight: client.weight,
+            height: client.height,
+            age: client.age,
+            activityLevel: client.activityLevel,
+            goals: client.goals ?? [],
+            restrictions: client.restrictions ?? [],
+        })
+        openEditModal()
+    }
+
+    const handleSaveClient = (values: EditClientForm) => {
+        if (!editingClient) return
+        dispatch(
+            updateClient({
+                id: editingClient.id,
+                updates: {
+                    weight: values.weight,
+                    height: values.height,
+                    age: values.age,
+                    activityLevel: values.activityLevel,
+                    goals: values.goals,
+                    restrictions: values.restrictions,
+                },
+            }),
+        )
+        closeEditModal()
+        setEditingClient(null)
     }
 
     const handleDeleteClient = (id: string) => {
@@ -206,6 +280,11 @@ export const ClientsPage = () => {
                                                 </Menu.Target>
                                                 <Menu.Dropdown>
                                                     <Menu.Item
+                                                        onClick={() => handleOpenEditClient(client)}
+                                                    >
+                                                        {t('trainer.clients.editClientModal.title')}
+                                                    </Menu.Item>
+                                                    <Menu.Item
                                                         leftSection={<IconCalendar size={16} />}
                                                         onClick={() => {
                                                             dispatch(setSelectedClient(client.id))
@@ -257,16 +336,117 @@ export const ClientsPage = () => {
                             required
                             {...form.getInputProps('email')}
                         />
-                        <TextInput
-                            label={t('profile.phone')}
-                            placeholder={t('trainer.clients.addClientModal.phonePlaceholder')}
-                            {...form.getInputProps('phone')}
+                        <Radio.Group
+                            label={t('trainer.clients.format')}
+                            {...form.getInputProps('format')}
+                        >
+                            <Stack gap="xs" mt="xs">
+                                <Radio value="online" label={t('trainer.clients.formatOnline')} />
+                                <Radio value="offline" label={t('trainer.clients.formatOffline')} />
+                                <Radio value="both" label={t('trainer.clients.formatBoth')} />
+                            </Stack>
+                        </Radio.Group>
+                        <NumberInput
+                            label={t('trainer.clients.addClientModal.workoutsPackage')}
+                            placeholder={t('trainer.clients.addClientModal.workoutsPackagePlaceholder')}
+                            min={1}
+                            {...form.getInputProps('workoutsPackage')}
+                        />
+                        <DateInput
+                            label={t('trainer.clients.addClientModal.packageExpiryDate')}
+                            placeholder={t('trainer.clients.addClientModal.packageExpiryDatePlaceholder')}
+                            valueFormat="DD.MM.YYYY"
+                            {...form.getInputProps('packageExpiryDate')}
                         />
                         <Group justify="flex-end" mt="md">
                             <Button variant="subtle" onClick={closeAddModal}>
                                 {t('common.cancel')}
                             </Button>
                             <Button type="submit">{t('common.add')}</Button>
+                        </Group>
+                    </Stack>
+                </form>
+            </Modal>
+
+            <Modal
+                opened={editModalOpened}
+                onClose={closeEditModal}
+                title={t('trainer.clients.editClientModal.title')}
+                size="lg"
+            >
+                <form onSubmit={editForm.onSubmit(handleSaveClient)}>
+                    <Stack gap="md">
+                        <Text fw={500}>{t('trainer.clients.editClientModal.metricsSection')}</Text>
+                        <Group grow>
+                            <NumberInput
+                                label={t('trainer.clients.editClientModal.weight')}
+                                suffix=" кг"
+                                min={30}
+                                max={250}
+                                {...editForm.getInputProps('weight')}
+                            />
+                            <NumberInput
+                                label={t('trainer.clients.editClientModal.height')}
+                                suffix=" см"
+                                min={120}
+                                max={230}
+                                {...editForm.getInputProps('height')}
+                            />
+                            <NumberInput
+                                label={t('trainer.clients.editClientModal.age')}
+                                suffix=" лет"
+                                min={14}
+                                max={100}
+                                {...editForm.getInputProps('age')}
+                            />
+                        </Group>
+
+                        <Radio.Group
+                            label={t('trainer.clients.editClientModal.activityLevel')}
+                            {...editForm.getInputProps('activityLevel')}
+                        >
+                            <Stack gap="xs" mt="xs">
+                                <Radio value="low" label={t('onboarding.activityLow')} />
+                                <Radio value="medium" label={t('onboarding.activityMedium')} />
+                                <Radio value="high" label={t('onboarding.activityHigh')} />
+                            </Stack>
+                        </Radio.Group>
+
+                        <TextInput
+                            label={t('trainer.clients.editClientModal.goals')}
+                            placeholder={t('onboarding.goals')}
+                            value={editForm.values.goals.join(', ')}
+                            onChange={(event) =>
+                                editForm.setFieldValue(
+                                    'goals',
+                                    event.currentTarget.value
+                                        .split(',')
+                                        .map((v) => v.trim())
+                                        .filter(Boolean),
+                                )
+                            }
+                        />
+
+                        <TextInput
+                            label={t('trainer.clients.editClientModal.restrictions')}
+                            placeholder={t('onboarding.restrictionsDescription')}
+                            value={editForm.values.restrictions.join(', ')}
+                            onChange={(event) =>
+                                editForm.setFieldValue(
+                                    'restrictions',
+                                    event.currentTarget.value
+                                        .split(',')
+                                        .map((v) => v.trim())
+                                        .filter(Boolean),
+                                )
+                            }
+                        />
+
+                        <Group justify="flex-end" mt="md">
+                            <Button variant="subtle" onClick={closeEditModal}>
+                                {t('common.cancel')}
+                            </Button>
+                            <Button type="submit">{t('common.save')}</Button>
                         </Group>
                     </Stack>
                 </form>

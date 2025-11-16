@@ -1,15 +1,4 @@
-import {
-    Button,
-    Card,
-    Checkbox,
-    Group,
-    NumberInput,
-    Radio,
-    Stack,
-    Stepper,
-    Text,
-    Title,
-} from '@mantine/core'
+import { Button, Card, Group, NumberInput, Radio, Stack, Stepper, Text, Title, Textarea, Checkbox } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate } from 'react-router-dom'
@@ -27,16 +16,6 @@ const GOALS = [
     { value: 'general_fitness', label: 'Общее здоровье' },
 ]
 
-const RESTRICTIONS = [
-    { value: 'back_injury', label: 'Травма спины' },
-    { value: 'knee_injury', label: 'Травма колена' },
-    { value: 'shoulder_injury', label: 'Травма плеча' },
-    { value: 'heart_disease', label: 'Заболевания сердца' },
-    { value: 'high_blood_pressure', label: 'Высокое давление' },
-    { value: 'diabetes', label: 'Диабет' },
-    { value: 'none', label: 'Нет ограничений' },
-]
-
 export const OnboardingPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
@@ -44,13 +23,18 @@ export const OnboardingPage = () => {
 
     const [activeStep, setActiveStep] = useState(0)
 
-    const form = useForm<OnboardingMetrics>({
+    interface OnboardingFormValues extends OnboardingMetrics {
+        restrictionsText: string
+    }
+
+    const form = useForm<OnboardingFormValues>({
         initialValues: {
             weight: undefined,
             height: undefined,
             age: undefined,
             goals: [],
             restrictions: [],
+            restrictionsText: '',
             activityLevel: undefined,
         },
         validate: {
@@ -82,18 +66,24 @@ export const OnboardingPage = () => {
     }
 
     const handleComplete = () => {
+        const restrictions =
+            form.values.restrictionsText
+                ?.split(',')
+                .map((v: string) => v.trim())
+                .filter(Boolean) ?? []
+
         const metrics: OnboardingMetrics = {
             weight: form.values.weight,
             height: form.values.height,
             age: form.values.age,
             goals: form.values.goals,
-            restrictions: form.values.restrictions,
+            restrictions,
             activityLevel: form.values.activityLevel,
         }
         dispatch(completeOnboarding(metrics))
 
         if (typeof window !== 'undefined') {
-            window.localStorage.setItem('coach-fit-onboarding-seen', 'true')
+            window.localStorage.setItem('coach-flo-onboarding-seen', 'true')
         }
 
         if (metrics.height) {
@@ -222,13 +212,11 @@ export const OnboardingPage = () => {
                                 <Text size="xs" c="dimmed" mb="sm">
                                     {t('onboarding.restrictionsDescription')}
                                 </Text>
-                                <Checkbox.Group {...form.getInputProps('restrictions')}>
-                                    <Stack gap="sm">
-                                        {RESTRICTIONS.map((restriction) => (
-                                            <Checkbox key={restriction.value} label={restriction.label} value={restriction.value} />
-                                        ))}
-                                    </Stack>
-                                </Checkbox.Group>
+                                <Textarea
+                                    minRows={3}
+                                    placeholder={t('onboarding.restrictionsDescription')}
+                                    {...form.getInputProps('restrictionsText')}
+                                />
                             </Stack>
                         </Stepper.Step>
                     </Stepper>

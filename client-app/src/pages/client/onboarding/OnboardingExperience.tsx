@@ -16,7 +16,7 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { markOnboardingSeen } from '@/app/store/slices/userSlice'
 
-const STORAGE_KEY = 'coach-fit-onboarding-seen'
+const STORAGE_KEY = 'coach-flo-onboarding-seen'
 
 const shouldShowOnboarding = (role: string, onboardingSeen: boolean): boolean => {
   if (role !== 'client') {

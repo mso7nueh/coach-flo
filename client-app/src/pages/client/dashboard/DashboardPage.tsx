@@ -151,13 +151,21 @@ export const DashboardPage = () => {
         [],
     )
 
-    const limitationItems = useMemo(
-        () => [
-            { id: 'lim-1', title: t('dashboard.limitations.items.leg'), date: 'Oct 29' },
-            { id: 'lim-2', title: t('dashboard.limitations.items.physio'), date: 'Jul 12' },
-        ],
-        [t],
-    )
+    const clientOnboarding = user.onboardingMetrics
+    const limitationItems = useMemo(() => {
+        const items: { id: string; title: string; date?: string }[] = []
+
+        if (clientOnboarding?.restrictions && clientOnboarding.restrictions.length > 0) {
+            clientOnboarding.restrictions.forEach((text, index) => {
+                items.push({ id: `lim-${index}`, title: text })
+            })
+        } else {
+            items.push({ id: 'lim-1', title: t('dashboard.limitations.items.leg') })
+            items.push({ id: 'lim-2', title: t('dashboard.limitations.items.physio') })
+        }
+
+        return items
+    }, [clientOnboarding?.restrictions, t])
 
     const progressPhotos = useMemo(
         () => [
@@ -216,10 +224,12 @@ export const DashboardPage = () => {
                             <Title order={2} c="gray.9">
                                 {totalWorkouts}
                             </Title>
-                            <Text size="xs" c="dimmed">
-                                {t('dashboard.stats.forPeriod', { period: t(`dashboard.periods.${period}`).toLowerCase() })}
-                            </Text>
                         </Group>
+                        <Badge size="xs" variant="light" color="gray">
+                            {t('dashboard.stats.periodLabel', {
+                                period: t(`dashboard.periods.${period}`).toLowerCase(),
+                            })}
+                        </Badge>
                     </Stack>
                 </Card>
 
@@ -236,21 +246,56 @@ export const DashboardPage = () => {
                                 {attendanceRate}%
                             </Badge>
                         </Group>
+                        <Badge size="xs" variant="light" color="gray">
+                            {t('dashboard.stats.periodLabel', {
+                                period: t(`dashboard.periods.${period}`).toLowerCase(),
+                            })}
+                        </Badge>
                     </Stack>
                 </Card>
 
                 <Card withBorder padding="md">
-                    <Stack gap="xs">
-                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                            {t('dashboard.stats.today')}
-                        </Text>
-                        <Group gap="md" align="flex-end">
-                            <Title order={2} c="gray.9">
-                                {todayWorkouts > 0
-                                    ? `${todayWorkouts} ${todayWorkouts === 1 ? t('dashboard.stats.workout_one') : todayWorkouts <= 4 ? t('dashboard.stats.workout_few') : t('dashboard.stats.workout_many')}`
-                                    : t('dashboard.stats.noWorkouts')}
-                            </Title>
-                        </Group>
+                    <Stack gap="md">
+                        <Stack gap="xs">
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                                {t('dashboard.stats.todayWorkouts')}
+                            </Text>
+                            <Group gap="md" align="flex-end">
+                                <Title order={2} c="gray.9">
+                                    {todayWorkouts > 0
+                                        ? `${todayWorkouts} ${todayWorkouts === 1
+                                            ? t('dashboard.stats.workout_one')
+                                            : todayWorkouts <= 4
+                                                ? t('dashboard.stats.workout_few')
+                                                : t('dashboard.stats.workout_many')
+                                        }`
+                                        : t('dashboard.stats.noWorkoutsToday')}
+                                </Title>
+                            </Group>
+                            <Badge size="xs" variant="light" color="blue">
+                                {t('dashboard.stats.currentDayLabel')}
+                            </Badge>
+                        </Stack>
+                        <Divider />
+                        <Stack gap="xs">
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                                {t('dashboard.stats.nextWorkout')}
+                            </Text>
+                            {upcoming.length > 0 ? (
+                                <>
+                                    <Text fw={600} size="lg" c="gray.9">
+                                        {dayjs(upcoming[0].start).format('D MMM, HH:mm')}
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        {upcoming[0].title}
+                                    </Text>
+                                </>
+                            ) : (
+                                <Text size="sm" c="dimmed">
+                                    {t('dashboard.stats.noWorkouts')}
+                                </Text>
+                            )}
+                        </Stack>
                     </Stack>
                 </Card>
             </SimpleGrid>
@@ -259,14 +304,22 @@ export const DashboardPage = () => {
                 {tiles.map((tile) => {
                     const isTrend = tile.secondaryValue?.includes('↑') || tile.secondaryValue?.includes('↓')
                     const trendUp = tile.secondaryValue?.includes('↑')
+                    const showToday = tile.showTodayValue && tile.todayValue
 
                     return (
                         <Card key={tile.id} withBorder padding="md">
                             <Stack gap="xs">
                                 <Group justify="space-between" align="flex-start">
-                                    <Text size="xs" c="dimmed" fw={600}>
-                                        {t(tile.labelKey)}
-                                    </Text>
+                                    <Stack gap={0}>
+                                        <Text size="xs" c="dimmed" fw={600}>
+                                            {t(tile.labelKey)}
+                                        </Text>
+                                        {tile.id === 'steps' && (
+                                            <Text size="xs" c="dimmed" style={{ fontSize: '10px' }}>
+                                                {t('dashboard.tiles.stepsDescription')}
+                                            </Text>
+                                        )}
+                                    </Stack>
                                     {isTrend && (
                                         <Group gap={2}>
                                             {trendUp ? (
@@ -282,9 +335,47 @@ export const DashboardPage = () => {
                                         </Group>
                                     )}
                                 </Group>
-                                <Title order={3} c="gray.9">
-                                    {tile.value}
-                                </Title>
+                                <Stack gap={4}>
+                                    {showToday ? (
+                                        <>
+                                            <Stack gap={2}>
+                                                <Text size="xs" c="dimmed">
+                                                    {t('dashboard.tiles.todayValue')}
+                                                </Text>
+                                                <Title order={3} c="gray.9">
+                                                    {tile.todayValue}
+                                                </Title>
+                                            </Stack>
+                                            <Divider />
+                                            <Stack gap={2}>
+                                                <Text size="xs" c="dimmed">
+                                                    {t('dashboard.tiles.currentValue')}
+                                                </Text>
+                                                <Group gap="xs" align="flex-end">
+                                                    <Text fw={600} size="lg" c="gray.7">
+                                                        {tile.value}
+                                                    </Text>
+                                                    {tile.secondaryValue && (
+                                                        <Text size="xs" c="dimmed">
+                                                            {t('dashboard.tiles.changeLabel')}
+                                                        </Text>
+                                                    )}
+                                                </Group>
+                                            </Stack>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Title order={3} c="gray.9">
+                                                {tile.value}
+                                            </Title>
+                                            {tile.secondaryValue && (
+                                                <Text size="xs" c="dimmed">
+                                                    {t('dashboard.tiles.changeLabel')}: {tile.secondaryValue.replace('↑', '').replace('↓', '')}
+                                                </Text>
+                                            )}
+                                        </>
+                                    )}
+                                </Stack>
                             </Stack>
                         </Card>
                     )
@@ -403,6 +494,12 @@ export const DashboardPage = () => {
                                             <Text size="sm" c="dimmed">{t('dashboard.bodyOverview.weightUnit')}</Text>
                                             <Badge size="xs" color="red" variant="light">↓ 0.8%</Badge>
                                         </Group>
+                                        <Text size="xs" c="dimmed">
+                                            {t('dashboard.bodyOverview.currentValue')}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            {t('dashboard.bodyOverview.changeLabel')}: ↓ 0.8%
+                                        </Text>
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('weight')}>
                                         <IconEdit size={14} />
@@ -433,6 +530,18 @@ export const DashboardPage = () => {
                                             <Text fw={700} size="lg">6 h 46 m</Text>
                                             <Badge size="xs" color="green" variant="light">+0.3h</Badge>
                                         </Group>
+                                        <Group gap="xs">
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.todayValue')}: 6 h 30 m
+                                            </Text>
+                                            <Text size="xs" c="dimmed">•</Text>
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.currentValue')}: 6 h 46 m
+                                            </Text>
+                                        </Group>
+                                        <Text size="xs" c="dimmed">
+                                            {t('dashboard.bodyOverview.changeLabel')}: +0.3 ч
+                                        </Text>
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('sleep')}>
                                         <IconEdit size={14} />
@@ -464,6 +573,18 @@ export const DashboardPage = () => {
                                             <Text size="sm" c="dimmed">{t('dashboard.bodyOverview.heartRateUnit')}</Text>
                                             <Badge size="xs" color="green" variant="light">↓ 5.7%</Badge>
                                         </Group>
+                                        <Group gap="xs">
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.todayValue')}: 68 {t('dashboard.bodyOverview.heartRateUnit')}
+                                            </Text>
+                                            <Text size="xs" c="dimmed">•</Text>
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.currentValue')}: 66 {t('dashboard.bodyOverview.heartRateUnit')}
+                                            </Text>
+                                        </Group>
+                                        <Text size="xs" c="dimmed">
+                                            {t('dashboard.bodyOverview.changeLabel')}: ↓ 5.7%
+                                        </Text>
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('heartRate')}>
                                         <IconEdit size={14} />
@@ -494,6 +615,18 @@ export const DashboardPage = () => {
                                             <Text fw={700} size="lg">7 503</Text>
                                             <Badge size="xs" color="green" variant="light">+4.2%</Badge>
                                         </Group>
+                                        <Group gap="xs">
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.todayValue')}: 8 200
+                                            </Text>
+                                            <Text size="xs" c="dimmed">•</Text>
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.currentValue')}: 7 503
+                                            </Text>
+                                        </Group>
+                                        <Text size="xs" c="dimmed">
+                                            {t('dashboard.bodyOverview.changeLabel')}: +4.2%
+                                        </Text>
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('steps')}>
                                         <IconEdit size={14} />

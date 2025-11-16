@@ -1,6 +1,8 @@
-import { Avatar, Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Avatar, Badge, Button, Card, Group, Stack, Text, Title, TextInput, Alert } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
+import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
+import { linkTrainer, unlinkTrainer } from '@/app/store/slices/userSlice'
 import { IconMail, IconPhone, IconUserEdit, IconCopy, IconCheck } from '@tabler/icons-react'
 import { NavLink } from 'react-router-dom'
 import { useState } from 'react'
@@ -16,8 +18,11 @@ const getInitials = (name: string) => {
 
 export const ProfilePage = () => {
     const { t } = useTranslation()
+    const dispatch = useAppDispatch()
     const user = useAppSelector((state) => state.user)
     const [codeCopied, setCodeCopied] = useState(false)
+    const [trainerCode, setTrainerCode] = useState('')
+    const [trainerMessage, setTrainerMessage] = useState<string | null>(null)
     const isTrainer = user.role === 'trainer'
 
     const handleCopyCode = async () => {
@@ -151,6 +156,59 @@ export const ProfilePage = () => {
                                 )}
                             </Stack>
                         </Group>
+                        <Group justify="flex-end">
+                            <Button
+                                variant="outline"
+                                color="red"
+                                size="xs"
+                                onClick={() => {
+                                    dispatch(unlinkTrainer())
+                                    setTrainerMessage(t('profile.trainerRemoved'))
+                                }}
+                            >
+                                {t('profile.removeTrainer')}
+                            </Button>
+                        </Group>
+                        {trainerMessage && (
+                            <Alert color="green" radius="md">
+                                {trainerMessage}
+                            </Alert>
+                        )}
+                    </Stack>
+                </Card>
+            )}
+
+            {!isTrainer && !user.trainer && (
+                <Card withBorder padding="xl">
+                    <Stack gap="md">
+                        <Title order={4}>{t('profile.addTrainer')}</Title>
+                        <Text size="sm" c="dimmed">
+                            {t('profile.trainerCodeHelp')}
+                        </Text>
+                        <Group align="flex-end" gap="md">
+                            <TextInput
+                                label={t('profile.trainerCodeLabel')}
+                                placeholder={t('profile.trainerCodePlaceholder')}
+                                value={trainerCode}
+                                onChange={(event) => setTrainerCode(event.currentTarget.value)}
+                                style={{ flex: 1 }}
+                            />
+                            <Button
+                                onClick={() => {
+                                    const code = trainerCode.trim()
+                                    if (!code) return
+                                    dispatch(linkTrainer({ connectionCode: code }))
+                                    setTrainerMessage(t('profile.trainerConnected'))
+                                }}
+                            >
+                                {t('profile.addTrainer')}
+                            </Button>
+                        </Group>
+                        {trainerMessage && (
+                            <Alert color="green" radius="md">
+                                {trainerMessage}
+                            </Alert>
+                        )}
                     </Stack>
                 </Card>
             )}

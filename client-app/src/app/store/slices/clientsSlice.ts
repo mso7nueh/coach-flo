@@ -7,12 +7,23 @@ export interface Client {
     phone?: string
     avatar?: string
     format: 'online' | 'offline' | 'both'
+    // данные из онбординга
+    weight?: number
+    height?: number
+    age?: number
+    goals?: string[]
+    restrictions?: string[]
+    activityLevel?: 'low' | 'medium' | 'high'
     lastWorkout?: string
     nextWorkout?: string
     attendanceRate: number
     totalWorkouts: number
     completedWorkouts: number
     joinedDate: string
+    // пакет тренировок
+    workoutsPackage?: number // количество тренировок в пакете
+    packageExpiryDate?: string // дата окончания пакета (ISO string)
+    isActive: boolean // активен ли клиент (автоматически отключается после окончания пакета)
 }
 
 interface ClientsState {
@@ -35,6 +46,9 @@ const initialState: ClientsState = {
             totalWorkouts: 20,
             completedWorkouts: 17,
             joinedDate: '2023-09-01',
+            workoutsPackage: 12,
+            packageExpiryDate: '2024-12-31',
+            isActive: true,
         },
         {
             id: '2',
@@ -48,6 +62,9 @@ const initialState: ClientsState = {
             totalWorkouts: 25,
             completedWorkouts: 23,
             joinedDate: '2023-08-15',
+            workoutsPackage: 8,
+            packageExpiryDate: '2024-06-30',
+            isActive: true,
         },
         {
             id: '3',
@@ -61,6 +78,9 @@ const initialState: ClientsState = {
             totalWorkouts: 16,
             completedWorkouts: 12,
             joinedDate: '2023-10-10',
+            workoutsPackage: 16,
+            packageExpiryDate: '2024-03-31',
+            isActive: true,
         },
     ],
     searchQuery: '',
@@ -79,6 +99,7 @@ const clientsSlice = createSlice({
                 totalWorkouts: 0,
                 completedWorkouts: 0,
                 joinedDate: new Date().toISOString(),
+                isActive: action.payload.isActive ?? true,
             }
             state.clients.push(newClient)
         },
@@ -111,10 +132,18 @@ const clientsSlice = createSlice({
                         : 0
             }
         },
+        checkAndDeactivateExpiredClients(state) {
+            const now = new Date().toISOString()
+            state.clients.forEach((client) => {
+                if (client.packageExpiryDate && client.packageExpiryDate < now && client.isActive) {
+                    client.isActive = false
+                }
+            })
+        },
     },
 })
 
-export const { addClient, updateClient, removeClient, setSearchQuery, setSelectedClient, updateClientAttendance } =
+export const { addClient, updateClient, removeClient, setSearchQuery, setSelectedClient, updateClientAttendance, checkAndDeactivateExpiredClients } =
     clientsSlice.actions
 export default clientsSlice.reducer
 

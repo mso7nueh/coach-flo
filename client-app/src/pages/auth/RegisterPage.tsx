@@ -176,7 +176,7 @@ export const RegisterPage = () => {
                     <Stack gap={4} align="center">
                         <Title order={2}>
                             <Text span variant="gradient" gradient={{ from: 'violet', to: 'purple', deg: 135 }}>
-                                Coach Fit
+                                Coach Flo
                             </Text>
                         </Title>
                         <Text c="dimmed" size="sm">

@@ -13,7 +13,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
-import { IconArrowLeft, IconCalendar, IconChartBar, IconBarbell, IconEdit } from '@tabler/icons-react'
+import { IconArrowLeft, IconCalendar, IconChartBar, IconBarbell, IconEdit, IconAlertTriangle, IconTarget } from '@tabler/icons-react'
 import { SimpleGrid } from '@mantine/core'
 import dayjs from 'dayjs'
 
@@ -285,6 +285,60 @@ export const ClientDashboardPage = () => {
                                 </Stack>
                             </Card>
                         </SimpleGrid>
+                    </Stack>
+                </Card>
+            </SimpleGrid>
+
+            <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Group gap="xs">
+                            <IconTarget size={20} color="var(--mantine-color-violet-6)" />
+                            <Title order={4}>{t('trainer.clients.clientGoals')}</Title>
+                        </Group>
+                        {!client.goals || client.goals.length === 0 ? (
+                            <Text size="sm" c="dimmed">
+                                {t('trainer.clients.noGoals')}
+                            </Text>
+                        ) : (
+                            <Stack gap="xs">
+                                {client.goals.map((goal, index) => (
+                                    <Group key={index} gap="xs" align="flex-start">
+                                        <Badge variant="light" color="violet" size="sm">
+                                            {index + 1}
+                                        </Badge>
+                                        <Text size="sm" style={{ flex: 1 }}>
+                                            {goal}
+                                        </Text>
+                                    </Group>
+                                ))}
+                            </Stack>
+                        )}
+                    </Stack>
+                </Card>
+
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Group gap="xs">
+                            <IconAlertTriangle size={20} color="var(--mantine-color-red-6)" />
+                            <Title order={4}>{t('trainer.clients.clientRestrictions')}</Title>
+                        </Group>
+                        {!client.restrictions || client.restrictions.length === 0 ? (
+                            <Text size="sm" c="dimmed">
+                                {t('trainer.clients.noRestrictions')}
+                            </Text>
+                        ) : (
+                            <Stack gap="xs">
+                                {client.restrictions.map((restriction, index) => (
+                                    <Group key={index} gap="xs" align="flex-start">
+                                        <IconAlertTriangle size={16} color="var(--mantine-color-red-6)" />
+                                        <Text size="sm" style={{ flex: 1 }}>
+                                            {restriction}
+                                        </Text>
+                                    </Group>
+                                ))}
+                            </Stack>
+                        )}
                     </Stack>
                 </Card>
             </SimpleGrid>

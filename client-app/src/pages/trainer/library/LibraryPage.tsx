@@ -62,7 +62,7 @@ export const LibraryPage = () => {
     const dispatch = useAppDispatch()
     const { workouts, exercises, workoutFilters, exerciseFilters } = useAppSelector((state) => state.library)
     const clients = useAppSelector((state) => state.clients.clients)
-    const [activeTab, setActiveTab] = useState<string>('workouts')
+    const [activeTab, setActiveTab] = useState<string>('exercises')
     const [workoutModalOpened, { open: openWorkoutModal, close: closeWorkoutModal }] = useDisclosure(false)
     const [viewWorkoutModalOpened, { open: openViewWorkoutModal, close: closeViewWorkoutModal }] = useDisclosure(false)
     const [exerciseModalOpened, { open: openExerciseModal, close: closeExerciseModal }] = useDisclosure(false)
@@ -114,7 +114,7 @@ export const LibraryPage = () => {
             executionInstructions: '',
             notes: '',
             videoUrl: '',
-            visibility: 'all' as const,
+        visibility: 'trainer' as const,
             clientId: undefined,
         },
     })
@@ -233,15 +233,145 @@ export const LibraryPage = () => {
                 <Title order={2}>{t('trainer.library.title')}</Title>
             </Group>
 
-            <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'workouts')}>
+            <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'exercises')}>
                 <Tabs.List>
-                    <Tabs.Tab value="workouts" leftSection={<IconCalendarEvent size={16} />}>
-                        {t('trainer.library.workouts')}
-                    </Tabs.Tab>
                     <Tabs.Tab value="exercises" leftSection={<IconBarbell size={16} />}>
                         {t('trainer.library.exercises')}
                     </Tabs.Tab>
+                    <Tabs.Tab value="workouts" leftSection={<IconCalendarEvent size={16} />}>
+                        {t('trainer.library.workouts')}
+                    </Tabs.Tab>
                 </Tabs.List>
+
+                <Tabs.Panel value="exercises" pt="lg">
+                    <Stack gap="md">
+                        <Group justify="space-between">
+                            <Group gap="md">
+                                <Select
+                                    placeholder={t('trainer.library.filters.muscleGroup')}
+                                    data={[
+                                        { value: 'chest', label: t('trainer.library.muscleChest') },
+                                        { value: 'back', label: t('trainer.library.muscleBack') },
+                                        { value: 'shoulders', label: t('trainer.library.muscleShoulders') },
+                                        { value: 'arms', label: t('trainer.library.muscleArms') },
+                                        { value: 'legs', label: t('trainer.library.muscleLegs') },
+                                        { value: 'core', label: t('trainer.library.muscleCore') },
+                                        { value: 'cardio', label: t('trainer.library.muscleCardio') },
+                                        { value: 'full_body', label: t('trainer.library.muscleFullBody') },
+                                    ]}
+                                    clearable
+                                    value={exerciseFilters.muscleGroup || null}
+                                    onChange={(value) =>
+                                        dispatch(setExerciseFilters({ muscleGroup: (value as MuscleGroup) || undefined }))
+                                    }
+                                />
+                            </Group>
+                            <Button leftSection={<IconPlus size={16} />} onClick={handleCreateExercise}>
+                                {t('trainer.library.createExercise')}
+                            </Button>
+                        </Group>
+
+                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                            {filteredExercises.map((exercise) => (
+                                <Card 
+                                    key={exercise.id} 
+                                    withBorder 
+                                    padding="md"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(e) => {
+                                        const target = e.target as HTMLElement
+                                        if (!target.closest('[data-menu-trigger]') && !target.closest('[data-menu-dropdown]')) {
+                                            setViewingExercise(exercise)
+                                            openViewExerciseModal()
+                                        }
+                                    }}
+                                >
+                                    <Stack gap="sm">
+                                        <Group justify="space-between" align="flex-start">
+                                            <Stack gap={4} style={{ flex: 1 }}>
+                                                <Text fw={600} size="lg">
+                                                    {exercise.name}
+                                                </Text>
+                                                <Group gap="xs">
+                                                    <Badge size="sm" variant="light">
+                                                        {exercise.muscleGroup === 'chest'
+                                                            ? t('trainer.library.muscleChest')
+                                                            : exercise.muscleGroup === 'back'
+                                                            ? t('trainer.library.muscleBack')
+                                                            : exercise.muscleGroup === 'shoulders'
+                                                            ? t('trainer.library.muscleShoulders')
+                                                            : exercise.muscleGroup === 'arms'
+                                                            ? t('trainer.library.muscleArms')
+                                                            : exercise.muscleGroup === 'legs'
+                                                            ? t('trainer.library.muscleLegs')
+                                                            : exercise.muscleGroup === 'core'
+                                                            ? t('trainer.library.muscleCore')
+                                                            : exercise.muscleGroup === 'cardio'
+                                                            ? t('trainer.library.muscleCardio')
+                                                            : t('trainer.library.muscleFullBody')}
+                                                    </Badge>
+                                                </Group>
+                                            </Stack>
+                                            <Menu shadow="md" width={200} position="bottom-end">
+                                                <Menu.Target>
+                                                    <ActionIcon 
+                                                        variant="subtle"
+                                                        data-menu-trigger
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                        }}
+                                                        onMouseDown={(e) => {
+                                                            e.stopPropagation()
+                                                        }}
+                                                    >
+                                                        <IconDotsVertical size={16} />
+                                                    </ActionIcon>
+                                                </Menu.Target>
+                                                <Menu.Dropdown data-menu-dropdown onClick={(e) => e.stopPropagation()}>
+                                                    <Menu.Item leftSection={<IconEye size={16} />} onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setViewingExercise(exercise)
+                                                        openViewExerciseModal()
+                                                    }}>
+                                                        {t('trainer.library.view')}
+                                                    </Menu.Item>
+                                                    <Menu.Item leftSection={<IconEdit size={16} />} onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleEditExercise(exercise)
+                                                    }}>
+                                                        {t('trainer.library.edit')}
+                                                    </Menu.Item>
+                                                    <Menu.Item leftSection={<IconCopy size={16} />} onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        dispatch(cloneExercise(exercise.id))
+                                                    }}>
+                                                        {t('trainer.library.clone')}
+                                                    </Menu.Item>
+                                                    <Menu.Divider />
+                                                    <Menu.Item
+                                                        color="red"
+                                                        leftSection={<IconTrash size={16} />}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            dispatch(removeExercise(exercise.id))
+                                                        }}
+                                                    >
+                                                        {t('trainer.library.delete')}
+                                                    </Menu.Item>
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        </Group>
+                                        {exercise.description && (
+                                            <Text size="sm" c="dimmed" lineClamp={2}>
+                                                {exercise.description}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                </Card>
+                            ))}
+                        </SimpleGrid>
+                    </Stack>
+                </Tabs.Panel>
 
                 <Tabs.Panel value="workouts" pt="lg">
                     <Stack gap="md">
@@ -379,136 +509,6 @@ export const LibraryPage = () => {
                                         {workout.description && (
                                             <Text size="sm" c="dimmed" lineClamp={2}>
                                                 {workout.description}
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                </Card>
-                            ))}
-                        </SimpleGrid>
-                    </Stack>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="exercises" pt="lg">
-                    <Stack gap="md">
-                        <Group justify="space-between">
-                            <Group gap="md">
-                                <Select
-                                    placeholder={t('trainer.library.filters.muscleGroup')}
-                                    data={[
-                                        { value: 'chest', label: t('trainer.library.muscleChest') },
-                                        { value: 'back', label: t('trainer.library.muscleBack') },
-                                        { value: 'shoulders', label: t('trainer.library.muscleShoulders') },
-                                        { value: 'arms', label: t('trainer.library.muscleArms') },
-                                        { value: 'legs', label: t('trainer.library.muscleLegs') },
-                                        { value: 'core', label: t('trainer.library.muscleCore') },
-                                        { value: 'cardio', label: t('trainer.library.muscleCardio') },
-                                        { value: 'full_body', label: t('trainer.library.muscleFullBody') },
-                                    ]}
-                                    clearable
-                                    value={exerciseFilters.muscleGroup || null}
-                                    onChange={(value) =>
-                                        dispatch(setExerciseFilters({ muscleGroup: (value as MuscleGroup) || undefined }))
-                                    }
-                                />
-                            </Group>
-                            <Button leftSection={<IconPlus size={16} />} onClick={handleCreateExercise}>
-                                {t('trainer.library.createExercise')}
-                            </Button>
-                        </Group>
-
-                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                            {filteredExercises.map((exercise) => (
-                                <Card 
-                                    key={exercise.id} 
-                                    withBorder 
-                                    padding="md"
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={(e) => {
-                                        const target = e.target as HTMLElement
-                                        if (!target.closest('[data-menu-trigger]') && !target.closest('[data-menu-dropdown]')) {
-                                            setViewingExercise(exercise)
-                                            openViewExerciseModal()
-                                        }
-                                    }}
-                                >
-                                    <Stack gap="sm">
-                                        <Group justify="space-between" align="flex-start">
-                                            <Stack gap={4} style={{ flex: 1 }}>
-                                                <Text fw={600} size="lg">
-                                                    {exercise.name}
-                                                </Text>
-                                                <Group gap="xs">
-                                                    <Badge size="sm" variant="light">
-                                                        {exercise.muscleGroup === 'chest'
-                                                            ? t('trainer.library.muscleChest')
-                                                            : exercise.muscleGroup === 'back'
-                                                            ? t('trainer.library.muscleBack')
-                                                            : exercise.muscleGroup === 'shoulders'
-                                                            ? t('trainer.library.muscleShoulders')
-                                                            : exercise.muscleGroup === 'arms'
-                                                            ? t('trainer.library.muscleArms')
-                                                            : exercise.muscleGroup === 'legs'
-                                                            ? t('trainer.library.muscleLegs')
-                                                            : exercise.muscleGroup === 'core'
-                                                            ? t('trainer.library.muscleCore')
-                                                            : exercise.muscleGroup === 'cardio'
-                                                            ? t('trainer.library.muscleCardio')
-                                                            : t('trainer.library.muscleFullBody')}
-                                                    </Badge>
-                                                </Group>
-                                            </Stack>
-                                            <Menu shadow="md" width={200} position="bottom-end">
-                                                <Menu.Target>
-                                                    <ActionIcon 
-                                                        variant="subtle"
-                                                        data-menu-trigger
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                        }}
-                                                        onMouseDown={(e) => {
-                                                            e.stopPropagation()
-                                                        }}
-                                                    >
-                                                        <IconDotsVertical size={16} />
-                                                    </ActionIcon>
-                                                </Menu.Target>
-                                                <Menu.Dropdown data-menu-dropdown onClick={(e) => e.stopPropagation()}>
-                                                    <Menu.Item leftSection={<IconEye size={16} />} onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setViewingExercise(exercise)
-                                                        openViewExerciseModal()
-                                                    }}>
-                                                        {t('trainer.library.view')}
-                                                    </Menu.Item>
-                                                    <Menu.Item leftSection={<IconEdit size={16} />} onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        handleEditExercise(exercise)
-                                                    }}>
-                                                        {t('trainer.library.edit')}
-                                                    </Menu.Item>
-                                                    <Menu.Item leftSection={<IconCopy size={16} />} onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        dispatch(cloneExercise(exercise.id))
-                                                    }}>
-                                                        {t('trainer.library.clone')}
-                                                    </Menu.Item>
-                                                    <Menu.Divider />
-                                                    <Menu.Item
-                                                        color="red"
-                                                        leftSection={<IconTrash size={16} />}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            dispatch(removeExercise(exercise.id))
-                                                        }}
-                                                    >
-                                                        {t('trainer.library.delete')}
-                                                    </Menu.Item>
-                                                </Menu.Dropdown>
-                                            </Menu>
-                                        </Group>
-                                        {exercise.description && (
-                                            <Text size="sm" c="dimmed" lineClamp={2}>
-                                                {exercise.description}
                                             </Text>
                                         )}
                                     </Stack>
@@ -1012,13 +1012,18 @@ export const LibraryPage = () => {
                         <Radio.Group
                             value={exerciseForm.values.visibility}
                             onChange={(value) => {
-                                exerciseForm.setFieldValue('visibility', value as 'all' | 'client')
-                                if (value === 'all') {
+                                exerciseForm.setFieldValue('visibility', value as 'all' | 'client' | 'trainer')
+                                if (value !== 'client') {
                                     exerciseForm.setFieldValue('clientId', undefined)
                                 }
                             }}
                         >
                             <Stack gap="xs">
+                                <Radio 
+                                    value="trainer" 
+                                    label={t('trainer.library.exerciseForm.visibilityTrainer')}
+                                    description={t('trainer.library.exerciseForm.visibilityTrainerDescription')}
+                                />
                                 <Radio 
                                     value="all" 
                                     label={t('trainer.library.exerciseForm.visibilityAll')}

@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/client/dashboard/DashboardPage'
 import { CalendarPage } from '@/pages/client/calendar/CalendarPage'
 import { ProgramPage } from '@/pages/client/program/ProgramPage'
 import { MetricsPage } from '@/pages/client/metrics/MetricsPage'
+import { NutritionPage } from '@/pages/client/nutrition/NutritionPage'
 import { ProfilePage } from '@/pages/client/profile/ProfilePage'
 import { EditProfilePage } from '@/pages/client/profile/EditProfilePage'
 import { SettingsPage } from '@/pages/client/settings/SettingsPage'
@@ -51,6 +52,7 @@ export const AppRoutes = () => (
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="program" element={<ProgramPage />} />
             <Route path="metrics" element={<MetricsPage />} />
+            <Route path="nutrition" element={<NutritionPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/edit" element={<EditProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />

@@ -6,7 +6,22 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { setLocale, logout } from '@/app/store/slices/userSlice'
 import { useId } from 'react'
-import { IconChevronDown, IconLogout, IconSettings, IconUser, IconUserEdit } from '@tabler/icons-react'
+import {
+    IconChevronDown,
+    IconLogout,
+    IconSettings,
+    IconUser,
+    IconUserEdit,
+    IconLayoutDashboard,
+    IconCalendarTime,
+    IconListDetails,
+    IconActivity,
+    IconUsersGroup,
+    IconLibrary,
+    IconCalendarStats,
+    IconCurrencyRubel,
+    IconApple,
+} from '@tabler/icons-react'
 
 export const AppLayout = () => {
     const [opened, { toggle }] = useDisclosure()
@@ -21,17 +36,18 @@ export const AppLayout = () => {
     const isClient = role === 'client'
 
     const clientItems = [
-        { to: '/dashboard', label: t('common.dashboard') },
-        { to: '/calendar', label: t('common.calendar') },
-        { to: '/program', label: t('common.program') },
-        { to: '/metrics', label: t('common.metrics') },
+        { to: '/dashboard', label: t('common.dashboard'), icon: IconLayoutDashboard },
+        { to: '/calendar', label: t('common.calendar'), icon: IconCalendarTime },
+        { to: '/program', label: t('common.program'), icon: IconListDetails },
+        { to: '/metrics', label: t('common.metrics'), icon: IconActivity },
+        { to: '/nutrition', label: t('common.nutrition'), icon: IconApple },
     ]
 
     const trainerItems = [
-        { to: '/trainer/clients', label: t('common.clients') },
-        { to: '/trainer/library', label: t('common.library') },
-        { to: '/trainer/calendar', label: t('common.trainerCalendar') },
-        { to: '/trainer/finances', label: t('common.finances') },
+        { to: '/trainer/clients', label: t('common.clients'), icon: IconUsersGroup },
+        { to: '/trainer/library', label: t('common.library'), icon: IconLibrary },
+        { to: '/trainer/calendar', label: t('common.trainerCalendar'), icon: IconCalendarStats },
+        { to: '/trainer/finances', label: t('common.finances'), icon: IconCurrencyRubel },
     ]
 
     const items = isClient ? clientItems : trainerItems
@@ -57,7 +73,7 @@ export const AppLayout = () => {
             header={{ height: headerHeight }}
             navbar={
                 isClient
-                    ? { width: 240, breakpoint: 'sm', collapsed: { desktop: true, mobile: !opened } }
+                    ? { width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }
                     : { width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }
             }
             padding={{ base: 'md', sm: 'lg' }}
@@ -75,47 +91,8 @@ export const AppLayout = () => {
                                     gradient={{ from: 'violet', to: 'purple', deg: 135 }}
                                     style={{ letterSpacing: '-0.5px' }}
                                 >
-                                    Coach Fit
+                                    Coach Flo
                                 </Text>
-                            </Group>
-                            <Group gap="md" visibleFrom="md" style={{ flex: 1, justifyContent: 'center' }}>
-                                {items.map((item) => {
-                                    const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/')
-                                    return (
-                                        <UnstyledButton
-                                            key={item.to}
-                                            component={NavLink}
-                                            to={item.to}
-                                            style={{
-                                                textDecoration: 'none',
-                                                padding: '10px 20px',
-                                                borderRadius: '10px',
-                                                backgroundColor: isActive ? 'var(--mantine-color-violet-6)' : 'transparent',
-                                                transition: 'all 0.2s ease-in-out',
-                                                position: 'relative',
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                if (!isActive) {
-                                                    e.currentTarget.style.backgroundColor = 'var(--mantine-color-violet-0)'
-                                                }
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                if (!isActive) {
-                                                    e.currentTarget.style.backgroundColor = 'transparent'
-                                                }
-                                            }}
-                                        >
-                                            <Text
-                                                fw={isActive ? 700 : 600}
-                                                c={isActive ? 'white' : 'var(--mantine-color-gray-7)'}
-                                                size="sm"
-                                                style={{ transition: 'color 0.2s' }}
-                                            >
-                                                {item.label}
-                                            </Text>
-                                        </UnstyledButton>
-                                    )
-                                })}
                             </Group>
                             <Group gap="md">
                                 <SegmentedControl
@@ -215,7 +192,7 @@ export const AppLayout = () => {
                                     gradient={{ from: 'violet', to: 'purple', deg: 135 }}
                                     style={{ letterSpacing: '-0.5px' }}
                                 >
-                                    Coach Fit
+                                    Coach Flo
                                 </Text>
                             </Group>
                             <Group gap="lg">
@@ -289,6 +266,7 @@ export const AppLayout = () => {
                 <Stack gap="xs">
                     {items.map((item) => {
                         const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+                        const Icon = item.icon
                         return (
                             <UnstyledButton
                                 key={item.to}
@@ -303,13 +281,21 @@ export const AppLayout = () => {
                                     transition: 'background-color 0.2s',
                                 }}
                             >
-                                <Text
-                                    fw={isActive ? 600 : 500}
-                                    c={isActive ? 'violet.6' : 'var(--mantine-color-gray-7)'}
-                                    style={{ transition: 'color 0.2s' }}
-                                >
-                                    {item.label}
-                                </Text>
+                                <Group gap="sm">
+                                    {Icon && (
+                                        <Icon
+                                            size={18}
+                                            color={isActive ? 'var(--mantine-color-violet-6)' : 'var(--mantine-color-gray-6)'}
+                                        />
+                                    )}
+                                    <Text
+                                        fw={isActive ? 600 : 500}
+                                        c={isActive ? 'violet.6' : 'var(--mantine-color-gray-7)'}
+                                        style={{ transition: 'color 0.2s' }}
+                                    >
+                                        {item.label}
+                                    </Text>
+                                </Group>
                             </UnstyledButton>
                         )
                     })}

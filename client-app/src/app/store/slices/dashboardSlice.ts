@@ -6,10 +6,12 @@ export interface DashboardTile {
     id: string
     labelKey: string
     value: string
-    secondaryValue?: string
+    secondaryValue?: string // изменение за период
+    todayValue?: string // значение за сегодня (для метрик, которые меняются в течение дня)
     period: MetricPeriod
     category: 'attendance' | 'schedule' | 'vitals' | 'training'
     highlight?: boolean
+    showTodayValue?: boolean // показывать ли значение за сегодня
 }
 
 export interface TrainerNote {
@@ -64,36 +66,47 @@ const sampleTiles: DashboardTile[] = [
         secondaryValue: '-1.3 кг',
         period: '30d',
         category: 'vitals',
+        showTodayValue: false, // вес не меняется в течение дня
     },
     {
         id: 'sleep',
         labelKey: 'dashboard.tiles.sleep',
         value: '7 ч 20 м',
+        todayValue: '6 ч 30 м',
+        secondaryValue: '+0.3 ч',
         period: '7d',
         category: 'vitals',
+        showTodayValue: true,
     },
     {
         id: 'steps',
         labelKey: 'dashboard.tiles.steps',
         value: '9 800',
+        todayValue: '8 200',
+        secondaryValue: '+4.2%',
         period: '7d',
         category: 'vitals',
+        showTodayValue: true,
     },
     {
         id: 'heartRate',
         labelKey: 'dashboard.tiles.heartRate',
         value: '72 уд/мин',
+        todayValue: '68 уд/мин',
         secondaryValue: '↓ -3',
         period: '7d',
         category: 'vitals',
+        showTodayValue: true,
     },
     {
         id: 'calories',
         labelKey: 'dashboard.tiles.calories',
         value: '2 450 ккал',
+        todayValue: '1 850 ккал',
         secondaryValue: '↑ +120',
         period: '7d',
         category: 'vitals',
+        showTodayValue: true,
     },
 ]
 

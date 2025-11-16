@@ -35,6 +35,13 @@ export interface ExerciseMetricDescriptor {
   muscleGroup: string
 }
 
+export interface DailyNutritionEntry {
+  id: string
+  date: string
+  calories: number
+  notes?: string
+}
+
 interface MetricsState {
   period: MetricsPeriod
   bodyMetrics: BodyMetricDescriptor[]
@@ -44,6 +51,7 @@ interface MetricsState {
   bodyMetricGoals: Record<string, number>
   exerciseMetricGoals: Record<string, { weight?: number; repetitions?: number }>
   bodyMetricStartValues: Record<string, number>
+  nutritionEntries: DailyNutritionEntry[]
 }
 
 const today = dayjs()
@@ -100,6 +108,7 @@ const initialState: MetricsState = {
   },
   exerciseMetricGoals: {},
   bodyMetricStartValues: {},
+  nutritionEntries: [],
 }
 
 const metricsSlice = createSlice({
@@ -168,6 +177,23 @@ const metricsSlice = createSlice({
     setBodyMetricStartValue(state, action: PayloadAction<{ metricId: string; value: number }>) {
       state.bodyMetricStartValues[action.payload.metricId] = action.payload.value
     },
+    upsertNutritionEntry(state, action: PayloadAction<Omit<DailyNutritionEntry, 'id'>>) {
+      const existingIndex = state.nutritionEntries.findIndex((entry) =>
+        dayjs(entry.date).isSame(dayjs(action.payload.date), 'day'),
+      )
+      if (existingIndex >= 0) {
+        state.nutritionEntries[existingIndex] = {
+          ...state.nutritionEntries[existingIndex],
+          calories: action.payload.calories,
+          notes: action.payload.notes,
+        }
+      } else {
+        state.nutritionEntries.push({
+          ...action.payload,
+          id: nanoid(),
+        })
+      }
+    },
   },
 })
 
@@ -182,6 +208,7 @@ export const {
   setBodyMetricGoal,
   setExerciseMetricGoal,
   setBodyMetricStartValue,
+  upsertNutritionEntry,
 } = metricsSlice.actions
 export default metricsSlice.reducer
 
