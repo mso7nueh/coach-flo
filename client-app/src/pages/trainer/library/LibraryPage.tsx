@@ -29,7 +29,6 @@ import {
     updateExercise,
     removeWorkout,
     removeExercise,
-    cloneWorkout,
     cloneExercise,
     setWorkoutFilters,
     setExerciseFilters,
