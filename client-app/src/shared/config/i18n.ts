@@ -440,6 +440,11 @@ const resources = {
                     packageSize: 'Размер пакета (тренировок)',
                     subscriptionDays: 'Дней абонемента',
                     noPayments: 'Нет оплат',
+                    revenueByMonth: 'Выручка по месяцам',
+                    paymentsByType: 'Распределение по типам',
+                    revenueByClient: 'Выручка по клиентам',
+                    totalRevenue: 'Общая выручка',
+                    totalPayments: 'Всего платежей',
                 },
                 profile: {
                     connectionCode: 'Код подключения',
@@ -1033,6 +1038,11 @@ const resources = {
                     packageSize: 'Package size (sessions)',
                     subscriptionDays: 'Subscription days',
                     noPayments: 'No payments',
+                    revenueByMonth: 'Revenue by Month',
+                    paymentsByType: 'Payments by Type',
+                    revenueByClient: 'Revenue by Client',
+                    totalRevenue: 'Total Revenue',
+                    totalPayments: 'Total Payments',
                 },
                 profile: {
                     connectionCode: 'Connection Code',

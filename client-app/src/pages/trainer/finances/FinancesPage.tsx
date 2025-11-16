@@ -7,6 +7,7 @@ import {
     Modal,
     NumberInput,
     Select,
+    SimpleGrid,
     Stack,
     Table,
     Text,
@@ -24,6 +25,21 @@ import { IconPlus, IconTrash, IconCurrencyRubel, IconCalendar } from '@tabler/ic
 import dayjs from 'dayjs'
 import { DateInput } from '@mantine/dates'
 import type { PaymentType } from '@/app/store/slices/financesSlice'
+import {
+    ResponsiveContainer,
+    AreaChart,
+    Area,
+    BarChart,
+    Bar,
+    PieChart,
+    Pie,
+    Cell,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+} from 'recharts'
 
 interface AddPaymentForm {
     clientId: string
@@ -124,6 +140,65 @@ export const FinancesPage = () => {
         return Math.round(total / filteredPayments.length)
     }, [filteredPayments])
 
+    const totalRevenue = useMemo(() => {
+        return filteredPayments.reduce((sum, p) => sum + p.amount, 0)
+    }, [filteredPayments])
+
+    const monthlyRevenueData = useMemo(() => {
+        const monthsMap = new Map<string, number>()
+        const now = dayjs()
+        
+        for (let i = 5; i >= 0; i--) {
+            const month = now.subtract(i, 'month')
+            const key = month.format('YYYY-MM')
+            monthsMap.set(key, 0)
+        }
+
+        filteredPayments.forEach((payment) => {
+            const monthKey = dayjs(payment.date).format('YYYY-MM')
+            const current = monthsMap.get(monthKey) || 0
+            monthsMap.set(monthKey, current + payment.amount)
+        })
+
+        return Array.from(monthsMap.entries()).map(([month, revenue]) => ({
+            month: dayjs(month).format('MMM YYYY'),
+            revenue: Math.round(revenue),
+        }))
+    }, [filteredPayments])
+
+    const paymentsByTypeData = useMemo(() => {
+        const typeMap = new Map<PaymentType, number>()
+        filteredPayments.forEach((payment) => {
+            const current = typeMap.get(payment.type) || 0
+            typeMap.set(payment.type, current + payment.amount)
+        })
+
+        return Array.from(typeMap.entries()).map(([type, amount]) => ({
+            name: getPaymentTypeLabel(type),
+            value: Math.round(amount),
+            type,
+        }))
+    }, [filteredPayments, t])
+
+    const revenueByClientData = useMemo(() => {
+        const clientMap = new Map<string, number>()
+        filteredPayments.forEach((payment) => {
+            const clientName = getClientName(payment.clientId)
+            const current = clientMap.get(clientName) || 0
+            clientMap.set(clientName, current + payment.amount)
+        })
+
+        return Array.from(clientMap.entries())
+            .map(([name, revenue]) => ({
+                name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+                revenue: Math.round(revenue),
+            }))
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 10)
+    }, [filteredPayments, clients])
+
+    const COLORS = ['#4c6ef5', '#51cf66', '#ffd43b', '#ff8787', '#845ef7']
+
     return (
         <Stack gap="lg">
             <Group justify="space-between">
@@ -133,8 +208,8 @@ export const FinancesPage = () => {
                 </Button>
             </Group>
 
-            <Group gap="md">
-                <Card withBorder padding="md" style={{ flex: 1 }}>
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+                <Card withBorder padding="md">
                     <Stack gap="xs">
                         <Text size="sm" c="dimmed">
                             {t('trainer.finances.monthlyRevenue')}
@@ -144,7 +219,7 @@ export const FinancesPage = () => {
                         </Text>
                     </Stack>
                 </Card>
-                <Card withBorder padding="md" style={{ flex: 1 }}>
+                <Card withBorder padding="md">
                     <Stack gap="xs">
                         <Text size="sm" c="dimmed">
                             {t('trainer.finances.averageCheck')}
@@ -154,7 +229,94 @@ export const FinancesPage = () => {
                         </Text>
                     </Stack>
                 </Card>
-            </Group>
+                <Card withBorder padding="md">
+                    <Stack gap="xs">
+                        <Text size="sm" c="dimmed">
+                            {t('trainer.finances.totalRevenue')}
+                        </Text>
+                        <Text fw={700} size="xl">
+                            {totalRevenue.toLocaleString()} ₽
+                        </Text>
+                    </Stack>
+                </Card>
+                <Card withBorder padding="md">
+                    <Stack gap="xs">
+                        <Text size="sm" c="dimmed">
+                            {t('trainer.finances.totalPayments')}
+                        </Text>
+                        <Text fw={700} size="xl">
+                            {filteredPayments.length}
+                        </Text>
+                    </Stack>
+                </Card>
+            </SimpleGrid>
+
+            <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Text fw={600} size="lg">
+                            {t('trainer.finances.revenueByMonth')}
+                        </Text>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <AreaChart data={monthlyRevenueData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="month" />
+                                <YAxis />
+                                <Tooltip
+                                    formatter={(value: number) => [`${value.toLocaleString()} ₽`, t('trainer.finances.amount')]}
+                                />
+                                <Area type="monotone" dataKey="revenue" stroke="#4c6ef5" fill="#4c6ef5" fillOpacity={0.6} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </Stack>
+                </Card>
+
+                <Card withBorder padding="md">
+                    <Stack gap="md">
+                        <Text fw={600} size="lg">
+                            {t('trainer.finances.paymentsByType')}
+                        </Text>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={paymentsByTypeData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {paymentsByTypeData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value: number) => `${value.toLocaleString()} ₽`} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </Stack>
+                </Card>
+            </SimpleGrid>
+
+            <Card withBorder padding="md">
+                <Stack gap="md">
+                    <Text fw={600} size="lg">
+                        {t('trainer.finances.revenueByClient')}
+                    </Text>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={revenueByClientData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                            <YAxis />
+                            <Tooltip
+                                formatter={(value: number) => [`${value.toLocaleString()} ₽`, t('trainer.finances.amount')]}
+                            />
+                            <Bar dataKey="revenue" fill="#4c6ef5" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </Stack>
+            </Card>
 
             <Card withBorder padding="md">
                 <Stack gap="md">
