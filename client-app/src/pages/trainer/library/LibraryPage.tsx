@@ -18,6 +18,7 @@ import {
     Divider,
     Anchor,
     Radio,
+    ScrollArea,
 } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
@@ -33,9 +34,25 @@ import {
     setWorkoutFilters,
     setExerciseFilters,
 } from '@/app/store/slices/librarySlice'
+import {
+    addProgramDay,
+    addProgram,
+    addExercise as addProgramExercise,
+    deleteProgramDay,
+    duplicateProgramDay,
+    removeExercise as removeProgramExercise,
+    reorderDays,
+    renameProgramDay,
+    selectProgram,
+    selectProgramDay,
+    updateExercise as updateProgramExercise,
+    type ProgramExercise,
+    type ProgramBlockInput,
+} from '@/app/store/slices/programSlice'
 import { useDisclosure } from '@mantine/hooks'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from '@mantine/form'
+import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import {
     IconPlus,
     IconTrash,
@@ -48,6 +65,13 @@ import {
     IconExternalLink,
     IconPlayerPlay,
     IconEye,
+    IconTemplate,
+    IconBooks,
+    IconFlame,
+    IconStretching,
+    IconClock,
+    IconRepeat,
+    IconDeviceFloppy,
 } from '@tabler/icons-react'
 import type {
     WorkoutTemplate,
@@ -55,12 +79,14 @@ import type {
     WorkoutLevel,
     WorkoutGoal,
     MuscleGroup,
+    WorkoutExercise,
 } from '@/app/store/slices/librarySlice'
 
 export const LibraryPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const { workouts, exercises, workoutFilters, exerciseFilters } = useAppSelector((state) => state.library)
+    const { programs, days, selectedProgramId, selectedDayId } = useAppSelector((state) => state.program)
     const clients = useAppSelector((state) => state.clients.clients)
     const [activeTab, setActiveTab] = useState<string>('exercises')
     const [workoutModalOpened, { open: openWorkoutModal, close: closeWorkoutModal }] = useDisclosure(false)
@@ -74,6 +100,30 @@ export const LibraryPage = () => {
     const [addExerciseModalOpened, { open: openAddExerciseModal, close: closeAddExerciseModal }] = useDisclosure(false)
     const [currentBlockType, setCurrentBlockType] = useState<'warmup' | 'main' | 'cooldown' | null>(null)
     const [editingWorkoutExercise, setEditingWorkoutExercise] = useState<{ blockType: 'warmup' | 'main' | 'cooldown'; index: number } | null>(null)
+    
+    const trainerPrograms = useMemo(() => programs.filter((p) => p.owner === 'trainer'), [programs])
+    const trainerDays = useMemo(() => days.filter((d) => d.owner === 'trainer'), [days])
+    const selectedDay = useMemo(() => trainerDays.find((item) => item.id === selectedDayId) ?? null, [trainerDays, selectedDayId])
+    const [programRenameModalOpened, { open: openProgramRename, close: closeProgramRename }] = useDisclosure(false)
+    const [programExerciseModalOpened, { open: openProgramExerciseModal, close: closeProgramExerciseModal }] = useDisclosure(false)
+    const [programTemplatePickerOpened, { open: openProgramTemplatePicker, close: closeProgramTemplatePicker }] = useDisclosure(false)
+    const [programExerciseLibraryOpened, { open: openProgramExerciseLibrary, close: closeProgramExerciseLibrary }] = useDisclosure(false)
+    const [programTemplateModalOpened, { open: openProgramTemplateModal, close: closeProgramTemplateModal }] = useDisclosure(false)
+    const [programRenameDraft, setProgramRenameDraft] = useState('')
+    const [programEditingExercise, setProgramEditingExercise] = useState<{
+        exercise: ProgramExercise | null
+        blockId: string
+    } | null>(null)
+    const [programExerciseLibraryTargetBlock, setProgramExerciseLibraryTargetBlock] = useState<string | null>(null)
+    const [programExerciseForm, setProgramExerciseForm] = useState<Omit<ProgramExercise, 'id'>>({
+        title: '',
+        sets: 3,
+        reps: undefined,
+        duration: undefined,
+        rest: undefined,
+        weight: undefined,
+    })
+    const [programTemplateName, setProgramTemplateName] = useState('')
 
     const workoutForm = useForm<Omit<WorkoutTemplate, 'id' | 'isCustom'>>({
         initialValues: {
@@ -188,6 +238,269 @@ export const LibraryPage = () => {
         setEditingWorkout(null)
     }
 
+
+    const accessibleExercisesForProgram = useMemo(() => {
+        return exercises.filter((exercise) => {
+            if (exercise.visibility === 'all') {
+                return true
+            }
+            if (exercise.visibility === 'trainer') {
+                return true
+            }
+            return false
+        })
+    }, [exercises])
+
+    const exercisesMapForProgram = useMemo(
+        () =>
+            accessibleExercisesForProgram.reduce<Record<string, Exercise>>((acc, exercise) => {
+                acc[exercise.id] = exercise
+                return acc
+            }, {}),
+        [accessibleExercisesForProgram],
+    )
+
+    const accessibleTemplatesForProgram = useMemo(() => {
+        return workouts
+    }, [workouts])
+
+    const resolveProgramId = () => selectedProgramId ?? trainerPrograms[0]?.id ?? null
+
+    const handleProgramDayClick = (dayId: string) => {
+        dispatch(selectProgramDay(dayId))
+    }
+
+    const handleAddTrainerProgram = () => {
+        const ownerProgramsCount = trainerPrograms.length + 1
+        const defaultTitle = `${t('program.newProgramTrainer')} ${ownerProgramsCount}`
+        dispatch(addProgram({ title: defaultTitle, owner: 'trainer' }))
+    }
+
+    const handleAddTrainerDay = () => {
+        let targetProgramId = resolveProgramId()
+        if (!targetProgramId) {
+            handleAddTrainerProgram()
+            targetProgramId = resolveProgramId()
+            if (!targetProgramId) {
+                return
+            }
+        }
+        const trainingsCount = trainerDays.filter((day) => day.programId === targetProgramId).length + 1
+        const defaultName = t('program.trainingName', { count: trainingsCount })
+        dispatch(
+            addProgramDay({
+                name: defaultName,
+                programId: targetProgramId,
+            }),
+        )
+    }
+
+    const handleAddTrainerDayFromTemplate = (template: WorkoutTemplate) => {
+        let targetProgramId = resolveProgramId()
+        if (!targetProgramId) {
+            handleAddTrainerProgram()
+            targetProgramId = resolveProgramId()
+            if (!targetProgramId) {
+                return
+            }
+        }
+        const toProgramExercise = (item: WorkoutExercise): Omit<ProgramExercise, 'id'> => {
+            const linkedExercise = item.exerciseId ? exercisesMapForProgram[item.exerciseId] : undefined
+            return {
+                title: linkedExercise?.name ?? item.exercise?.name ?? t('program.newExercise'),
+                sets: item.sets ?? 1,
+                reps: item.reps,
+                duration: item.duration ? `${item.duration} ${t('program.minutesShort')}` : undefined,
+                rest: item.rest ? `${item.rest} ${t('program.secondsShort')}` : undefined,
+                weight: item.weight ? `${item.weight}` : undefined,
+            }
+        }
+        const blocks: ProgramBlockInput[] = []
+        if (template.warmup.length > 0) {
+            blocks.push({
+                type: 'warmup',
+                title: t('program.sections.warmup'),
+                exercises: template.warmup.map(toProgramExercise),
+            })
+        }
+        if (template.main.length > 0) {
+            blocks.push({
+                type: 'main',
+                title: t('program.sections.main'),
+                exercises: template.main.map(toProgramExercise),
+            })
+        }
+        if (template.cooldown.length > 0) {
+            blocks.push({
+                type: 'cooldown',
+                title: t('program.sections.cooldown'),
+                exercises: template.cooldown.map(toProgramExercise),
+            })
+        }
+        const trainingsCount = trainerDays.filter((day) => day.programId === targetProgramId).length + 1
+        const defaultName = t('program.trainingName', { count: trainingsCount })
+        dispatch(
+            addProgramDay({
+                name: defaultName,
+                programId: targetProgramId,
+                blocks,
+                sourceTemplateId: template.id,
+            }),
+        )
+        closeProgramTemplatePicker()
+    }
+
+    const handleDuplicateTrainerDay = (dayId: string) => {
+        dispatch(duplicateProgramDay(dayId))
+    }
+
+
+    const handleSaveTrainerRename = () => {
+        if (selectedDay && programRenameDraft.trim()) {
+            dispatch(renameProgramDay({ id: selectedDay.id, name: programRenameDraft.trim() }))
+            closeProgramRename()
+        }
+    }
+
+    const handleProgramDragEnd = (result: DropResult) => {
+        if (!result.destination) {
+            return
+        }
+        const sourceIndex = result.source.index
+        const destinationIndex = result.destination.index
+        if (sourceIndex === destinationIndex) {
+            return
+        }
+        dispatch(reorderDays({ from: sourceIndex, to: destinationIndex }))
+    }
+
+    const handleAddProgramExercise = (blockId: string) => {
+        setProgramEditingExercise({ exercise: null, blockId })
+        setProgramExerciseForm({
+            title: '',
+            sets: 3,
+            reps: undefined,
+            duration: undefined,
+            rest: undefined,
+            weight: undefined,
+        })
+        openProgramExerciseModal()
+    }
+
+    const handleEditProgramExercise = (exercise: ProgramExercise, blockId: string) => {
+        setProgramEditingExercise({ exercise, blockId })
+        setProgramExerciseForm({
+            title: exercise.title,
+            sets: exercise.sets,
+            reps: exercise.reps,
+            duration: exercise.duration,
+            rest: exercise.rest,
+            weight: exercise.weight,
+        })
+        openProgramExerciseModal()
+    }
+
+    const handleSaveProgramExercise = () => {
+        if (!selectedDay || !programEditingExercise || !programExerciseForm.title.trim()) {
+            return
+        }
+        if (programEditingExercise.exercise) {
+            dispatch(
+                updateProgramExercise({
+                    dayId: selectedDay.id,
+                    blockId: programEditingExercise.blockId,
+                    exercise: {
+                        ...programEditingExercise.exercise,
+                        ...programExerciseForm,
+                    },
+                }),
+            )
+        } else {
+            dispatch(
+                addProgramExercise({
+                    dayId: selectedDay.id,
+                    blockId: programEditingExercise.blockId,
+                    exercise: programExerciseForm,
+                }),
+            )
+        }
+        closeProgramExerciseModal()
+        setProgramEditingExercise(null)
+    }
+
+    const handleDeleteProgramExercise = (exerciseId: string, blockId: string) => {
+        if (!selectedDay) {
+            return
+        }
+        if (confirm(t('common.delete') + '?')) {
+            dispatch(removeProgramExercise({ dayId: selectedDay.id, blockId, exerciseId }))
+        }
+    }
+
+    const handleOpenProgramExerciseLibrary = (blockId: string) => {
+        setProgramExerciseLibraryTargetBlock(blockId)
+        openProgramExerciseLibrary()
+    }
+
+    const handleAddProgramExerciseFromLibrary = (exercise: Exercise) => {
+        if (!selectedDay || !programExerciseLibraryTargetBlock) {
+            return
+        }
+        dispatch(
+            addProgramExercise({
+                dayId: selectedDay.id,
+                blockId: programExerciseLibraryTargetBlock,
+                exercise: {
+                    title: exercise.name,
+                    sets: 3,
+                    reps: undefined,
+                    duration: undefined,
+                    rest: undefined,
+                    weight: undefined,
+                },
+            }),
+        )
+        closeProgramExerciseLibrary()
+        setProgramExerciseLibraryTargetBlock(null)
+    }
+
+    const handleCloseProgramExerciseModal = () => {
+        closeProgramExerciseModal()
+        setProgramEditingExercise(null)
+        setProgramExerciseForm({
+            title: '',
+            sets: 3,
+            reps: undefined,
+            duration: undefined,
+            rest: undefined,
+            weight: undefined,
+        })
+    }
+
+    const handleSaveProgramAsTemplate = () => {
+        if (!selectedDay || !programTemplateName.trim()) {
+            return
+        }
+        console.log('Saving template:', programTemplateName, selectedDay)
+        closeProgramTemplateModal()
+        setProgramTemplateName('')
+    }
+
+    const visibleProgramDays = useMemo(() => {
+        const programId = selectedProgramId ?? trainerPrograms[0]?.id ?? null
+        if (!programId) {
+            return []
+        }
+        return trainerDays.filter((day) => day.programId === programId).sort((a, b) => a.order - b.order)
+    }, [trainerDays, selectedProgramId, trainerPrograms])
+
+
+    useEffect(() => {
+        if (activeTab === 'programs' && !selectedProgramId && trainerPrograms.length > 0) {
+            dispatch(selectProgram(trainerPrograms[0].id))
+        }
+    }, [activeTab, selectedProgramId, trainerPrograms, dispatch])
+
     const handleCreateExercise = () => {
         setEditingExercise(null)
         exerciseForm.reset()
@@ -240,6 +553,9 @@ export const LibraryPage = () => {
                     </Tabs.Tab>
                     <Tabs.Tab value="workouts" leftSection={<IconCalendarEvent size={16} />}>
                         {t('trainer.library.workouts')}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="programs" leftSection={<IconTemplate size={16} />}>
+                        {t('program.programsTitle')}
                     </Tabs.Tab>
                 </Tabs.List>
 
@@ -516,6 +832,422 @@ export const LibraryPage = () => {
                             ))}
                         </SimpleGrid>
                     </Stack>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="programs" pt="lg">
+                    <Group align="flex-start" gap="xl">
+                        <Card withBorder>
+                            <Stack gap="md">
+                                <Group justify="space-between" align="center">
+                                    <Title order={4}>{t('program.programsTitle')}</Title>
+                                    <Group gap="xs">
+                                        <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddTrainerProgram}>
+                                            {t('program.addProgram')}
+                                        </Button>
+                                    </Group>
+                                </Group>
+                                <ScrollArea type="auto" offsetScrollbars>
+                                    <Group gap="sm" wrap="nowrap">
+                                        {trainerPrograms.map((program) => {
+                                            const isActive = program.id === selectedProgramId
+                                            return (
+                                                <Card
+                                                    key={program.id}
+                                                    withBorder
+                                                    padding="md"
+                                                    style={{
+                                                        minWidth: 220,
+                                                        borderColor: isActive ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)',
+                                                        backgroundColor: isActive ? 'var(--mantine-color-violet-0)' : 'var(--mantine-color-white)',
+                                                        cursor: 'pointer',
+                                                    }}
+                                                    onClick={() => dispatch(selectProgram(program.id))}
+                                                >
+                                                    <Stack gap={4}>
+                                                        <Group justify="space-between">
+                                                            <Text fw={600}>{program.title}</Text>
+                                                            <Badge size="xs" color="gray" variant="light">
+                                                                {t(`program.owner.trainer`)}
+                                                            </Badge>
+                                                        </Group>
+                                                        {program.description ? (
+                                                            <Text size="xs" c="dimmed">
+                                                                {program.description}
+                                                            </Text>
+                                                        ) : null}
+                                                    </Stack>
+                                                </Card>
+                                            )
+                                        })}
+                                    </Group>
+                                </ScrollArea>
+                                <Group justify="space-between" align="center">
+                                    <Text fw={600}>{t('program.trainingsTitle')}</Text>
+                                    <Group gap="xs">
+                                        <Button variant="light" leftSection={<IconTemplate size={16} />} onClick={openProgramTemplatePicker}>
+                                            {t('program.addTrainingFromTemplate')}
+                                        </Button>
+                                        <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddTrainerDay}>
+                                            {t('program.addTraining')}
+                                        </Button>
+                                    </Group>
+                                </Group>
+                                <DragDropContext onDragEnd={handleProgramDragEnd}>
+                                    <Droppable droppableId="program-days">
+                                        {(provided) => (
+                                            <Stack gap="xs" ref={provided.innerRef} {...provided.droppableProps}>
+                                                {visibleProgramDays.map((day, index) => {
+                                                    return (
+                                                        <Draggable
+                                                            draggableId={day.id}
+                                                            index={index}
+                                                            key={day.id}
+                                                        >
+                                                            {(dragProvided) => (
+                                                                <Card
+                                                                    withBorder
+                                                                    padding="md"
+                                                                    radius="md"
+                                                                    ref={dragProvided.innerRef}
+                                                                    {...dragProvided.draggableProps}
+                                                                    {...dragProvided.dragHandleProps}
+                                                                    onClick={() => handleProgramDayClick(day.id)}
+                                                                    style={{
+                                                                        backgroundColor: day.id === selectedDayId ? 'var(--mantine-color-violet-1)' : 'var(--mantine-color-white)',
+                                                                        borderColor: day.id === selectedDayId ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)',
+                                                                        borderWidth: day.id === selectedDayId ? 2 : 1,
+                                                                        cursor: 'pointer',
+                                                                        transition: 'all 0.2s',
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        if (day.id !== selectedDayId) {
+                                                                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)'
+                                                                            e.currentTarget.style.borderColor = 'var(--mantine-color-violet-3)'
+                                                                        }
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        if (day.id !== selectedDayId) {
+                                                                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-white)'
+                                                                            e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)'
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Group justify="space-between" align="flex-start">
+                                                                        <Stack gap={4} style={{ flex: 1 }}>
+                                                                            <Group gap="xs">
+                                                                                <Badge
+                                                                                    variant="light"
+                                                                                    color="violet"
+                                                                                    size="sm"
+                                                                                    style={{ minWidth: '28px', justifyContent: 'center' }}
+                                                                                >
+                                                                                    {(day.order ?? index) + 1}
+                                                                                </Badge>
+                                                                                <Text fw={600} size="sm" c={day.id === selectedDayId ? 'violet.7' : 'gray.8'}>
+                                                                                    {day.name}
+                                                                                </Text>
+                                                                            </Group>
+                                                                            <Group gap="xs" ml={36}>
+                                                                                <Text size="xs" c="dimmed">
+                                                                                    {day.blocks.reduce((sum, block) => sum + block.exercises.length, 0)}{' '}
+                                                                                    {t('program.exercises')}
+                                                                                </Text>
+                                                                            </Group>
+                                                                        </Stack>
+                                                                        <Menu position="right-start">
+                                                                            <Menu.Target>
+                                                                                <ActionIcon variant="subtle" color="gray">
+                                                                                    <IconDotsVertical size={16} />
+                                                                                </ActionIcon>
+                                                                            </Menu.Target>
+                                                                            <Menu.Dropdown>
+                                                                                <Menu.Item
+                                                                                    leftSection={<IconEdit size={16} />}
+                                                                                    onClick={() => {
+                                                                                        if (day.id === selectedDayId) {
+                                                                                            setProgramRenameDraft(day.name)
+                                                                                            openProgramRename()
+                                                                                        } else {
+                                                                                            dispatch(selectProgramDay(day.id))
+                                                                                            setTimeout(() => {
+                                                                                                setProgramRenameDraft(day.name)
+                                                                                                openProgramRename()
+                                                                                            }, 100)
+                                                                                        }
+                                                                                    }}
+                                                                                >
+                                                                                    {t('common.edit')}
+                                                                                </Menu.Item>
+                                                                                <Menu.Item
+                                                                                    leftSection={<IconCopy size={16} />}
+                                                                                    onClick={() => {
+                                                                                        dispatch(duplicateProgramDay(day.id))
+                                                                                    }}
+                                                                                >
+                                                                                    {t('common.duplicate')}
+                                                                                </Menu.Item>
+                                                                                <Menu.Item
+                                                                                    leftSection={<IconTrash size={16} />}
+                                                                                    color="red"
+                                                                                    onClick={() => {
+                                                                                        dispatch(deleteProgramDay(day.id))
+                                                                                    }}
+                                                                                >
+                                                                                    {t('common.delete')}
+                                                                                </Menu.Item>
+                                                                            </Menu.Dropdown>
+                                                                        </Menu>
+                                                                    </Group>
+                                                                </Card>
+                                                            )}
+                                                        </Draggable>
+                                                    )
+                                                })}
+                                                {provided.placeholder}
+                                            </Stack>
+                                        )}
+                                    </Droppable>
+                                </DragDropContext>
+                            </Stack>
+                        </Card>
+                        <ScrollArea w="100%" h={620}>
+                            {selectedDay ? (
+                                <Stack gap="xl">
+                                    <Group justify="space-between">
+                                        <Title order={2}>{selectedDay.name}</Title>
+                                        <Group gap="xs">
+                                            <Button variant="light" leftSection={<IconCopy size={16} />} onClick={() => handleDuplicateTrainerDay(selectedDay.id)}>
+                                                {t('program.copyDay')}
+                                            </Button>
+                                            <Button variant="light" leftSection={<IconDeviceFloppy size={16} />} onClick={openProgramTemplateModal}>
+                                                {t('program.saveAsTemplate')}
+                                            </Button>
+                                        </Group>
+                                    </Group>
+                                    <Group gap="lg" wrap="wrap" align="flex-start">
+                                        {selectedDay.blocks.map((block) => {
+                                                const getBlockConfig = () => {
+                                                    switch (block.type) {
+                                                        case 'warmup':
+                                                            return {
+                                                                icon: <IconStretching size={24} />,
+                                                                color: 'blue',
+                                                                gradient: { from: 'blue.1', to: 'blue.0' },
+                                                                borderColor: 'blue.3',
+                                                            }
+                                                        case 'main':
+                                                            return {
+                                                                icon: <IconFlame size={24} />,
+                                                                color: 'violet',
+                                                                gradient: { from: 'violet.1', to: 'violet.0' },
+                                                                borderColor: 'violet.3',
+                                                            }
+                                                        case 'cooldown':
+                                                            return {
+                                                                icon: <IconStretching size={24} />,
+                                                                color: 'green',
+                                                                gradient: { from: 'green.1', to: 'green.0' },
+                                                                borderColor: 'green.3',
+                                                            }
+                                                        default:
+                                                            return {
+                                                                icon: <IconBarbell size={24} />,
+                                                                color: 'gray',
+                                                                gradient: { from: 'gray.1', to: 'gray.0' },
+                                                                borderColor: 'gray.3',
+                                                            }
+                                                    }
+                                                }
+                                                const config = getBlockConfig()
+
+                                                return (
+                                                    <Card
+                                                        key={block.id}
+                                                        withBorder
+                                                        padding="lg"
+                                                        style={{
+                                                            borderColor: `var(--mantine-color-${config.borderColor})`,
+                                                            backgroundColor: `var(--mantine-color-${config.gradient.to})`,
+                                                            minWidth: 280,
+                                                            maxWidth: 320,
+                                                            width: '100%',
+                                                            flex: '1 1 280px',
+                                                        }}
+                                                    >
+                                                        <Stack gap="md">
+                                                            <Group justify="space-between" mb="xs">
+                                                                <Group gap="sm">
+                                                                    <div
+                                                                        style={{
+                                                                            padding: '8px',
+                                                                            borderRadius: '8px',
+                                                                            backgroundColor: `var(--mantine-color-${config.color}-1)`,
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                        }}
+                                                                    >
+                                                                        {config.icon}
+                                                                    </div>
+                                                                    <Text fw={700} size="lg" c={`${config.color}.7`}>
+                                                                        {t(`program.sections.${block.type}`)}
+                                                                    </Text>
+                                                                </Group>
+                                                                <Badge variant="light" color={config.color} size="lg" style={{ fontWeight: 600 }}>
+                                                                    {block.exercises.length}
+                                                                </Badge>
+                                                            </Group>
+                                                            <Stack gap="sm">
+                                                                {block.exercises.map((exercise, index) => (
+                                                                    <Card
+                                                                        key={exercise.id}
+                                                                        padding="md"
+                                                                        withBorder
+                                                                        style={{
+                                                                            backgroundColor: 'var(--mantine-color-white)',
+                                                                            borderColor: `var(--mantine-color-${config.color}-2)`,
+                                                                            transition: 'all 0.2s',
+                                                                        }}
+                                                                        onMouseEnter={(e) => {
+                                                                            e.currentTarget.style.transform = 'translateY(-2px)'
+                                                                            e.currentTarget.style.boxShadow = 'var(--mantine-shadow-sm)'
+                                                                        }}
+                                                                        onMouseLeave={(e) => {
+                                                                            e.currentTarget.style.transform = 'translateY(0)'
+                                                                            e.currentTarget.style.boxShadow = 'none'
+                                                                        }}
+                                                                    >
+                                                                        <Group justify="space-between" align="flex-start">
+                                                                            <Stack gap="xs" style={{ flex: 1 }}>
+                                                                                <Group gap="xs">
+                                                                                    <Badge
+                                                                                        variant="light"
+                                                                                        color={config.color}
+                                                                                        size="sm"
+                                                                                        style={{ minWidth: '24px', justifyContent: 'center' }}
+                                                                                    >
+                                                                                        {index + 1}
+                                                                                    </Badge>
+                                                                                    <Text fw={600} size="sm">
+                                                                                        {exercise.title}
+                                                                                    </Text>
+                                                                                </Group>
+                                                                                <Group gap="md" wrap="wrap">
+                                                                                    {exercise.sets && (
+                                                                                        <Group gap={4}>
+                                                                                            <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
+                                                                                            <Text size="xs" c="dimmed">
+                                                                                                {exercise.sets} {t('program.sets')}
+                                                                                            </Text>
+                                                                                        </Group>
+                                                                                    )}
+                                                                                    {exercise.reps && (
+                                                                                        <Group gap={4}>
+                                                                                            <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                                                                            <Text size="xs" c="dimmed">
+                                                                                                {exercise.reps} {t('program.reps')}
+                                                                                            </Text>
+                                                                                        </Group>
+                                                                                    )}
+                                                                                    {exercise.duration && (
+                                                                                        <Group gap={4}>
+                                                                                            <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                                                                            <Text size="xs" c="dimmed">
+                                                                                                {exercise.duration}
+                                                                                            </Text>
+                                                                                        </Group>
+                                                                                    )}
+                                                                                    {exercise.rest && (
+                                                                                        <Group gap={4}>
+                                                                                            <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                                                                            <Text size="xs" c="dimmed">
+                                                                                                {t('program.rest')}: {exercise.rest}
+                                                                                            </Text>
+                                                                                        </Group>
+                                                                                    )}
+                                                                                    {exercise.weight && (
+                                                                                        <Badge variant="light" color={config.color} size="sm">
+                                                                                            {exercise.weight}
+                                                                                        </Badge>
+                                                                                    )}
+                                                                                </Group>
+                                                                            </Stack>
+                                                                            <Group gap="xs">
+                                                                                <ActionIcon
+                                                                                    variant="subtle"
+                                                                                    size="sm"
+                                                                                    color={config.color}
+                                                                                    onClick={() => handleEditProgramExercise(exercise, block.id)}
+                                                                                >
+                                                                                    <IconEdit size={14} />
+                                                                                </ActionIcon>
+                                                                                <ActionIcon
+                                                                                    variant="subtle"
+                                                                                    size="sm"
+                                                                                    color="red"
+                                                                                    onClick={() => handleDeleteProgramExercise(exercise.id, block.id)}
+                                                                                >
+                                                                                    <IconTrash size={14} />
+                                                                                </ActionIcon>
+                                                                            </Group>
+                                                                        </Group>
+                                                                    </Card>
+                                                                ))}
+                                                                {block.exercises.length === 0 ? (
+                                                                    <Card
+                                                                        padding="xl"
+                                                                        style={{
+                                                                            backgroundColor: 'var(--mantine-color-gray-0)',
+                                                                            borderStyle: 'dashed',
+                                                                            borderColor: `var(--mantine-color-${config.color}-3)`,
+                                                                        }}
+                                                                    >
+                                                                        <Stack align="center" gap="xs">
+                                                                            <Text c="dimmed" size="sm" ta="center">
+                                                                                {t('program.noExercises')}
+                                                                            </Text>
+                                                                        </Stack>
+                                                                    </Card>
+                                                                ) : null}
+                                                            </Stack>
+                                                            <Group mt="sm" gap="xs">
+                                                                <Button
+                                                                    variant="light"
+                                                                    color={config.color}
+                                                                    leftSection={<IconPlus size={16} />}
+                                                                    onClick={() => handleAddProgramExercise(block.id)}
+                                                                    fullWidth
+                                                                >
+                                                                    {t('program.addExercise')}
+                                                                </Button>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    color={config.color}
+                                                                    leftSection={<IconBooks size={16} />}
+                                                                    onClick={() => handleOpenProgramExerciseLibrary(block.id)}
+                                                                    fullWidth
+                                                                >
+                                                                    {t('program.addFromLibrary')}
+                                                                </Button>
+                                                            </Group>
+                                                        </Stack>
+                                                    </Card>
+                                                )
+                                            })}
+                                        </Group>
+                                </Stack>
+                            ) : (
+                                <Card withBorder>
+                                    <Stack gap="sm" align="center">
+                                        <Title order={3}>{t('program.emptyState')}</Title>
+                                        <Button leftSection={<IconPlus size={16} />} onClick={handleAddTrainerDay}>
+                                            {t('program.addDay')}
+                                        </Button>
+                                    </Stack>
+                                </Card>
+                            )}
+                        </ScrollArea>
+                    </Group>
                 </Tabs.Panel>
             </Tabs>
 
@@ -1656,6 +2388,203 @@ export const LibraryPage = () => {
                         </Group>
                     </Stack>
                 </form>
+            </Modal>
+
+            <Modal opened={programRenameModalOpened} onClose={closeProgramRename} title={t('common.edit')}>
+                <Stack gap="md">
+                    <TextInput
+                        value={programRenameDraft}
+                        onChange={(event) => setProgramRenameDraft(event.currentTarget.value)}
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={closeProgramRename}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button onClick={handleSaveTrainerRename}>{t('common.save')}</Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal
+                opened={programExerciseModalOpened}
+                onClose={handleCloseProgramExerciseModal}
+                title={programEditingExercise?.exercise ? t('program.editExercise') : t('program.addExercise')}
+                size="lg"
+            >
+                <Stack gap="md">
+                    <TextInput
+                        label={t('program.exerciseName')}
+                        placeholder={t('program.exerciseNamePlaceholder')}
+                        value={programExerciseForm.title}
+                        onChange={(event) =>
+                            setProgramExerciseForm((state) => ({ ...state, title: event.currentTarget.value }))
+                        }
+                        required
+                    />
+                    <Group grow>
+                        <NumberInput
+                            label={t('program.sets')}
+                            value={programExerciseForm.sets}
+                            onChange={(value) =>
+                                setProgramExerciseForm((state) => ({ ...state, sets: Number(value) || 0 }))
+                            }
+                            min={1}
+                            required
+                        />
+                        <NumberInput
+                            label={t('program.reps')}
+                            value={programExerciseForm.reps || undefined}
+                            onChange={(value) =>
+                                setProgramExerciseForm((state) => ({
+                                    ...state,
+                                    reps: value ? Number(value) : undefined,
+                                    duration: undefined,
+                                }))
+                            }
+                            min={1}
+                            placeholder={t('program.repsPlaceholder')}
+                        />
+                    </Group>
+                    <Group grow>
+                        <TextInput
+                            label={t('program.duration')}
+                            placeholder={t('program.durationPlaceholder')}
+                            value={programExerciseForm.duration || ''}
+                            onChange={(event) => {
+                                const value = event.currentTarget.value
+                                setProgramExerciseForm((state) => ({
+                                    ...state,
+                                    duration: value || undefined,
+                                    reps: value ? undefined : state.reps,
+                                }))
+                            }}
+                        />
+                        <NumberInput
+                            label={t('program.rest')}
+                            placeholder={t('program.restPlaceholder')}
+                            value={programExerciseForm.rest ? Number(programExerciseForm.rest.replace(/\s*сек\s*/g, '')) : undefined}
+                            onChange={(value) =>
+                                setProgramExerciseForm((state) => ({
+                                    ...state,
+                                    rest: value ? `${value} ${t('program.secondsShort')}` : undefined,
+                                }))
+                            }
+                            min={0}
+                            rightSection={<Text size="xs">сек</Text>}
+                        />
+                    </Group>
+                    <TextInput
+                        label={t('program.weight')}
+                        placeholder={t('program.weightPlaceholder')}
+                        value={programExerciseForm.weight || ''}
+                        onChange={(event) =>
+                            setProgramExerciseForm((state) => ({ ...state, weight: event.currentTarget.value || undefined }))
+                        }
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={handleCloseProgramExerciseModal}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button onClick={handleSaveProgramExercise} disabled={!programExerciseForm.title.trim()}>
+                            {programEditingExercise?.exercise ? t('common.save') : t('common.add')}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal opened={programTemplatePickerOpened} onClose={closeProgramTemplatePicker} title={t('program.templateLibraryTitle')} size="lg">
+                <ScrollArea h={360}>
+                    <Stack gap="sm">
+                        {accessibleTemplatesForProgram.length ? (
+                            accessibleTemplatesForProgram.map((template) => (
+                                <Card key={template.id} withBorder padding="md">
+                                    <Group justify="space-between" align="flex-start">
+                                        <Stack gap={2} style={{ flex: 1 }}>
+                                            <Text fw={600}>{template.name}</Text>
+                                            {template.description ? (
+                                                <Text size="xs" c="dimmed">
+                                                    {template.description}
+                                                </Text>
+                                            ) : null}
+                                            <Text size="xs" c="dimmed">
+                                                {t('program.templateDuration', { value: template.duration })}
+                                            </Text>
+                                        </Stack>
+                                        <Button
+                                            size="compact-sm"
+                                            leftSection={<IconPlus size={14} />}
+                                            onClick={() => handleAddTrainerDayFromTemplate(template)}
+                                        >
+                                            {t('program.addTemplateButton')}
+                                        </Button>
+                                    </Group>
+                                </Card>
+                            ))
+                        ) : (
+                            <Text c="dimmed">{t('program.templatesEmpty')}</Text>
+                        )}
+                    </Stack>
+                </ScrollArea>
+            </Modal>
+
+            <Modal
+                opened={programExerciseLibraryOpened}
+                onClose={closeProgramExerciseLibrary}
+                title={t('program.exerciseLibraryTitle')}
+                size="lg"
+            >
+                <ScrollArea h={360}>
+                    <Stack gap="sm">
+                        {accessibleExercisesForProgram.length ? (
+                            accessibleExercisesForProgram.map((exercise) => (
+                                <Card key={exercise.id} withBorder padding="md">
+                                    <Group justify="space-between" align="center">
+                                        <Stack gap={2} style={{ flex: 1 }}>
+                                            <Text fw={600}>{exercise.name}</Text>
+                                            {exercise.description ? (
+                                                <Text size="xs" c="dimmed">
+                                                    {exercise.description}
+                                                </Text>
+                                            ) : null}
+                                        </Stack>
+                                        <Button
+                                            size="compact-sm"
+                                            leftSection={<IconPlus size={14} />}
+                                            onClick={() => handleAddProgramExerciseFromLibrary(exercise)}
+                                        >
+                                            {t('common.add')}
+                                        </Button>
+                                    </Group>
+                                </Card>
+                            ))
+                        ) : (
+                            <Text c="dimmed">{t('program.exerciseLibraryEmpty')}</Text>
+                        )}
+                    </Stack>
+                </ScrollArea>
+            </Modal>
+
+            <Modal opened={programTemplateModalOpened} onClose={closeProgramTemplateModal} title={t('program.saveAsTemplate')} size="md">
+                <Stack gap="md">
+                    <TextInput
+                        label={t('program.templateName')}
+                        placeholder={t('program.templateNamePlaceholder')}
+                        value={programTemplateName}
+                        onChange={(event) => setProgramTemplateName(event.currentTarget.value)}
+                        required
+                    />
+                    <Text size="sm" c="dimmed">
+                        {t('program.templateDescription')}
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={closeProgramTemplateModal}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button onClick={handleSaveProgramAsTemplate} disabled={!programTemplateName.trim()}>
+                            {t('common.save')}
+                        </Button>
+                    </Group>
+                </Stack>
             </Modal>
         </Stack>
     )
