@@ -18,7 +18,7 @@ import {
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconActivity, IconAdjustments, IconCalendarCheck, IconPlus, IconScale, IconTarget } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
 import {
@@ -30,7 +30,6 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
     ResponsiveContainer,
     ReferenceLine,
 } from 'recharts'
@@ -65,6 +64,8 @@ interface ExerciseMetricForm {
   repetitions: number
   sets: number
 }
+
+type ExerciseChartMode = 'weight' | 'reps' | 'volume'
 
 export const MetricsPage = () => {
   const { t } = useTranslation()
@@ -104,6 +105,7 @@ export const MetricsPage = () => {
     sets: 1,
   })
   const [bulkForm, setBulkForm] = useState<Record<string, number>>({})
+  const [exerciseChartMode, setExerciseChartMode] = useState<ExerciseChartMode>('weight')
   const selectedMetricForModal = useMemo(
     () => bodyMetrics.find((metric) => metric.id === bodyForm.metricId),
     [bodyMetrics, bodyForm.metricId],
@@ -113,15 +115,18 @@ export const MetricsPage = () => {
     [exerciseMetrics, exerciseForm.exerciseId],
   )
 
-  const getFilteredEntries = (metricId: string, entries: typeof bodyMetricEntries) => {
-    const filtered = entries.filter((entry) => entry.metricId === metricId).sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
-    const daysAgo = period === '1w' ? 7 : period === '4w' ? 28 : period === '12w' ? 84 : Infinity
-    if (daysAgo === Infinity) {
-      return filtered
-    }
-    const cutoff = dayjs().subtract(daysAgo, 'day')
-    return filtered.filter((entry) => dayjs(entry.recordedAt).isAfter(cutoff))
-  }
+  const getFilteredEntries = useCallback(
+    (metricId: string, entries: typeof bodyMetricEntries) => {
+      const filtered = entries.filter((entry) => entry.metricId === metricId).sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
+      const daysAgo = period === '1w' ? 7 : period === '4w' ? 28 : period === '12w' ? 84 : Infinity
+      if (daysAgo === Infinity) {
+        return filtered
+      }
+      const cutoff = dayjs().subtract(daysAgo, 'day')
+      return filtered.filter((entry) => dayjs(entry.recordedAt).isAfter(cutoff))
+    },
+    [period],
+  )
 
   const selectedMetric = useMemo(() => bodyMetrics.find((m) => m.id === selectedMetricId) ?? null, [bodyMetrics, selectedMetricId])
 
@@ -133,7 +138,7 @@ export const MetricsPage = () => {
       value: entry.value,
       fullDate: entry.recordedAt,
     }))
-  }, [selectedMetric, bodyMetricEntries, period])
+  }, [selectedMetric, bodyMetricEntries, getFilteredEntries])
 
   const bodyChartDomain = useMemo(() => {
     if (!selectedMetric || chartData.length === 0) return undefined
@@ -161,48 +166,60 @@ export const MetricsPage = () => {
 
   const selectedExercise = useMemo(() => exerciseMetrics.find((e) => e.id === selectedExerciseId) ?? null, [exerciseMetrics, selectedExerciseId])
 
+  const exerciseChartModeConfig = useMemo(
+    () => ({
+      weight: { label: t('metricsPage.exerciseChart.modes.weight'), unit: t('metricsPage.exerciseChart.units.weight'), fractionDigits: 2 },
+      reps: { label: t('metricsPage.exerciseChart.modes.reps'), unit: t('metricsPage.exerciseChart.units.reps'), fractionDigits: 0 },
+      volume: { label: t('metricsPage.exerciseChart.modes.volume'), unit: t('metricsPage.exerciseChart.units.volume'), fractionDigits: 0 },
+    }),
+    [t],
+  )
+  const currentModeConfig = exerciseChartModeConfig[exerciseChartMode]
+
   const exerciseChartData = useMemo(() => {
     if (!selectedExercise) return []
     const filtered = exerciseMetricEntries
       .filter((entry) => entry.exerciseId === selectedExercise.id)
       .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
     const daysAgo = period === '1w' ? 7 : period === '4w' ? 28 : period === '12w' ? 84 : Infinity
-    if (daysAgo !== Infinity) {
-      const cutoff = dayjs().subtract(daysAgo, 'day')
-      return filtered.filter((entry) => dayjs(entry.date).isAfter(cutoff))
-    }
-    return filtered.map((entry) => ({
-      date: dayjs(entry.date).format('D MMM'),
-      weight: entry.weight,
-      repetitions: entry.repetitions,
-      sets: entry.sets,
-      fullDate: entry.date,
-    }))
+    const limited =
+      daysAgo === Infinity ? filtered : filtered.filter((entry) => dayjs(entry.date).isAfter(dayjs().subtract(daysAgo, 'day')))
+    return limited.map((entry) => {
+      const totalReps = entry.repetitions * entry.sets
+      const computedVolume = entry.weight > 0 ? entry.weight * totalReps : totalReps
+      return {
+        date: dayjs(entry.date).format('D MMM'),
+        weight: entry.weight,
+        repetitions: entry.repetitions,
+        sets: entry.sets,
+        totalReps,
+        volume: computedVolume,
+        fullDate: entry.date,
+      }
+    })
   }, [selectedExercise, exerciseMetricEntries, period])
 
+  const exerciseChartDisplayData = useMemo(() => {
+    return exerciseChartData.map((entry) => {
+      const value =
+        exerciseChartMode === 'weight'
+          ? entry.weight
+          : exerciseChartMode === 'reps'
+            ? entry.totalReps
+            : entry.volume
+      return { ...entry, value }
+    })
+  }, [exerciseChartData, exerciseChartMode])
+
   const exerciseChartDomain = useMemo(() => {
-    if (!selectedExercise || exerciseChartData.length === 0) return undefined
-    const weights = exerciseChartData.map((d) => d.weight)
-    const minWeight = Math.min(...weights)
-    const maxWeight = Math.max(...weights)
-    const goal = exerciseMetricGoals[selectedExercise.id]?.weight
-    
-    if (goal !== undefined && goal !== null) {
-      const allWeights = [...weights, goal]
-      const allMin = Math.min(...allWeights)
-      const allMax = Math.max(...allWeights)
-      const range = allMax - allMin || 1
-      const padding = Math.max(range * 0.15, (allMax - allMin) * 0.1)
-      const center = (allMin + allMax) / 2
-      const domainMin = Math.max(0, center - range / 2 - padding)
-      const domainMax = center + range / 2 + padding
-      return [domainMin, domainMax]
-    }
-    
-    const range = maxWeight - minWeight || 1
-    const padding = Math.max(range * 0.15, (maxWeight - minWeight) * 0.1)
-    return [Math.max(0, minWeight - padding), maxWeight + padding]
-  }, [exerciseChartData, selectedExercise, exerciseMetricGoals])
+    if (!selectedExercise || exerciseChartDisplayData.length === 0) return undefined
+    const values = exerciseChartDisplayData.map((d) => d.value)
+    const minValue = Math.min(...values)
+    const maxValue = Math.max(...values)
+    const range = maxValue - minValue || 1
+    const padding = Math.max(range * 0.15, (maxValue - minValue) * 0.1)
+    return [Math.max(0, minValue - padding), maxValue + padding]
+  }, [exerciseChartDisplayData, selectedExercise])
 
   const latestBodyValues = useMemo(() => {
     return bodyMetrics.map((metric) => {
@@ -384,15 +401,24 @@ export const MetricsPage = () => {
                       const start = metricData?.start
                       const goal = bodyMetricGoals[metric.id]
                       return (
-                        <UnstyledButton
+                        <Card
                           key={metric.id}
                           onClick={() => setSelectedMetricId(metric.id)}
+                          padding="sm"
+                          withBorder
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              setSelectedMetricId(metric.id)
+                            }
+                          }}
                           style={{
-                            padding: '12px',
-                            borderRadius: '8px',
-                            backgroundColor: isSelected ? 'var(--mantine-color-violet-0)' : 'transparent',
-                            border: `1px solid ${isSelected ? 'var(--mantine-color-violet-3)' : 'var(--mantine-color-gray-2)'}`,
+                            borderColor: isSelected ? 'var(--mantine-color-violet-3)' : 'var(--mantine-color-gray-2)',
+                            backgroundColor: isSelected ? 'var(--mantine-color-violet-0)' : 'var(--mantine-color-white)',
                             transition: 'all 0.2s',
+                            cursor: 'pointer',
                           }}
                         >
                           <Stack gap={4}>
@@ -431,7 +457,7 @@ export const MetricsPage = () => {
                               </Text>
                             )}
                           </Stack>
-                        </UnstyledButton>
+                        </Card>
                       )
                     })}
                   </Stack>
@@ -836,17 +862,26 @@ export const MetricsPage = () => {
                       </Button>
                       </Group>
                     </Group>
-                    {exerciseChartData.length > 0 ? (
+                    {exerciseChartDisplayData.length > 0 ? (
+                      <Stack gap="sm">
+                        <Group justify="space-between">
+                          <SegmentedControl
+                            size="xs"
+                            value={exerciseChartMode}
+                            onChange={(value) => setExerciseChartMode(value as ExerciseChartMode)}
+                            data={[
+                              { label: t('metricsPage.exerciseChart.modes.reps'), value: 'reps' },
+                              { label: t('metricsPage.exerciseChart.modes.weight'), value: 'weight' },
+                              { label: t('metricsPage.exerciseChart.modes.volume'), value: 'volume' },
+                            ]}
+                          />
+                        </Group>
                       <ResponsiveContainer width="100%" height={400}>
-                        <LineChart data={exerciseChartData} margin={{ top: 10, right: 80, left: 0, bottom: 0 }}>
+                        <LineChart data={exerciseChartDisplayData} margin={{ top: 10, right: 40, left: 0, bottom: 0 }}>
                           <defs>
-                            <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id="exerciseValueGradient" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#667eea" stopOpacity={0.3} />
                               <stop offset="95%" stopColor="#667eea" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="colorReps" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#f093fb" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="#f093fb" stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" vertical={false} />
@@ -858,24 +893,17 @@ export const MetricsPage = () => {
                             axisLine={false}
                           />
                           <YAxis
-                            yAxisId="left"
                             stroke="#667eea"
                             style={{ fontSize: '12px', fontFamily: 'inherit' }}
                             tickLine={false}
                             axisLine={false}
-                            width={60}
+                            width={70}
                             domain={exerciseChartDomain}
-                            tickFormatter={(value) => value.toFixed(2)}
-                          />
-                          <YAxis
-                            yAxisId="right"
-                            orientation="right"
-                            stroke="#f093fb"
-                            style={{ fontSize: '12px', fontFamily: 'inherit' }}
-                            tickLine={false}
-                            axisLine={false}
-                            width={60}
-                            tickFormatter={(value) => value.toFixed(0)}
+                            tickFormatter={(value) =>
+                              value.toLocaleString(undefined, {
+                                maximumFractionDigits: currentModeConfig.fractionDigits,
+                              })
+                            }
                           />
                           <Tooltip
                             contentStyle={{
@@ -897,59 +925,40 @@ export const MetricsPage = () => {
                               padding: '4px 0',
                               fontSize: '13px',
                             }}
-                            formatter={(value: number, name: string) => {
-                              if (name === 'weight') return [`${value.toFixed(2)} кг`, 'Вес']
-                              if (name === 'repetitions') return [`${value}`, 'Повторения']
-                              if (name === 'sets') return [`${value}`, 'Подходы']
-                              return value
-                            }}
+                            formatter={(value: number) => [
+                              `${value.toFixed(currentModeConfig.fractionDigits)} ${currentModeConfig.unit}`,
+                              currentModeConfig.label,
+                            ]}
                           />
-                          <Legend
-                            wrapperStyle={{ paddingTop: '20px', fontFamily: 'inherit', fontSize: '13px' }}
-                            iconType="line"
-                            formatter={(value) => {
-                              if (value === 'weight') return 'Вес (кг)'
-                              if (value === 'repetitions') return 'Повторения'
-                              if (value === 'sets') return 'Подходы'
-                              return value
-                            }}
-                          />
-                          <Area
-                            yAxisId="left"
+                          <Line
                             type="monotone"
-                            dataKey="weight"
+                            dataKey="value"
                             stroke="#667eea"
                             strokeWidth={3}
-                            fill="url(#colorWeight)"
                             dot={{ r: 5, fill: '#667eea', strokeWidth: 2, stroke: 'white' }}
                             activeDot={{ r: 7, strokeWidth: 2, stroke: '#667eea', fill: 'white' }}
                             animationDuration={800}
                             animationEasing="ease-out"
-                            name="weight"
+                            name="value"
                           />
                           <Line
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey="repetitions"
-                            stroke="#f093fb"
-                            strokeWidth={3}
-                            dot={{ r: 5, fill: '#f093fb', strokeWidth: 2, stroke: 'white' }}
-                            activeDot={{ r: 7, strokeWidth: 2, stroke: '#f093fb', fill: 'white' }}
-                            strokeDasharray="5 5"
-                            animationDuration={800}
-                            animationEasing="ease-out"
-                            name="repetitions"
+                            type="natural"
+                            dataKey="value"
+                            stroke="#667eea"
+                            strokeOpacity={0}
+                            fill="url(#exerciseValueGradient)"
+                            dot={false}
+                            legendType="none"
                           />
-                          {exerciseMetricGoals[selectedExercise.id]?.weight && (
+                          {exerciseChartMode === 'weight' && exerciseMetricGoals[selectedExercise.id]?.weight && (
                             <ReferenceLine
-                              yAxisId="left"
                               y={exerciseMetricGoals[selectedExercise.id]?.weight}
                               stroke="#7c3aed"
                               strokeWidth={2}
                               strokeDasharray="6 4"
                               strokeOpacity={0.7}
                               label={{
-                                value: `${t('metricsPage.goal')}: ${exerciseMetricGoals[selectedExercise.id]?.weight?.toFixed(2)} кг`,
+                                value: `${t('metricsPage.exerciseChart.goal.weight')}: ${exerciseMetricGoals[selectedExercise.id]?.weight?.toFixed(2)} ${currentModeConfig.unit}`,
                                 position: 'insideTopRight',
                                 fill: '#7c3aed',
                                 fontSize: 11,
@@ -958,14 +967,26 @@ export const MetricsPage = () => {
                               }}
                             />
                           )}
-                          {exerciseMetricEntries
-                            .filter((entry) => entry.exerciseId === selectedExercise.id)
-                            .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0] && (
+                          {exerciseChartMode === 'reps' && exerciseMetricGoals[selectedExercise.id]?.repetitions && (
                             <ReferenceLine
-                              yAxisId="left"
-                              y={exerciseMetricEntries
-                                .filter((entry) => entry.exerciseId === selectedExercise.id)
-                                .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0].weight}
+                              y={exerciseMetricGoals[selectedExercise.id]?.repetitions ?? 0}
+                              stroke="#7c3aed"
+                              strokeWidth={2}
+                              strokeDasharray="6 4"
+                              strokeOpacity={0.7}
+                              label={{
+                                value: `${t('metricsPage.exerciseChart.goal.reps')}: ${exerciseMetricGoals[selectedExercise.id]?.repetitions} ${currentModeConfig.unit}`,
+                                position: 'insideTopRight',
+                                fill: '#7c3aed',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                offset: 5,
+                              }}
+                            />
+                          )}
+                          {exerciseChartDisplayData[0] && (
+                            <ReferenceLine
+                              y={exerciseChartDisplayData[0].value}
                               stroke="#94a3b8"
                               strokeWidth={1.5}
                               strokeDasharray="3 3"
@@ -974,6 +995,7 @@ export const MetricsPage = () => {
                           )}
                         </LineChart>
                       </ResponsiveContainer>
+                      </Stack>
                     ) : (
                       <Stack gap="md" align="center" py="xl">
                         <Text c="dimmed" size="lg">

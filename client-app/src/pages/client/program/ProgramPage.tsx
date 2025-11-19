@@ -8,7 +8,6 @@ import {
   Modal,
   NumberInput,
   ScrollArea,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
@@ -17,7 +16,22 @@ import {
 import { DateInput, TimeInput } from '@mantine/dates'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { useDisclosure } from '@mantine/hooks'
-import { IconCalendar, IconCopy, IconDeviceFloppy, IconDotsVertical, IconEdit, IconPlus, IconTrash, IconFlame, IconClock, IconRepeat, IconBarbell, IconStretching } from '@tabler/icons-react'
+import {
+  IconCalendar,
+  IconCopy,
+  IconDeviceFloppy,
+  IconDotsVertical,
+  IconEdit,
+  IconPlus,
+  IconTrash,
+  IconFlame,
+  IconClock,
+  IconRepeat,
+  IconBarbell,
+  IconStretching,
+  IconTemplate,
+  IconBooks,
+} from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,17 +39,21 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
   addProgramDay,
+  addProgram,
   addExercise,
   deleteProgramDay,
   duplicateProgramDay,
   removeExercise,
   reorderDays,
   renameProgramDay,
+  selectProgram,
   selectProgramDay,
   updateExercise,
   type ProgramExercise,
+  type ProgramBlockInput,
 } from '@/app/store/slices/programSlice'
 import { scheduleWorkout } from '@/app/store/slices/calendarSlice'
+import type { WorkoutTemplate, Exercise, WorkoutExercise } from '@/app/store/slices/librarySlice'
 
 interface AssignForm {
   dayId: string
@@ -54,19 +72,26 @@ const createAssignForm = (dayId: string): AssignForm => ({
 export const ProgramPage = () => {
   const { t } = useTranslation()
   const dispatch = useAppDispatch()
-  const { days, selectedDayId } = useAppSelector((state) => state.program)
+  const { programs, days, selectedProgramId, selectedDayId } = useAppSelector((state) => state.program)
   const role = useAppSelector((state) => state.user.role)
+  const isTrainer = role === 'trainer'
+  const userId = useAppSelector((state) => state.user.id)
+  const { workouts: libraryWorkouts, exercises: libraryExercises } = useAppSelector((state) => state.library)
+  const trainerInfo = useAppSelector((state) => state.user.trainer)
   const selectedDay = useMemo(() => days.find((item) => item.id === selectedDayId) ?? null, [days, selectedDayId])
   const [renameModalOpened, { open: openRename, close: closeRename }] = useDisclosure(false)
   const [assignModalOpened, { open: openAssign, close: closeAssign }] = useDisclosure(false)
   const [exerciseModalOpened, { open: openExerciseModal, close: closeExerciseModal }] = useDisclosure(false)
   const [templateModalOpened, { open: openTemplateModal, close: closeTemplateModal }] = useDisclosure(false)
+  const [templatePickerOpened, { open: openTemplatePicker, close: closeTemplatePicker }] = useDisclosure(false)
+  const [exerciseLibraryOpened, { open: openExerciseLibrary, close: closeExerciseLibrary }] = useDisclosure(false)
   const [renameDraft, setRenameDraft] = useState('')
   const [assignForm, setAssignForm] = useState<AssignForm | null>(null)
   const [editingExercise, setEditingExercise] = useState<{
     exercise: ProgramExercise | null
     blockId: string
   } | null>(null)
+  const [exerciseLibraryTargetBlock, setExerciseLibraryTargetBlock] = useState<string | null>(null)
   const [exerciseForm, setExerciseForm] = useState<Omit<ProgramExercise, 'id'>>({
     title: '',
     sets: 3,
@@ -76,13 +101,162 @@ export const ProgramPage = () => {
     weight: undefined,
   })
   const [templateName, setTemplateName] = useState('')
+  const programTrainings = useMemo(() => {
+    if (!selectedProgramId) {
+      return []
+    }
+    return days
+      .filter((day) => day.programId === selectedProgramId)
+      .sort((a, b) => a.order - b.order)
+  }, [days, selectedProgramId])
+  const accessibleExercises = useMemo(() => {
+    return libraryExercises.filter((exercise) => {
+      if (exercise.visibility === 'all') {
+        return true
+      }
+      if (exercise.visibility === 'trainer') {
+        return role === 'trainer'
+      }
+      if (exercise.visibility === 'client') {
+        return exercise.clientId === userId
+      }
+      return false
+    })
+  }, [libraryExercises, role, userId])
+  const exercisesMap = useMemo(
+    () =>
+      accessibleExercises.reduce<Record<string, Exercise>>((acc, exercise) => {
+        acc[exercise.id] = exercise
+        return acc
+      }, {}),
+    [accessibleExercises],
+  )
+  const accessibleTemplates = useMemo(() => {
+    if (role === 'trainer') {
+      return libraryWorkouts
+    }
+    return libraryWorkouts.filter((workout) => !workout.clientId || workout.clientId === userId)
+  }, [libraryWorkouts, role, userId])
+  const canEditSelectedDay = Boolean(selectedDay && (role === 'trainer' || selectedDay.owner === 'client'))
+  const canManageDay = (dayOwner: 'trainer' | 'client') => role === 'trainer' || dayOwner === 'client'
 
   const handleDayClick = (dayId: string) => {
     dispatch(selectProgramDay(dayId))
   }
 
+  const resolveProgramId = () => selectedProgramId ?? programs[0]?.id ?? null
+
+  const handleAddProgram = () => {
+    const owner = isTrainer ? 'trainer' : 'client'
+    const ownerProgramsCount = programs.filter((program) => program.owner === owner).length + 1
+    const defaultTitle =
+      owner === 'trainer' ? `${t('program.newProgramTrainer')} ${ownerProgramsCount}` : t('program.newProgramClient', { count: ownerProgramsCount })
+    dispatch(addProgram({ title: defaultTitle, owner }))
+  }
+
   const handleAddDay = () => {
-    dispatch(addProgramDay({ name: `${t('program.newDay')} ${days.length + 1}` }))
+    let targetProgramId = resolveProgramId()
+    if (!targetProgramId) {
+      handleAddProgram()
+      targetProgramId = resolveProgramId()
+      if (!targetProgramId) {
+        return
+      }
+    }
+    const trainingsCount = days.filter((day) => day.programId === targetProgramId).length + 1
+    const defaultName = t('program.trainingName', { count: trainingsCount })
+    dispatch(
+      addProgramDay({
+        name: defaultName,
+        programId: targetProgramId,
+      }),
+    )
+  }
+
+  const handleAddDayFromTemplate = (template: WorkoutTemplate) => {
+    let targetProgramId = resolveProgramId()
+    if (!targetProgramId) {
+      handleAddProgram()
+      targetProgramId = resolveProgramId()
+      if (!targetProgramId) {
+        return
+      }
+    }
+    const toProgramExercise = (item: WorkoutExercise): Omit<ProgramExercise, 'id'> => {
+      const linkedExercise = item.exerciseId ? exercisesMap[item.exerciseId] : undefined
+      return {
+        title: linkedExercise?.name ?? item.exercise?.name ?? t('program.newExercise'),
+        sets: item.sets ?? 1,
+        reps: item.reps ?? undefined,
+        duration: item.duration ? `${item.duration} ${t('program.minutesShort')}` : undefined,
+        rest: item.rest ? `${item.rest} ${t('program.secondsShort')}` : undefined,
+        weight: item.weight ? `${item.weight}` : undefined,
+      }
+    }
+    const blocks: ProgramBlockInput[] = [
+      {
+        type: 'warmup',
+        title: t('program.sections.warmup'),
+        exercises: template.warmup.map(toProgramExercise),
+      },
+      {
+        type: 'main',
+        title: t('program.sections.main'),
+        exercises: template.main.map(toProgramExercise),
+      },
+      {
+        type: 'cooldown',
+        title: t('program.sections.cooldown'),
+        exercises: template.cooldown.map(toProgramExercise),
+      },
+    ]
+    dispatch(
+      addProgramDay({
+        name: template.name,
+        programId: targetProgramId,
+        blocks,
+        sourceTemplateId: template.id,
+      }),
+    )
+    closeTemplatePicker()
+  }
+
+  const handleOpenExerciseLibrary = (blockId: string) => {
+    if (!selectedDay) {
+      return
+    }
+    if (!(role === 'trainer' || selectedDay.owner === 'client')) {
+      return
+    }
+    setExerciseLibraryTargetBlock(blockId)
+    openExerciseLibrary()
+  }
+
+  const handleSelectExerciseFromLibrary = (exercise: Exercise) => {
+    if (!selectedDay || !exerciseLibraryTargetBlock) {
+      return
+    }
+    dispatch(
+      addExercise({
+        dayId: selectedDay.id,
+        blockId: exerciseLibraryTargetBlock,
+        exercise: {
+          title: exercise.name,
+          sets: 3,
+          reps: 10,
+          duration: undefined,
+          rest: undefined,
+          weight: undefined,
+        },
+      }),
+    )
+    setExerciseLibraryTargetBlock(null)
+    closeExerciseLibrary()
+  }
+
+  const handleCloseExerciseLibrary = () => {
+    setExerciseLibraryTargetBlock(null)
+    closeExerciseLibrary()
   }
 
   const handleRename = () => {
@@ -108,6 +282,9 @@ export const ProgramPage = () => {
           attendance: 'scheduled',
           programDayId: selectedDay.id,
           location: t('calendar.defaultLocation'),
+          withTrainer: Boolean(trainerInfo),
+          trainerId: trainerInfo?.id,
+          format: trainerInfo ? 'offline' : 'online',
         }),
       )
       closeAssign()
@@ -116,6 +293,11 @@ export const ProgramPage = () => {
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) {
+      return
+    }
+    const sourceDay = programTrainings[result.source.index]
+    const destinationDay = programTrainings[result.destination.index]
+    if (!sourceDay || !destinationDay) {
       return
     }
     dispatch(reorderDays({ from: result.source.index, to: result.destination.index }))
@@ -135,6 +317,12 @@ export const ProgramPage = () => {
   }
 
   const handleAddExercise = (blockId: string) => {
+    if (!selectedDay) {
+      return
+    }
+    if (!(role === 'trainer' || selectedDay.owner === 'client')) {
+      return
+    }
     setEditingExercise({ exercise: null, blockId })
     setExerciseForm({
       title: t('program.newExercise'),
@@ -148,13 +336,20 @@ export const ProgramPage = () => {
   }
 
   const handleDeleteExercise = (exerciseId: string, blockId: string) => {
-    if (selectedDay) {
-      dispatch(removeExercise({ dayId: selectedDay.id, blockId, exerciseId }))
+    if (!selectedDay) {
+      return
     }
+    if (!(role === 'trainer' || selectedDay.owner === 'client')) {
+      return
+    }
+    dispatch(removeExercise({ dayId: selectedDay.id, blockId, exerciseId }))
   }
 
   const handleSaveExercise = () => {
     if (selectedDay && editingExercise && exerciseForm.title.trim()) {
+      if (!(role === 'trainer' || selectedDay.owner === 'client')) {
+        return
+      }
       if (editingExercise.exercise) {
         // Обновляем существующее упражнение
         dispatch(
@@ -210,7 +405,7 @@ export const ProgramPage = () => {
   }
 
   const handleCopyDay = () => {
-    if (selectedDay) {
+    if (selectedDay && (role === 'trainer' || selectedDay.owner === 'client')) {
       dispatch(duplicateProgramDay(selectedDay.id))
     }
   }
@@ -224,153 +419,256 @@ export const ProgramPage = () => {
 
   return (
     <Group align="flex-start" gap="xl">
-      <Card w={280} withBorder>
-        <Group justify="space-between" mb="md">
-          <Title order={4}>{t('program.title')}</Title>
-          {role === 'trainer' ? (
-            <ActionIcon variant="light" onClick={handleAddDay}>
-              <IconPlus size={16} />
-            </ActionIcon>
-          ) : null}
-        </Group>
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="program-days">
-            {(provided) => (
-              <Stack gap="xs" ref={provided.innerRef} {...provided.droppableProps}>
-                {days.map((day, index) => (
-                  <Draggable draggableId={day.id} index={index} key={day.id} isDragDisabled={role !== 'trainer'}>
-                    {(dragProvided) => (
-                      <Card
-                        withBorder
-                        padding="md"
-                        radius="md"
-                        ref={dragProvided.innerRef}
-                        {...dragProvided.draggableProps}
-                        {...dragProvided.dragHandleProps}
-                        onClick={() => handleDayClick(day.id)}
-                        style={{
-                          backgroundColor: day.id === selectedDayId ? 'var(--mantine-color-violet-1)' : 'var(--mantine-color-white)',
-                          borderColor: day.id === selectedDayId ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)',
-                          borderWidth: day.id === selectedDayId ? 2 : 1,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (day.id !== selectedDayId) {
-                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)'
-                            e.currentTarget.style.borderColor = 'var(--mantine-color-violet-3)'
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (day.id !== selectedDayId) {
-                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-white)'
-                            e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)'
-                          }
-                        }}
+      <Card withBorder >
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Title order={4}>{t('program.programsTitle')}</Title>
+            <Group gap="xs">
+              {role === 'client' && (
+                <Button variant="light" leftSection={<IconTemplate size={16} />} onClick={openTemplatePicker}>
+                  {t('program.addProgramFromTemplate')}
+                </Button>
+              )}
+              <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddProgram}>
+                {t('program.addProgram')}
+              </Button>
+            </Group>
+          </Group>
+          <ScrollArea type="auto" offsetScrollbars>
+            <Group gap="sm" wrap="nowrap">
+              {programs.map((program) => {
+                const isActive = program.id === selectedProgramId
+                return (
+                  <Card
+                    key={program.id}
+                    withBorder
+                    padding="md"
+                    style={{
+                      minWidth: 220,
+                      borderColor: isActive ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)',
+                      backgroundColor: isActive ? 'var(--mantine-color-violet-0)' : 'var(--mantine-color-white)',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => dispatch(selectProgram(program.id))}
+                  >
+                    <Stack gap={4}>
+                      <Group justify="space-between">
+                        <Text fw={600}>{program.title}</Text>
+                        <Badge size="xs" color={program.owner === 'trainer' ? 'gray' : 'green'} variant="light">
+                          {t(`program.owner.${program.owner}`)}
+                        </Badge>
+                      </Group>
+                      {program.description ? (
+                        <Text size="xs" c="dimmed">
+                          {program.description}
+                        </Text>
+                      ) : null}
+                    </Stack>
+                  </Card>
+                )
+              })}
+              {role === 'client' && (
+                <Card
+                  withBorder
+                  padding="md"
+                  style={{
+                    minWidth: 220,
+                    borderStyle: 'dashed',
+                    borderColor: 'var(--mantine-color-violet-3)',
+                  }}
+                >
+                  <Button variant="subtle" leftSection={<IconPlus size={16} />} fullWidth onClick={handleAddProgram}>
+                    {t('program.addProgram')}
+                  </Button>
+                </Card>
+              )}
+            </Group>
+          </ScrollArea>
+          <Group justify="space-between" align="center">
+            <Text fw={600}>{t('program.trainingsTitle')}</Text>
+            <Group gap="xs">
+              <Button variant="light" leftSection={<IconTemplate size={16} />} onClick={openTemplatePicker}>
+                {t('program.addTrainingFromTemplate')}
+              </Button>
+              <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddDay}>
+                {t('program.addTraining')}
+              </Button>
+            </Group>
+          </Group>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="program-days">
+              {(provided) => (
+                <Stack gap="xs" ref={provided.innerRef} {...provided.droppableProps}>
+                  {programTrainings.map((day, index) => {
+                    const canEditThisDay = canManageDay(day.owner)
+                    return (
+                      <Draggable
+                        draggableId={day.id}
+                        index={index}
+                        key={day.id}
+                        isDragDisabled={!canEditThisDay}
                       >
-                        <Group justify="space-between" align="flex-start">
-                          <Stack gap={4} style={{ flex: 1 }}>
-                            <Group gap="xs">
-                              <Badge 
-                                variant="light" 
-                                color="violet"
-                                size="sm"
-                                style={{ minWidth: '28px', justifyContent: 'center' }}
-                              >
-                                {(day.order ?? index) + 1}
-                              </Badge>
-                              <Text fw={600} size="sm" c={day.id === selectedDayId ? 'violet.7' : 'gray.8'}>
-                                {day.name}
-                              </Text>
+                        {(dragProvided) => (
+                          <Card
+                            withBorder
+                            padding="md"
+                            radius="md"
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            {...dragProvided.dragHandleProps}
+                            onClick={() => handleDayClick(day.id)}
+                            style={{
+                              backgroundColor: day.id === selectedDayId ? 'var(--mantine-color-violet-1)' : 'var(--mantine-color-white)',
+                              borderColor: day.id === selectedDayId ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)',
+                              borderWidth: day.id === selectedDayId ? 2 : 1,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (day.id !== selectedDayId) {
+                                e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)'
+                                e.currentTarget.style.borderColor = 'var(--mantine-color-violet-3)'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (day.id !== selectedDayId) {
+                                e.currentTarget.style.backgroundColor = 'var(--mantine-color-white)'
+                                e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)'
+                              }
+                            }}
+                          >
+                            <Group justify="space-between" align="flex-start">
+                              <Stack gap={4} style={{ flex: 1 }}>
+                                <Group gap="xs">
+                                  <Badge
+                                    variant="light"
+                                    color="violet"
+                                    size="sm"
+                                    style={{ minWidth: '28px', justifyContent: 'center' }}
+                                  >
+                                    {(day.order ?? index) + 1}
+                                  </Badge>
+                                  <Text fw={600} size="sm" c={day.id === selectedDayId ? 'violet.7' : 'gray.8'}>
+                                    {day.name}
+                                  </Text>
+                                </Group>
+                                <Group gap="xs" ml={36}>
+                                  <Badge size="xs" color={day.owner === 'trainer' ? 'gray' : 'green'} variant="light">
+                                    {t(`program.owner.${day.owner}`)}
+                                  </Badge>
+                                  <Text size="xs" c="dimmed">
+                                    {day.blocks.reduce((sum, block) => sum + block.exercises.length, 0)}{' '}
+                                    {t('program.exercises')}
+                                  </Text>
+                                </Group>
+                              </Stack>
+                              <Menu position="right-start">
+                                <Menu.Target>
+                                  <ActionIcon variant="subtle" color="gray">
+                                    <IconDotsVertical size={16} />
+                                  </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Item
+                                    leftSection={<IconEdit size={16} />}
+                                    disabled={!canEditThisDay}
+                                    onClick={() => {
+                                      if (!canEditThisDay) {
+                                        return
+                                      }
+                                      if (day.id === selectedDayId) {
+                                        handleRenameFromMenu()
+                                      } else {
+                                        dispatch(selectProgramDay(day.id))
+                                        setTimeout(() => {
+                                          setRenameDraft(day.name)
+                                          openRename()
+                                        }, 100)
+                                      }
+                                    }}
+                                  >
+                                    {t('common.edit')}
+                                  </Menu.Item>
+                                  <Menu.Item
+                                    leftSection={<IconCalendar size={16} />}
+                                    onClick={() => {
+                                      setAssignForm(createAssignForm(day.id))
+                                      openAssign()
+                                    }}
+                                  >
+                                    {t('program.assignToCalendar')}
+                                  </Menu.Item>
+                                  <Menu.Item
+                                    leftSection={<IconCopy size={16} />}
+                                    disabled={!canEditThisDay}
+                                    onClick={() => {
+                                      if (!canEditThisDay) {
+                                        return
+                                      }
+                                      dispatch(duplicateProgramDay(day.id))
+                                    }}
+                                  >
+                                    {t('common.duplicate')}
+                                  </Menu.Item>
+                                  <Menu.Item
+                                    leftSection={<IconTrash size={16} />}
+                                    color="red"
+                                    disabled={!canEditThisDay}
+                                    onClick={() => {
+                                      if (!canEditThisDay) {
+                                        return
+                                      }
+                                      dispatch(deleteProgramDay(day.id))
+                                    }}
+                                  >
+                                    {t('common.delete')}
+                                  </Menu.Item>
+                                </Menu.Dropdown>
+                              </Menu>
                             </Group>
-                            <Text size="xs" c="dimmed" ml={36}>
-                              {day.blocks.reduce((sum, block) => sum + block.exercises.length, 0)} {t('program.exercises')}
-                            </Text>
-                          </Stack>
-                          {role === 'trainer' ? (
-                            <Menu position="right-start">
-                              <Menu.Target>
-                                <ActionIcon variant="subtle" color="gray">
-                                  <IconDotsVertical size={16} />
-                                </ActionIcon>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                <Menu.Item
-                                  leftSection={<IconEdit size={16} />}
-                                  onClick={() => {
-                                    if (day.id === selectedDayId) {
-                                      handleRenameFromMenu()
-                                    } else {
-                                      dispatch(selectProgramDay(day.id))
-                                      setTimeout(() => {
-                                        setRenameDraft(day.name)
-                                        openRename()
-                                      }, 100)
-                                    }
-                                  }}
-                                >
-                                  {t('common.edit')}
-                                </Menu.Item>
-                                <Menu.Item
-                                  leftSection={<IconCalendar size={16} />}
-                                  onClick={() => {
-                                    setAssignForm(createAssignForm(day.id))
-                                    openAssign()
-                                  }}
-                                >
-                                  {t('program.assignToCalendar')}
-                                </Menu.Item>
-                                <Menu.Item
-                                  leftSection={<IconCopy size={16} />}
-                                  onClick={() => dispatch(duplicateProgramDay(day.id))}
-                                >
-                                  {t('common.duplicate')}
-                                </Menu.Item>
-                                <Menu.Item
-                                  leftSection={<IconTrash size={16} />}
-                                  color="red"
-                                  onClick={() => dispatch(deleteProgramDay(day.id))}
-                                >
-                                  {t('common.delete')}
-                                </Menu.Item>
-                              </Menu.Dropdown>
-                            </Menu>
-                          ) : null}
-                        </Group>
-                      </Card>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </Stack>
-            )}
-          </Droppable>
-        </DragDropContext>
+                          </Card>
+                        )}
+                      </Draggable>
+                    )
+                  })}
+                  {provided.placeholder}
+                </Stack>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </Stack>
       </Card>
       <ScrollArea w="100%" h={620}>
         {selectedDay ? (
           <Stack gap="xl">
             <Group justify="space-between">
               <Title order={2}>{selectedDay.name}</Title>
-              {role === 'trainer' ? (
-                <Group gap="xs">
-                  <Button variant="light" leftSection={<IconCalendar size={16} />} onClick={() => {
+              <Group gap="xs">
+                <Button
+                  variant="light"
+                  leftSection={<IconCalendar size={16} />}
+                  onClick={() => {
                     setAssignForm(createAssignForm(selectedDay.id))
                     openAssign()
-                  }}>
-                    {t('program.assignToCalendar')}
-                  </Button>
+                  }}
+                >
+                  {t('program.assignToCalendar')}
+                </Button>
+                {canEditSelectedDay && (
                   <Button variant="light" leftSection={<IconCopy size={16} />} onClick={handleCopyDay}>
                     {t('program.copyDay')}
                   </Button>
+                )}
+                {isTrainer && (
                   <Button variant="light" leftSection={<IconDeviceFloppy size={16} />} onClick={openTemplateModal}>
                     {t('program.saveAsTemplate')}
                   </Button>
-                </Group>
-              ) : null}
+                )}
+              </Group>
             </Group>
-            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
-              {selectedDay.blocks.map((block) => {
+            <ScrollArea type="auto" offsetScrollbars>
+              <Group gap="lg" wrap="nowrap">
+                {selectedDay.blocks.map((block) => {
                 const getBlockConfig = () => {
                   switch (block.type) {
                     case 'warmup':
@@ -413,6 +711,8 @@ export const ProgramPage = () => {
                     style={{
                       borderColor: `var(--mantine-color-${config.borderColor})`,
                       backgroundColor: `var(--mantine-color-${config.gradient.to})`,
+                      minWidth: 320,
+                      flexShrink: 0,
                     }}
                   >
                     <Stack gap="md">
@@ -514,7 +814,7 @@ export const ProgramPage = () => {
                                   )}
                                 </Group>
                               </Stack>
-                              {role === 'trainer' && (
+                              {canEditSelectedDay && (
                                 <Group gap="xs">
                                   <ActionIcon 
                                     variant="subtle" 
@@ -554,37 +854,112 @@ export const ProgramPage = () => {
                           </Card>
                         ) : null}
                       </Stack>
-                      {role === 'trainer' ? (
-                        <Button 
-                          variant="light" 
-                          color={config.color}
-                          leftSection={<IconPlus size={16} />} 
-                          onClick={() => handleAddExercise(block.id)}
-                          fullWidth
-                          mt="sm"
-                        >
-                          {t('program.addExercise')}
-                        </Button>
+                      {canEditSelectedDay ? (
+                        <Group mt="sm" gap="xs">
+                          <Button 
+                            variant="light" 
+                            color={config.color}
+                            leftSection={<IconPlus size={16} />} 
+                            onClick={() => handleAddExercise(block.id)}
+                            fullWidth
+                          >
+                            {t('program.addExercise')}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            color={config.color}
+                            leftSection={<IconBooks size={16} />} 
+                            onClick={() => handleOpenExerciseLibrary(block.id)}
+                            fullWidth
+                          >
+                            {t('program.addFromLibrary')}
+                          </Button>
+                        </Group>
                       ) : null}
                     </Stack>
                   </Card>
                 )
               })}
-            </SimpleGrid>
+              </Group>
+            </ScrollArea>
           </Stack>
         ) : (
           <Card withBorder>
             <Stack gap="sm" align="center">
               <Title order={3}>{t('program.emptyState')}</Title>
-              {role === 'trainer' ? (
-                <Button leftSection={<IconPlus size={16} />} onClick={handleAddDay}>
-                  {t('program.addDay')}
-                </Button>
-              ) : null}
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={() => handleAddDay()}
+              >
+                {t('program.addDay')}
+              </Button>
             </Stack>
           </Card>
         )}
       </ScrollArea>
+
+      <Modal opened={templatePickerOpened} onClose={closeTemplatePicker} title={t('program.templateLibraryTitle')} size="lg">
+        <ScrollArea h={360}>
+          <Stack gap="sm">
+            {accessibleTemplates.length ? (
+              accessibleTemplates.map((template) => (
+                <Card key={template.id} withBorder padding="md">
+                  <Group justify="space-between" align="flex-start">
+                    <Stack gap={2} style={{ flex: 1 }}>
+                      <Text fw={600}>{template.name}</Text>
+                      {template.description ? (
+                        <Text size="xs" c="dimmed">
+                          {template.description}
+                        </Text>
+                      ) : null}
+                      <Text size="xs" c="dimmed">
+                        {t('program.templateDuration', { value: template.duration })}
+                      </Text>
+                    </Stack>
+                    <Button size="compact-sm" leftSection={<IconPlus size={14} />} onClick={() => handleAddDayFromTemplate(template)}>
+                      {t('program.addTemplateButton')}
+                    </Button>
+                  </Group>
+                </Card>
+              ))
+            ) : (
+              <Text c="dimmed">{t('program.templatesEmpty')}</Text>
+            )}
+          </Stack>
+        </ScrollArea>
+      </Modal>
+
+      <Modal opened={exerciseLibraryOpened} onClose={handleCloseExerciseLibrary} title={t('program.exerciseLibraryTitle')} size="lg">
+        <ScrollArea h={360}>
+          <Stack gap="sm">
+            {accessibleExercises.length ? (
+              accessibleExercises.map((exercise) => (
+                <Card key={exercise.id} withBorder padding="md">
+                  <Group justify="space-between" align="center">
+                    <Stack gap={2} style={{ flex: 1 }}>
+                      <Text fw={600}>{exercise.name}</Text>
+                      {exercise.description ? (
+                        <Text size="xs" c="dimmed">
+                          {exercise.description}
+                        </Text>
+                      ) : null}
+                    </Stack>
+                    <Button
+                      size="compact-sm"
+                      leftSection={<IconPlus size={14} />}
+                      onClick={() => handleSelectExerciseFromLibrary(exercise)}
+                    >
+                      {t('common.add')}
+                    </Button>
+                  </Group>
+                </Card>
+              ))
+            ) : (
+              <Text c="dimmed">{t('program.exerciseLibraryEmpty')}</Text>
+            )}
+          </Stack>
+        </ScrollArea>
+      </Modal>
 
       <Modal opened={renameModalOpened} onClose={closeRename} title={t('common.edit')}>
         <Stack gap="md">
@@ -676,11 +1051,13 @@ export const ProgramPage = () => {
                 }))
               }}
             />
-            <TextInput
+            <NumberInput
               label={t('program.rest')}
               placeholder={t('program.restPlaceholder')}
-              value={exerciseForm.rest || ''}
-              onChange={(event) => setExerciseForm((state) => ({ ...state, rest: event.currentTarget.value || undefined }))}
+              value={exerciseForm.rest ? Number(exerciseForm.rest) : undefined}
+              onChange={(value) => setExerciseForm((state) => ({ ...state, rest: value ? String(value) : undefined }))}
+              min={0}
+              rightSection={<Text size="xs">сек</Text>}
             />
           </Group>
           <TextInput

@@ -205,6 +205,18 @@ const trainerCalendarSlice = createSlice({
                 state.selectedClientIds.splice(index, 1)
             }
         },
+        moveWorkout(state, action: PayloadAction<{ id: string; targetDate: string }>) {
+            const workout = state.workouts.find((item) => item.id === action.payload.id)
+            if (!workout) {
+                return
+            }
+            const duration = dayjs(workout.end).diff(dayjs(workout.start), 'minute')
+            const sourceStart = dayjs(workout.start)
+            const targetDate = dayjs(action.payload.targetDate)
+            const updatedStart = targetDate.hour(sourceStart.hour()).minute(sourceStart.minute()).second(0)
+            workout.start = updatedStart.toISOString()
+            workout.end = updatedStart.add(duration, 'minute').toISOString()
+        },
     },
 })
 
@@ -223,6 +235,7 @@ export const {
     goToNextDay,
     setSelectedClients,
     toggleClientFilter,
+    moveWorkout,
 } = trainerCalendarSlice.actions
 export default trainerCalendarSlice.reducer
 

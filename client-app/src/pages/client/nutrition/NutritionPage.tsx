@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Card,
   Group,
@@ -6,12 +7,12 @@ import {
   SimpleGrid,
   Stack,
   Text,
-  TextInput,
+  Textarea,
   Title,
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconCalendar } from '@tabler/icons-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
@@ -25,6 +26,9 @@ export const NutritionPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [calories, setCalories] = useState<number | ''>('')
   const [notes, setNotes] = useState('')
+  const [proteins, setProteins] = useState<number | ''>('')
+  const [fats, setFats] = useState<number | ''>('')
+  const [carbs, setCarbs] = useState<number | ''>('')
 
   const selectedDateNutrition = useMemo(() => {
     if (!selectedDate) return null
@@ -39,22 +43,18 @@ export const NutritionPage = () => {
       upsertNutritionEntry({
         date: selectedDate.toISOString(),
         calories: Number(calories),
+        proteins: proteins === '' ? undefined : Number(proteins),
+        fats: fats === '' ? undefined : Number(fats),
+        carbs: carbs === '' ? undefined : Number(carbs),
         notes: notes || undefined,
       }),
     )
     setCalories('')
+    setProteins('')
+    setFats('')
+    setCarbs('')
     setNotes('')
   }
-
-  useEffect(() => {
-    if (selectedDateNutrition) {
-      setCalories(selectedDateNutrition.calories)
-      setNotes(selectedDateNutrition.notes || '')
-    } else {
-      setCalories('')
-      setNotes('')
-    }
-  }, [selectedDateNutrition])
 
   return (
     <Stack gap="xl">
@@ -80,9 +80,15 @@ export const NutritionPage = () => {
                 )
                 if (entry) {
                   setCalories(entry.calories)
+                  setProteins(entry.proteins ?? '')
+                  setFats(entry.fats ?? '')
+                  setCarbs(entry.carbs ?? '')
                   setNotes(entry.notes || '')
                 } else {
                   setCalories('')
+                  setProteins('')
+                  setFats('')
+                  setCarbs('')
                   setNotes('')
                 }
               }
@@ -108,25 +114,76 @@ export const NutritionPage = () => {
               step={50}
               style={{ maxWidth: 220 }}
             />
-            <TextInput
-              style={{ flex: 1 }}
-              label={t('nutritionPage.notes')}
-              placeholder={t('nutritionPage.notesPlaceholder')}
-              value={notes}
-              onChange={(event) => setNotes(event.currentTarget.value)}
+            <NumberInput
+              label={t('nutritionPage.proteins')}
+              placeholder={t('nutritionPage.proteinsPlaceholder')}
+              value={proteins}
+              onChange={(value) => setProteins(typeof value === 'number' ? value : '')}
+              min={0}
+              step={5}
+              style={{ maxWidth: 180 }}
+            />
+            <NumberInput
+              label={t('nutritionPage.fats')}
+              placeholder={t('nutritionPage.fatsPlaceholder')}
+              value={fats}
+              onChange={(value) => setFats(typeof value === 'number' ? value : '')}
+              min={0}
+              step={5}
+              style={{ maxWidth: 180 }}
+            />
+            <NumberInput
+              label={t('nutritionPage.carbs')}
+              placeholder={t('nutritionPage.carbsPlaceholder')}
+              value={carbs}
+              onChange={(value) => setCarbs(typeof value === 'number' ? value : '')}
+              min={0}
+              step={5}
+              style={{ maxWidth: 180 }}
             />
             <Button onClick={handleSave} disabled={!calories || calories <= 0 || !selectedDate}>
               {t('common.save')}
             </Button>
           </Group>
+          <Textarea
+            label={t('nutritionPage.notes')}
+            placeholder={t('nutritionPage.notesPlaceholder')}
+            value={notes}
+            onChange={(event) => setNotes(event.currentTarget.value)}
+            minRows={3}
+          />
 
-          {selectedDateNutrition?.notes && (
+          {(selectedDateNutrition?.proteins ||
+            selectedDateNutrition?.fats ||
+            selectedDateNutrition?.carbs ||
+            selectedDateNutrition?.notes) && (
             <Card withBorder padding="sm" bg="gray.0">
-              <Stack gap={4}>
-                <Text size="xs" c="dimmed" fw={600}>
-                  {t('nutritionPage.savedNotes')}
-                </Text>
-                <Text size="sm">{selectedDateNutrition.notes}</Text>
+              <Stack gap="sm">
+                <Group gap="md">
+                  {selectedDateNutrition?.proteins !== undefined && (
+                    <Text size="sm">
+                      {t('nutritionPage.proteinsShort')}: {selectedDateNutrition.proteins} {t('nutritionPage.grams')}
+                    </Text>
+                  )}
+                  {selectedDateNutrition?.fats !== undefined && (
+                    <Text size="sm">
+                      {t('nutritionPage.fatsShort')}: {selectedDateNutrition.fats} {t('nutritionPage.grams')}
+                    </Text>
+                  )}
+                  {selectedDateNutrition?.carbs !== undefined && (
+                    <Text size="sm">
+                      {t('nutritionPage.carbsShort')}: {selectedDateNutrition.carbs} {t('nutritionPage.grams')}
+                    </Text>
+                  )}
+                </Group>
+                {selectedDateNutrition?.notes && (
+                  <Stack gap={4}>
+                    <Text size="xs" c="dimmed" fw={600}>
+                      {t('nutritionPage.savedNotes')}
+                    </Text>
+                    <Text size="sm">{selectedDateNutrition.notes}</Text>
+                  </Stack>
+                )}
               </Stack>
             </Card>
           )}
@@ -144,7 +201,7 @@ export const NutritionPage = () => {
             </Text>
           ) : (
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-              {nutritionEntries
+              {[...nutritionEntries]
                 .sort((a, b) => dayjs(b.date).diff(dayjs(a.date)))
                 .slice(0, 12)
                 .map((entry) => (
@@ -158,6 +215,23 @@ export const NutritionPage = () => {
                           <Text size="lg" fw={700} c="violet">
                             {entry.calories.toLocaleString()} {t('nutritionPage.kcal')}
                           </Text>
+                          <Group gap="xs">
+                            {entry.proteins !== undefined && (
+                              <Badge size="xs" color="green">
+                                {t('nutritionPage.proteinsShort')}: {entry.proteins}
+                              </Badge>
+                            )}
+                            {entry.fats !== undefined && (
+                              <Badge size="xs" color="yellow">
+                                {t('nutritionPage.fatsShort')}: {entry.fats}
+                              </Badge>
+                            )}
+                            {entry.carbs !== undefined && (
+                              <Badge size="xs" color="blue">
+                                {t('nutritionPage.carbsShort')}: {entry.carbs}
+                              </Badge>
+                            )}
+                          </Group>
                         </Stack>
                         <Button
                           variant="subtle"
@@ -165,6 +239,9 @@ export const NutritionPage = () => {
                           onClick={() => {
                             setSelectedDate(dayjs(entry.date).toDate())
                             setCalories(entry.calories)
+                            setProteins(entry.proteins ?? '')
+                            setFats(entry.fats ?? '')
+                            setCarbs(entry.carbs ?? '')
                             setNotes(entry.notes || '')
                           }}
                         >

@@ -227,13 +227,14 @@ export const ClientsPage = () => {
                                 <Table.Th>{t('trainer.clients.nextWorkout')}</Table.Th>
                                 <Table.Th>{t('trainer.clients.attendance')}</Table.Th>
                                 <Table.Th>{t('trainer.clients.format')}</Table.Th>
+                                <Table.Th>{t('trainer.clients.status.label')}</Table.Th>
                                 <Table.Th></Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
                             {filteredClients.length === 0 ? (
                                 <Table.Tr>
-                                    <Table.Td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <Table.Td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
                                         <Text c="dimmed">{t('trainer.clients.noWorkouts')}</Text>
                                     </Table.Td>
                                 </Table.Tr>
@@ -270,6 +271,11 @@ export const ClientsPage = () => {
                                         </Table.Td>
                                         <Table.Td>
                                             <Badge variant="light">{getFormatLabel(client.format)}</Badge>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Badge color={client.isActive ? 'green' : 'gray'} variant={client.isActive ? 'light' : 'outline'}>
+                                                {t(`trainer.clients.status.${client.isActive ? 'active' : 'inactive'}`)}
+                                            </Badge>
                                         </Table.Td>
                                         <Table.Td>
                                             <Menu shadow="md" width={200}>

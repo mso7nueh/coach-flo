@@ -55,6 +55,7 @@ export interface WorkoutTemplate {
     muscleGroups: MuscleGroup[]
     equipment: Equipment[]
     isCustom: boolean
+  clientId?: string
 }
 
 interface LibraryState {

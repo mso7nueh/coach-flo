@@ -40,9 +40,11 @@ import {
     goToPreviousDay,
     goToNextDay,
     setSelectedClients,
+    moveWorkout,
     type TrainerCalendarView,
+    type TrainerWorkout,
 } from '@/app/store/slices/trainerCalendarSlice'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { useSearchParams } from 'react-router-dom'
 import type { RecurrenceFrequency, DayOfWeek } from '@/app/store/slices/calendarSlice'
@@ -95,6 +97,8 @@ export const TrainerCalendarPage = () => {
 
     const [modalOpened, { open, close }] = useDisclosure(false)
     const [formState, setFormState] = useState<WorkoutFormState>(() => buildFormState(clientIdFromUrl || undefined))
+    const [activeDragWorkout, setActiveDragWorkout] = useState<TrainerWorkout | null>(null)
+    const [dragOverDay, setDragOverDay] = useState<string | null>(null)
 
     const filteredWorkouts = useMemo(() => {
         if (selectedClientIds.length === 0) return workouts
@@ -193,6 +197,60 @@ export const TrainerCalendarPage = () => {
         return clients.find((c) => c.id === clientId)?.fullName || clientId
     }
 
+    const handleDragStart = (event: DragEvent<HTMLDivElement>, workout: TrainerWorkout) => {
+        event.dataTransfer.setData('text/plain', workout.id)
+        event.dataTransfer.effectAllowed = 'move'
+        setActiveDragWorkout(workout)
+    }
+
+    const handleDragEnd = () => {
+        setActiveDragWorkout(null)
+        setDragOverDay(null)
+    }
+
+    const handleDayDragOver = (event: DragEvent<HTMLDivElement>, day: dayjs.Dayjs) => {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        setDragOverDay(day.format('YYYY-MM-DD'))
+    }
+
+    const handleDayDragLeave = () => {
+        setDragOverDay(null)
+    }
+
+    const handleDropOnDay = (event: DragEvent<HTMLDivElement>, day: dayjs.Dayjs) => {
+        event.preventDefault()
+        const droppedWorkoutId = event.dataTransfer.getData('text/plain') || activeDragWorkout?.id
+        if (!droppedWorkoutId) {
+            return
+        }
+        const workout = filteredWorkouts.find((item) => item.id === droppedWorkoutId)
+        if (!workout) {
+            return
+        }
+        const targetDateISO = day.startOf('day').toISOString()
+        const sourceStart = dayjs(workout.start)
+        const duration = dayjs(workout.end).diff(sourceStart, 'minute')
+        const updatedStart = day.clone().hour(sourceStart.hour()).minute(sourceStart.minute()).second(0)
+        const updatedEnd = updatedStart.add(duration, 'minute')
+
+        dispatch(moveWorkout({ id: droppedWorkoutId, targetDate: targetDateISO }))
+        handleDragEnd()
+        
+        setFormState({
+            ...buildFormState(workout.clientId),
+            id: workout.id,
+            clientId: workout.clientId,
+            title: workout.title,
+            date: updatedStart.toDate(),
+            startTime: updatedStart.format('HH:mm'),
+            endTime: updatedEnd.format('HH:mm'),
+            location: workout.location,
+            format: workout.format,
+        })
+        open()
+    }
+
 
     return (
         <Stack gap="lg">
@@ -246,23 +304,33 @@ export const TrainerCalendarPage = () => {
                     <ScrollArea h={600}>
                         <div style={{ display: 'grid', gridTemplateColumns: view === 'week' ? '120px repeat(7, 1fr)' : '120px 1fr', gap: '1px', backgroundColor: 'var(--mantine-color-gray-3)' }}>
                             <div style={{ backgroundColor: 'white', padding: '8px', position: 'sticky', left: 0, zIndex: 10 }}></div>
-                            {calendarDays.map((day) => (
-                                <div
-                                    key={day.format('YYYY-MM-DD')}
-                                    style={{
-                                        backgroundColor: 'white',
-                                        padding: '8px',
-                                        textAlign: 'center',
-                                        fontWeight: day.isSame(dayjs(), 'day') ? 700 : 500,
-                                        color: day.isSame(dayjs(), 'day') ? 'var(--mantine-color-violet-6)' : undefined,
-                                    }}
-                                >
-                                    <Text size="xs" c="dimmed">
-                                        {day.format('ddd')}
-                                    </Text>
-                                    <Text size="lg">{day.format('D')}</Text>
-                                </div>
-                            ))}
+                            {calendarDays.map((day) => {
+                                const dayKey = day.format('YYYY-MM-DD')
+                                const isDragOver = dragOverDay === dayKey
+                                const isToday = day.isSame(dayjs(), 'day')
+                                return (
+                                    <div
+                                        key={dayKey}
+                                        onDragOver={(e) => handleDayDragOver(e, day)}
+                                        onDragLeave={handleDayDragLeave}
+                                        onDrop={(e) => handleDropOnDay(e, day)}
+                                        style={{
+                                            backgroundColor: isDragOver ? 'var(--mantine-color-violet-0)' : 'white',
+                                            padding: '8px',
+                                            textAlign: 'center',
+                                            fontWeight: isToday ? 700 : 500,
+                                            color: isToday ? 'var(--mantine-color-violet-6)' : undefined,
+                                            border: isDragOver ? '2px dashed var(--mantine-color-violet-6)' : 'none',
+                                            transition: 'background-color 0.2s',
+                                        }}
+                                    >
+                                        <Text size="xs" c="dimmed">
+                                            {day.format('ddd')}
+                                        </Text>
+                                        <Text size="lg" c={isToday ? 'violet' : undefined}>{day.format('D')}</Text>
+                                    </div>
+                                )
+                            })}
 
                             {hours.map((hour) => (
                                 <>
@@ -289,14 +357,20 @@ export const TrainerCalendarPage = () => {
                                             return workoutStart.isAfter(hourStart.subtract(1, 'minute')) && workoutStart.isBefore(hourEnd.add(1, 'minute'))
                                         })
 
+                                        const isDragOver = dragOverDay === dayKey
                                         return (
                                             <div
                                                 key={`${dayKey}-${hour}`}
+                                                onDragOver={(e) => handleDayDragOver(e, day)}
+                                                onDragLeave={handleDayDragLeave}
+                                                onDrop={(e) => handleDropOnDay(e, day)}
                                                 style={{
                                                     minHeight: '60px',
                                                     borderTop: '1px solid var(--mantine-color-gray-2)',
                                                     position: 'relative',
                                                     cursor: 'pointer',
+                                                    backgroundColor: isDragOver ? 'var(--mantine-color-violet-0)' : 'transparent',
+                                                    transition: 'background-color 0.2s',
                                                 }}
                                                 onClick={() => handleCreateWorkout(day, hour)}
                                             >
@@ -312,6 +386,9 @@ export const TrainerCalendarPage = () => {
                                                         <Card
                                                             key={workout.id}
                                                             p="xs"
+                                                            draggable
+                                                            onDragStart={(e) => handleDragStart(e, workout)}
+                                                            onDragEnd={handleDragEnd}
                                                             style={{
                                                                 position: 'absolute',
                                                                 top: `${topOffset}px`,
@@ -320,8 +397,10 @@ export const TrainerCalendarPage = () => {
                                                                 height: `${(duration / 60) * 60 - 2}px`,
                                                                 backgroundColor: `var(--mantine-color-${getWorkoutColor(workout.attendance)}-0)`,
                                                                 border: `2px solid var(--mantine-color-${getWorkoutColor(workout.attendance)}-6)`,
-                                                                cursor: 'pointer',
-                                                                zIndex: 5,
+                                                                cursor: 'move',
+                                                                zIndex: activeDragWorkout?.id === workout.id ? 10 : 5,
+                                                                opacity: activeDragWorkout?.id === workout.id ? 0.5 : 1,
+                                                                transition: 'opacity 0.2s',
                                                             }}
                                                             onClick={(e) => {
                                                                 e.stopPropagation()

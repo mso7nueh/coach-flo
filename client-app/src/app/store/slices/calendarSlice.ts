@@ -24,18 +24,66 @@ export interface ClientWorkout {
   attendance: AttendanceStatus
   coachNote?: string
   recurrence?: RecurrenceRule // Правило повторения
+  trainerId?: string
+  withTrainer?: boolean
+  format?: 'online' | 'offline'
 }
 
 export type CalendarView = '1w' | '2w' | '4w' | 'month'
+
+interface TrainerAvailabilitySlot {
+  start: string
+  end: string
+}
+
+type TrainerAvailabilityMap = Record<string, Record<string, TrainerAvailabilitySlot[]>>
 
 interface CalendarState {
   workouts: ClientWorkout[]
   selectedDate: string
   view: CalendarView
   currentStartDate: string
+  trainerAvailability: TrainerAvailabilityMap
 }
 
 const today = dayjs()
+
+const trainerAvailabilityById: TrainerAvailabilityMap = {
+  'trainer-default': {
+    [today.add(1, 'day').startOf('day').toISOString()]: [
+      {
+        start: today.add(1, 'day').hour(9).minute(0).second(0).toISOString(),
+        end: today.add(1, 'day').hour(10).minute(0).second(0).toISOString(),
+      },
+      {
+        start: today.add(1, 'day').hour(12).minute(0).second(0).toISOString(),
+        end: today.add(1, 'day').hour(13).minute(0).second(0).toISOString(),
+      },
+    ],
+    [today.add(2, 'day').startOf('day').toISOString()]: [
+      {
+        start: today.add(2, 'day').hour(15).minute(0).second(0).toISOString(),
+        end: today.add(2, 'day').hour(16).minute(0).second(0).toISOString(),
+      },
+    ],
+    [today.add(4, 'day').startOf('day').toISOString()]: [
+      {
+        start: today.add(4, 'day').hour(8).minute(30).second(0).toISOString(),
+        end: today.add(4, 'day').hour(9).minute(30).second(0).toISOString(),
+      },
+      {
+        start: today.add(4, 'day').hour(18).minute(0).second(0).toISOString(),
+        end: today.add(4, 'day').hour(19).minute(0).second(0).toISOString(),
+      },
+    ],
+    [today.add(7, 'day').startOf('day').toISOString()]: [
+      {
+        start: today.add(7, 'day').hour(11).minute(0).second(0).toISOString(),
+        end: today.add(7, 'day').hour(12).minute(0).second(0).toISOString(),
+      },
+    ],
+  },
+}
 
 const sampleWorkouts: ClientWorkout[] = [
   {
@@ -46,6 +94,9 @@ const sampleWorkouts: ClientWorkout[] = [
     location: 'Зал №2',
     programDayId: 'day-1',
     attendance: 'scheduled',
+    trainerId: 'trainer-default',
+    withTrainer: true,
+    format: 'offline',
   },
   {
     id: nanoid(),
@@ -54,6 +105,9 @@ const sampleWorkouts: ClientWorkout[] = [
     end: today.add(2, 'day').hour(19).minute(0).toISOString(),
     programDayId: 'day-2',
     attendance: 'scheduled',
+    trainerId: 'trainer-default',
+    withTrainer: true,
+    format: 'online',
   },
   {
     id: nanoid(),
@@ -112,6 +166,7 @@ const initialState: CalendarState = {
   selectedDate: today.startOf('day').toISOString(),
   view: '2w',
   currentStartDate: today.startOf('week').toISOString(),
+  trainerAvailability: trainerAvailabilityById,
 }
 
 const calendarSlice = createSlice({
@@ -213,6 +268,19 @@ const calendarSlice = createSlice({
     removeWorkout(state, action: PayloadAction<string>) {
       state.workouts = state.workouts.filter((item) => item.id !== action.payload)
     },
+    moveWorkout(state, action: PayloadAction<{ id: string; targetDate: string }>) {
+      const workout = state.workouts.find((item) => item.id === action.payload.id)
+      if (!workout) {
+        return
+      }
+      const duration = dayjs(workout.end).diff(dayjs(workout.start), 'minute')
+      const sourceStart = dayjs(workout.start)
+      const targetDate = dayjs(action.payload.targetDate)
+      const updatedStart = targetDate.hour(sourceStart.hour()).minute(sourceStart.minute()).second(0)
+      workout.start = updatedStart.toISOString()
+      workout.end = updatedStart.add(duration, 'minute').toISOString()
+      state.selectedDate = updatedStart.toISOString()
+    },
     removeWorkoutSeries(state, action: PayloadAction<string>) {
       // Удаляем все тренировки из серии
       const workout = state.workouts.find((w) => w.id === action.payload)
@@ -255,6 +323,7 @@ export const {
   scheduleWorkout,
   updateWorkout,
   removeWorkout,
+  moveWorkout,
   removeWorkoutSeries,
   removeFutureWorkouts,
 } = calendarSlice.actions

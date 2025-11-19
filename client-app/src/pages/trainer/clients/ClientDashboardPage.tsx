@@ -13,18 +13,22 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
+import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { IconArrowLeft, IconCalendar, IconChartBar, IconBarbell, IconEdit, IconAlertTriangle, IconTarget } from '@tabler/icons-react'
 import { SimpleGrid } from '@mantine/core'
 import dayjs from 'dayjs'
+import { updateClient } from '@/app/store/slices/clientsSlice'
 
 export const ClientDashboardPage = () => {
     const { t } = useTranslation()
     const { clientId } = useParams<{ clientId: string }>()
     const navigate = useNavigate()
+    const dispatch = useAppDispatch()
     const { clients } = useAppSelector((state) => state.clients)
     const { workouts } = useAppSelector((state) => state.calendar)
     const { trainerNotes } = useAppSelector((state) => state.dashboard)
     const { bodyMetrics, exerciseMetrics } = useAppSelector((state) => state.metrics)
+    const { payments } = useAppSelector((state) => state.finances)
 
     const client = clients.find((c) => c.id === clientId)
 
@@ -51,6 +55,39 @@ export const ClientDashboardPage = () => {
         .slice(0, 3)
 
     const clientNotes = trainerNotes
+    const clientPayments = payments.filter((payment) => payment.clientId === client.id).sort((a, b) => dayjs(b.date).diff(dayjs(a.date)))
+    const determineActivePayment = () => {
+        const now = dayjs()
+        return (
+            clientPayments.find((payment) => {
+                if (payment.type === 'package') {
+                    return (payment.remainingSessions ?? 0) > 0
+                }
+                if (payment.type === 'subscription') {
+                    return !payment.nextPaymentDate || dayjs(payment.nextPaymentDate).isAfter(now)
+                }
+                return payment.type === 'single' && dayjs(payment.date).isSame(now, 'day')
+            }) ?? clientPayments[0]
+        )
+    }
+    const activePayment = determineActivePayment()
+    const paymentStatus = activePayment ? 'paid' : 'unpaid'
+    const remainingSessions =
+        activePayment?.type === 'package'
+            ? activePayment.remainingSessions ?? 0
+            : activePayment?.type === 'single'
+                ? 1
+                : undefined
+    const totalSessions =
+        activePayment?.type === 'package'
+            ? activePayment.packageSize ?? undefined
+            : activePayment?.type === 'single'
+                ? 1
+                : undefined
+
+    const handleDisableClient = () => {
+        dispatch(updateClient({ id: client.id, updates: { isActive: false } }))
+    }
 
     const getInitials = (name: string) => {
         return name
@@ -139,6 +176,102 @@ export const ClientDashboardPage = () => {
                     </Stack>
                 </Card>
             </SimpleGrid>
+
+            <Card withBorder padding="md">
+                <Stack gap="md">
+                    <Group justify="space-between" align="center">
+                        <Stack gap={2}>
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                                {t('trainer.clients.finance.title')}
+                            </Text>
+                            <Text fw={600}>
+                                {t('trainer.clients.finance.statusLabel')}{' '}
+                                <Text span inherit c={paymentStatus === 'paid' ? 'green.7' : 'red.6'}>
+                                    {t(`trainer.clients.finance.status.${paymentStatus}`)}
+                                </Text>
+                            </Text>
+                        </Stack>
+                        <Badge color={paymentStatus === 'paid' ? 'green' : 'red'} variant="filled">
+                            {t(`trainer.clients.finance.status.${paymentStatus}`)}
+                        </Badge>
+                    </Group>
+                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
+                        <Card withBorder padding="sm">
+                            <Stack gap={2}>
+                                <Text size="xs" c="dimmed">
+                                    {t('trainer.clients.finance.sessionsPlannedLabel')}
+                                </Text>
+                                <Text fw={600}>{upcomingWorkouts.length}</Text>
+                            </Stack>
+                        </Card>
+                        <Card withBorder padding="sm">
+                            <Stack gap={2}>
+                                <Text size="xs" c="dimmed">
+                                    {t('trainer.clients.finance.remainingSessions')}
+                                </Text>
+                                <Text fw={600}>{remainingSessions ?? '—'}</Text>
+                            </Stack>
+                        </Card>
+                        <Card withBorder padding="sm">
+                            <Stack gap={2}>
+                                <Text size="xs" c="dimmed">
+                                    {t('trainer.clients.finance.totalSessionsShort')}
+                                </Text>
+                                <Text fw={600}>{totalSessions ?? '—'}</Text>
+                            </Stack>
+                        </Card>
+                        <Card withBorder padding="sm">
+                            <Stack gap={2}>
+                                <Text size="xs" c="dimmed">
+                                    {t('trainer.clients.finance.lastPayment')}
+                                </Text>
+                                <Text fw={600}>
+                                    {clientPayments[0] ? dayjs(clientPayments[0].date).format('D MMM YYYY') : '—'}
+                                </Text>
+                            </Stack>
+                        </Card>
+                    </SimpleGrid>
+                    {clientPayments.length === 0 ? (
+                        <Text size="sm" c="dimmed">
+                            {t('trainer.clients.finance.noPayments')}
+                        </Text>
+                    ) : (
+                        <Stack gap="xs">
+                            <Text size="sm">
+                                {t('trainer.clients.finance.lastPayment')}: {dayjs(clientPayments[0].date).format('D MMM YYYY')} ·{' '}
+                                {clientPayments[0].amount.toLocaleString()} ₽
+                            </Text>
+                            {activePayment?.nextPaymentDate && (
+                                <Text size="sm" c="dimmed">
+                                    {t('trainer.clients.finance.nextPayment', { date: dayjs(activePayment.nextPaymentDate).format('D MMM YYYY') })}
+                                </Text>
+                            )}
+                            {remainingSessions !== undefined && (
+                                <Text size="sm">
+                                    {t('trainer.clients.finance.remainingSessions')}: {totalSessions !== undefined ? `${remainingSessions}/${totalSessions}` : remainingSessions}
+                                </Text>
+                            )}
+                            {activePayment?.type === 'package' && activePayment.packageSize && (
+                                <Text size="sm" c="dimmed">
+                                    {t('trainer.clients.finance.packageSize', { value: activePayment.packageSize })}
+                                </Text>
+                            )}
+                        </Stack>
+                    )}
+                    <Group justify="flex-end" gap="sm">
+                        {paymentStatus === 'unpaid' && client.isActive && (
+                            <Button color="red" variant="outline" onClick={handleDisableClient}>
+                                {t('trainer.clients.finance.disableClient')}
+                            </Button>
+                        )}
+                        {!client.isActive && (
+                            <Badge color="red" variant="outline">
+                                {t('trainer.clients.finance.inactive')}
+                            </Badge>
+                        )}
+                    </Group>
+                </Stack>
+            </Card>
 
             <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
                 <Card withBorder padding="md">

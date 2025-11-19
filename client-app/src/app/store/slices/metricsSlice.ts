@@ -39,6 +39,9 @@ export interface DailyNutritionEntry {
   id: string
   date: string
   calories: number
+  proteins?: number
+  fats?: number
+  carbs?: number
   notes?: string
 }
 
@@ -185,6 +188,9 @@ const metricsSlice = createSlice({
         state.nutritionEntries[existingIndex] = {
           ...state.nutritionEntries[existingIndex],
           calories: action.payload.calories,
+          proteins: action.payload.proteins,
+          fats: action.payload.fats,
+          carbs: action.payload.carbs,
           notes: action.payload.notes,
         }
       } else {

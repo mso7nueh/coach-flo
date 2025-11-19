@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Alert,
     Badge,
     Button,
     Card,
@@ -43,8 +44,10 @@ import {
     updateWorkout,
     type RecurrenceFrequency,
     type DayOfWeek,
+    moveWorkout,
+    type ClientWorkout,
 } from '@/app/store/slices/calendarSlice'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { Modal } from '@mantine/core'
 import { nanoid } from '@reduxjs/toolkit'
@@ -63,9 +66,12 @@ interface WorkoutFormState {
     recurrenceDaysOfWeek: DayOfWeek[]
     recurrenceEndDate: Date | null
     recurrenceOccurrences: number | null
+    trainerId?: string
+    withTrainer: boolean
+    format: 'online' | 'offline'
 }
 
-const buildFormState = (date: string): WorkoutFormState => ({
+const buildFormState = (date: string, options?: { trainerId?: string; withTrainer?: boolean }): WorkoutFormState => ({
     title: '',
     date: dayjs(date).toDate(),
     startTime: '18:00',
@@ -77,16 +83,25 @@ const buildFormState = (date: string): WorkoutFormState => ({
     recurrenceDaysOfWeek: [],
     recurrenceEndDate: null,
     recurrenceOccurrences: null,
+    trainerId: options?.trainerId,
+    withTrainer: options?.withTrainer ?? false,
+    format: options?.withTrainer ? 'offline' : 'online',
 })
 
 export const CalendarPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
-    const { workouts, selectedDate, currentStartDate } = useAppSelector((state) => state.calendar)
+    const { workouts, selectedDate, currentStartDate, trainerAvailability } = useAppSelector((state) => state.calendar)
     const role = useAppSelector((state) => state.user.role)
     const programDays = useAppSelector((state) => state.program.days)
+    const trainerInfo = useAppSelector((state) => state.user.trainer)
     const [modalOpened, { open, close }] = useDisclosure(false)
-    const [formState, setFormState] = useState<WorkoutFormState>(buildFormState(selectedDate))
+    const [formState, setFormState] = useState<WorkoutFormState>(
+        buildFormState(selectedDate, { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }),
+    )
+    const [highlightedDates, setHighlightedDates] = useState<string[]>([])
+    const [activeDragWorkout, setActiveDragWorkout] = useState<ClientWorkout | null>(null)
+    const [dragError, setDragError] = useState<string | null>(null)
 
     const startDate = dayjs(currentStartDate).startOf('week')
 
@@ -103,6 +118,25 @@ export const CalendarPage = () => {
         return days
     }, [startDate])
 
+    const getTrainerAvailableDates = (trainerId?: string) => {
+        if (!trainerId) {
+            return []
+        }
+        const availability = trainerAvailability[trainerId]
+        if (!availability) {
+            return []
+        }
+        return Object.keys(availability).filter((dayKey) => (availability[dayKey]?.length ?? 0) > 0)
+    }
+
+    const getTrainerSlotsForDay = (trainerId?: string, date?: Date | null) => {
+        if (!trainerId || !date) {
+            return []
+        }
+        const dayKey = dayjs(date).startOf('day').toISOString()
+        return trainerAvailability[trainerId]?.[dayKey] ?? []
+    }
+
     const workoutsPerDay = useMemo(() => {
         return workouts.reduce<Record<string, typeof workouts>>((acc, item) => {
             const key = dayjs(item.start).startOf('day').toISOString()
@@ -113,12 +147,40 @@ export const CalendarPage = () => {
             return acc
         }, {})
     }, [workouts])
+    const availableDatesForTrainer = getTrainerAvailableDates(formState.trainerId ?? trainerInfo?.id)
+    const availableSlotsForSelectedDate =
+        formState.withTrainer && formState.date
+            ? getTrainerSlotsForDay(formState.trainerId ?? trainerInfo?.id, formState.date)
+            : []
 
+    const isTrainerDrag = Boolean(activeDragWorkout && activeDragWorkout.withTrainer && activeDragWorkout.format === 'offline')
 
     const openCreateModal = (date?: Date) => {
         const targetDate = date ? dayjs(date) : dayjs(selectedDate)
-        setFormState(buildFormState(targetDate.toISOString()))
+        setFormState(buildFormState(targetDate.toISOString(), { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }))
         open()
+    }
+
+    const applyWorkoutToForm = (target: ClientWorkout, overrides?: Partial<WorkoutFormState>) => {
+        setFormState({
+            id: target.id,
+            title: target.title,
+            date: dayjs(target.start).startOf('day').toDate(),
+            startTime: dayjs(target.start).format('HH:mm'),
+            endTime: dayjs(target.end).format('HH:mm'),
+            location: target.location ?? '',
+            programDayId: target.programDayId,
+            isRecurring: !!target.recurrence,
+            recurrenceFrequency: target.recurrence?.frequency ?? 'weekly',
+            recurrenceInterval: target.recurrence?.interval ?? 1,
+            recurrenceDaysOfWeek: target.recurrence?.daysOfWeek ?? [],
+            recurrenceEndDate: target.recurrence?.endDate ? dayjs(target.recurrence.endDate).toDate() : null,
+            recurrenceOccurrences: target.recurrence?.occurrences ?? null,
+            trainerId: target.trainerId,
+            withTrainer: Boolean(target.withTrainer),
+            format: target.format ?? 'online',
+            ...overrides,
+        })
     }
 
     const handleToggleDay = (day: DayOfWeek) => {
@@ -138,21 +200,7 @@ export const CalendarPage = () => {
         if (!target) {
             return
         }
-        setFormState({
-            id: target.id,
-            title: target.title,
-            date: dayjs(target.start).startOf('day').toDate(),
-            startTime: dayjs(target.start).format('HH:mm'),
-            endTime: dayjs(target.end).format('HH:mm'),
-            location: target.location ?? '',
-            programDayId: target.programDayId,
-            isRecurring: !!target.recurrence,
-            recurrenceFrequency: target.recurrence?.frequency ?? 'weekly',
-            recurrenceInterval: target.recurrence?.interval ?? 1,
-            recurrenceDaysOfWeek: target.recurrence?.daysOfWeek ?? [],
-            recurrenceEndDate: target.recurrence?.endDate ? dayjs(target.recurrence.endDate).toDate() : null,
-            recurrenceOccurrences: target.recurrence?.occurrences ?? null,
-        })
+        applyWorkoutToForm(target)
         open()
     }
 
@@ -171,6 +219,9 @@ export const CalendarPage = () => {
             location: formState.location,
             attendance: 'scheduled' as const,
             programDayId: formState.programDayId,
+            trainerId: formState.withTrainer ? formState.trainerId ?? trainerInfo?.id : undefined,
+            withTrainer: formState.withTrainer,
+            format: formState.format,
             recurrence: formState.isRecurring
                 ? {
                     frequency: formState.recurrenceFrequency,
@@ -197,7 +248,7 @@ export const CalendarPage = () => {
             dispatch(scheduleWorkout(workoutData))
         }
         close()
-        setFormState(buildFormState(selectedDate))
+        setFormState(buildFormState(selectedDate, { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }))
     }
 
     const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
@@ -208,6 +259,79 @@ export const CalendarPage = () => {
     const getDayWorkouts = (date: dayjs.Dayjs) => {
         const key = date.startOf('day').toISOString()
         return workoutsPerDay[key] ?? []
+    }
+
+    const handleDragStart = (event: DragEvent<HTMLDivElement>, workout: ClientWorkout) => {
+        event.dataTransfer.setData('text/plain', workout.id)
+        setActiveDragWorkout(workout)
+        if (workout.withTrainer && workout.format === 'offline') {
+            setHighlightedDates(getTrainerAvailableDates(workout.trainerId))
+        }
+    }
+
+    const handleDragEnd = () => {
+        setActiveDragWorkout(null)
+        setHighlightedDates([])
+        setDragError(null)
+    }
+
+    const isDayBlockedForWorkout = (workout: ClientWorkout, day: dayjs.Dayjs) => {
+        if (!workout.withTrainer || workout.format !== 'offline' || !workout.trainerId) {
+            return false
+        }
+        return getTrainerSlotsForDay(workout.trainerId, day.toDate()).length === 0
+    }
+
+    const handleDayDragOver = (event: DragEvent<HTMLDivElement>, isBlocked: boolean) => {
+        if (!activeDragWorkout) {
+            return
+        }
+        if (isBlocked) {
+            event.dataTransfer.dropEffect = 'none'
+            setDragError(t('calendar.trainerDayBlocked'))
+            return
+        }
+        event.preventDefault()
+        setDragError(null)
+    }
+
+    const handleDropOnDay = (event: DragEvent<HTMLDivElement>, day: dayjs.Dayjs) => {
+        event.preventDefault()
+        const droppedWorkoutId = event.dataTransfer.getData('text/plain') || activeDragWorkout?.id
+        if (!droppedWorkoutId) {
+            return
+        }
+        const workout = workouts.find((item) => item.id === droppedWorkoutId)
+        if (!workout) {
+            return
+        }
+        const targetDateISO = day.startOf('day').toISOString()
+        if (isDayBlockedForWorkout(workout, day)) {
+            setDragError(t('calendar.trainerDayBlocked'))
+            return
+        }
+        const sourceStart = dayjs(workout.start)
+        const duration = dayjs(workout.end).diff(sourceStart, 'minute')
+        const updatedStart = day.clone().hour(sourceStart.hour()).minute(sourceStart.minute()).second(0)
+        const updatedEnd = updatedStart.add(duration, 'minute')
+
+        dispatch(moveWorkout({ id: droppedWorkoutId, targetDate: targetDateISO }))
+        setDragError(null)
+        handleDragEnd()
+        applyWorkoutToForm({
+            ...workout,
+            start: updatedStart.toISOString(),
+            end: updatedEnd.toISOString(),
+        })
+        open()
+    }
+
+    const handleSlotSelect = (slot: { start: string; end: string }) => {
+        setFormState((state) => ({
+            ...state,
+            startTime: dayjs(slot.start).format('HH:mm'),
+            endTime: dayjs(slot.end).format('HH:mm'),
+        }))
     }
 
     return (
@@ -229,12 +353,45 @@ export const CalendarPage = () => {
                         </ActionIcon>
                     </Group>
                 </Group>
-                {role === 'trainer' && (
-                    <Button leftSection={<IconPlus size={16} />} onClick={() => openCreateModal()}>
-                        {t('common.add')}
-                    </Button>
-                )}
+                <Button leftSection={<IconPlus size={16} />} onClick={() => openCreateModal()}>
+                    {t('common.add')}
+                </Button>
             </Group>
+
+            {dragError && (
+                <Alert
+                    color="red"
+                    variant="light"
+                    withCloseButton
+                    onClose={() => setDragError(null)}
+                    title={t('calendar.dragRestrictedTitle')}
+                >
+                    {dragError}
+                </Alert>
+            )}
+
+            {activeDragWorkout && highlightedDates.length > 0 && (
+                <Alert
+                    color="violet"
+                    variant="light"
+                    title={t('calendar.trainerAvailabilityTitle', {
+                        trainer: activeDragWorkout.trainerId && trainerInfo?.id === activeDragWorkout.trainerId
+                            ? trainerInfo.fullName
+                            : t('calendar.trainerFallbackName'),
+                    })}
+                >
+                    <Group gap="xs" mt="sm" wrap="wrap">
+                        {highlightedDates.map((date) => (
+                            <Badge key={date} color="violet" variant="light">
+                                {dayjs(date).format('DD MMM')}
+                            </Badge>
+                        ))}
+                    </Group>
+                    <Text size="xs" c="dimmed" mt="xs">
+                        {t('calendar.trainerAvailabilityHint')}
+                    </Text>
+                </Alert>
+            )}
 
             <ScrollArea h={`calc(100vh - ${200}px)`}>
                 <div style={{ display: 'flex', flexDirection: 'column', minHeight: '600px' }}>
@@ -266,31 +423,65 @@ export const CalendarPage = () => {
                             const dayWorkouts = getDayWorkouts(day)
                             const isFirstDay = index === 0
                             const isCurrentDay = isToday(day)
+                            const dayKey = day.startOf('day').toISOString()
+                            const isHighlightedAsAvailable = highlightedDates.includes(dayKey)
+                            const isBlockedForDrag = isTrainerDrag && !isHighlightedAsAvailable && Boolean(activeDragWorkout?.withTrainer && activeDragWorkout?.format === 'offline')
+                            const dayBackgroundColor = isCurrentDay
+                                ? 'var(--mantine-color-violet-0)'
+                                : isBlockedForDrag
+                                    ? 'var(--mantine-color-red-0)'
+                                    : isHighlightedAsAvailable
+                                        ? 'var(--mantine-color-violet-0)'
+                                        : 'white'
 
                             return (
                                 <div
                                     key={day.toISOString()}
                                     style={{
-                                        borderRight: index % 7 !== 6 ? '1px solid var(--mantine-color-gray-3)' : 'none',
-                                        borderLeft: isFirstDay ? '1px solid var(--mantine-color-gray-3)' : 'none',
-                                        borderBottom: '1px solid var(--mantine-color-gray-3)',
+                                        borderRight:
+                                            index % 7 !== 6
+                                                ? `1px solid ${
+                                                      isHighlightedAsAvailable
+                                                          ? 'var(--mantine-color-violet-4)'
+                                                          : 'var(--mantine-color-gray-3)'
+                                                  }`
+                                                : 'none',
+                                        borderLeft: isFirstDay
+                                            ? `1px solid ${
+                                                  isHighlightedAsAvailable
+                                                      ? 'var(--mantine-color-violet-4)'
+                                                      : 'var(--mantine-color-gray-3)'
+                                              }`
+                                            : 'none',
+                                        borderBottom: `1px solid ${
+                                            isHighlightedAsAvailable ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)'
+                                        }`,
                                         padding: '8px 4px',
                                         minHeight: '120px',
-                                        backgroundColor: isCurrentDay ? 'var(--mantine-color-violet-0)' : 'white',
+                                        backgroundColor: dayBackgroundColor,
                                         position: 'relative',
-                                        cursor: role === 'trainer' ? 'pointer' : 'default',
+                                        cursor: isBlockedForDrag ? 'not-allowed' : 'pointer',
+                                        boxShadow: isBlockedForDrag
+                                            ? 'inset 0 0 0 2px var(--mantine-color-red-4)'
+                                            : isHighlightedAsAvailable
+                                                ? 'inset 0 0 0 1px var(--mantine-color-violet-4)'
+                                                : undefined,
                                     }}
                                     onClick={(e) => {
-                                        if (role === 'trainer' && e.target === e.currentTarget) {
+                                        if (e.target === e.currentTarget) {
                                             openCreateModal(day.toDate())
                                         }
                                     }}
+                                    onDragOver={(event) => handleDayDragOver(event, isBlockedForDrag)}
+                                    onDragEnter={(event) => handleDayDragOver(event, isBlockedForDrag)}
+                                    onDragLeave={() => setDragError(null)}
+                                    onDrop={(event) => handleDropOnDay(event, day)}
                                 >
                                     <Group justify="space-between" mb="xs" gap="xs">
                                         <Text
                                             size="sm"
                                             fw={isCurrentDay ? 700 : isPast(day) ? 400 : 600}
-                                            c={isCurrentDay ? 'violet.7' : isPast(day) ? 'dimmed' : 'gray.9'}
+                                            c={isCurrentDay ? 'white' : isBlockedForDrag ? 'red.7' : isPast(day) ? 'dimmed' : 'gray.9'}
                                             style={{
                                                 width: '28px',
                                                 height: '28px',
@@ -298,24 +489,21 @@ export const CalendarPage = () => {
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 borderRadius: '50%',
-                                                backgroundColor: isCurrentDay ? 'var(--mantine-color-violet-6)' : 'transparent',
-                                                color: isCurrentDay ? 'white' : undefined,
+                                                backgroundColor: isCurrentDay ? 'var(--mantine-color-violet-6)' : isBlockedForDrag ? 'var(--mantine-color-red-2)' : 'transparent',
                                             }}
                                         >
                                             {day.date()}
                                         </Text>
-                                        {role === 'trainer' && (
-                                            <ActionIcon
-                                                size="xs"
-                                                variant="subtle"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    openCreateModal(day.toDate())
-                                                }}
-                                            >
-                                                <IconPlus size={14} />
-                                            </ActionIcon>
-                                        )}
+                                        <ActionIcon
+                                            size="xs"
+                                            variant="subtle"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                openCreateModal(day.toDate())
+                                            }}
+                                        >
+                                            <IconPlus size={14} />
+                                        </ActionIcon>
                                     </Group>
                                     <Stack gap={4} style={{ overflowY: 'auto', maxHeight: 'calc(100% - 40px)' }}>
                                         {dayWorkouts.map((workout) => {
@@ -343,6 +531,9 @@ export const CalendarPage = () => {
                                                         e.stopPropagation()
                                                         openEditModal(workout.id)
                                                     }}
+                                                    draggable
+                                                    onDragStart={(event) => handleDragStart(event, workout)}
+                                                    onDragEnd={handleDragEnd}
                                                 >
                                                     <Stack gap={2}>
                                                         <Group justify="space-between" gap={4}>
@@ -432,7 +623,13 @@ export const CalendarPage = () => {
                 </div>
             </ScrollArea>
 
-            <Modal opened={modalOpened} onClose={close} title={formState.id ? t('calendar.editWorkout') : t('calendar.createWorkout')} size="lg">
+            <Modal
+                opened={modalOpened}
+                onClose={close}
+                title={formState.id ? t('calendar.editWorkout') : t('calendar.createWorkout')}
+                size="lg"
+                scrollAreaComponent={ScrollArea.Autosize}
+            >
                 <Stack gap="md">
                     <Card
                         withBorder={false}
@@ -470,7 +667,10 @@ export const CalendarPage = () => {
                         value={formState.title}
                         leftSection={<IconTypography size={16} />}
                         radius="lg"
-                        onChange={(event) => setFormState((state) => ({ ...state, title: event.currentTarget.value }))}
+                        onChange={(event) => {
+                            const { value } = event.currentTarget
+                            setFormState((state) => ({ ...state, title: value }))
+                        }}
                         required
                     />
                     <DateInput
@@ -487,7 +687,10 @@ export const CalendarPage = () => {
                             value={formState.startTime}
                             leftSection={<IconClock size={16} />}
                             radius="lg"
-                            onChange={(event) => setFormState((state) => ({ ...state, startTime: event.currentTarget.value }))}
+                            onChange={(event) => {
+                                const { value } = event.currentTarget
+                                setFormState((state) => ({ ...state, startTime: value }))
+                            }}
                             required
                         />
                         <TimeInput
@@ -495,7 +698,10 @@ export const CalendarPage = () => {
                             value={formState.endTime}
                             leftSection={<IconClock size={16} />}
                             radius="lg"
-                            onChange={(event) => setFormState((state) => ({ ...state, endTime: event.currentTarget.value }))}
+                            onChange={(event) => {
+                                const { value } = event.currentTarget
+                                setFormState((state) => ({ ...state, endTime: value }))
+                            }}
                             required
                         />
                     </Group>
@@ -505,8 +711,97 @@ export const CalendarPage = () => {
                         value={formState.location}
                         leftSection={<IconMapPin size={16} />}
                         radius="lg"
-                        onChange={(event) => setFormState((state) => ({ ...state, location: event.currentTarget.value }))}
+                        onChange={(event) => {
+                            const { value } = event.currentTarget
+                            setFormState((state) => ({ ...state, location: value }))
+                        }}
                     />
+                    <Checkbox
+                        label={t('calendar.withTrainer')}
+                        description={
+                            trainerInfo
+                                ? t('calendar.withTrainerDescription')
+                                : t('calendar.withTrainerUnavailable')
+                        }
+                        checked={formState.withTrainer}
+                        disabled={!trainerInfo}
+                        onChange={(event) => {
+                            const checked = event.currentTarget?.checked ?? false
+                            setFormState((state) => ({
+                                ...state,
+                                withTrainer: checked,
+                                trainerId: checked ? trainerInfo?.id : undefined,
+                                format: checked ? 'offline' : state.format,
+                            }))
+                        }}
+                    />
+                    <Select
+                        label={t('calendar.sessionFormat')}
+                        data={[
+                            { value: 'online', label: t('calendar.sessionFormatOnline') },
+                            { value: 'offline', label: t('calendar.sessionFormatOffline') },
+                        ]}
+                        value={formState.format}
+                        leftSection={<IconCalendarEvent size={16} />}
+                        onChange={(value) =>
+                            setFormState((state) => ({
+                                ...state,
+                                format: (value as 'online' | 'offline') || 'online',
+                            }))
+                        }
+                    />
+                    {formState.withTrainer && (
+                        <Card radius="lg" padding="md" withBorder>
+                            <Stack gap="xs">
+                                <Text size="sm" fw={600}>
+                                    {t('calendar.availableTrainerDates')}
+                                </Text>
+                                {availableDatesForTrainer.length > 0 ? (
+                                    <Group gap="xs" wrap="wrap">
+                                        {availableDatesForTrainer.map((date) => (
+                                            <Badge key={date} color="violet" variant="light">
+                                                {dayjs(date).format('DD MMM')}
+                                            </Badge>
+                                        ))}
+                                    </Group>
+                                ) : (
+                                    <Text size="xs" c="dimmed">
+                                        {t('calendar.noTrainerDates')}
+                                    </Text>
+                                )}
+                                <Text size="sm" fw={600} mt="sm">
+                                    {t('calendar.availableTrainerSlots')}
+                                </Text>
+                                {availableSlotsForSelectedDate.length > 0 ? (
+                                    <Group gap="xs" wrap="wrap">
+                                        {availableSlotsForSelectedDate.map((slot) => {
+                                            const startLabel = dayjs(slot.start).format('HH:mm')
+                                            const endLabel = dayjs(slot.end).format('HH:mm')
+                                            const isActive = formState.startTime === startLabel && formState.endTime === endLabel
+                                            return (
+                                                <Button
+                                                    key={`${slot.start}-${slot.end}`}
+                                                    size="compact-sm"
+                                                    variant={isActive ? 'filled' : 'light'}
+                                                    color={isActive ? 'violet' : 'gray'}
+                                                    onClick={() => handleSlotSelect(slot)}
+                                                >
+                                                    {startLabel} - {endLabel}
+                                                </Button>
+                                            )
+                                        })}
+                                    </Group>
+                                ) : (
+                                    <Text size="xs" c="red">
+                                        {t('calendar.noSlotsForSelectedDate')}
+                                    </Text>
+                                )}
+                                <Text size="xs" c="dimmed">
+                                    {t('calendar.selectSlotHint')}
+                                </Text>
+                            </Stack>
+                        </Card>
+                    )}
                     <Select
                         label={t('program.assignToCalendar')}
                         placeholder={t('program.assignToCalendar')}
@@ -523,7 +818,10 @@ export const CalendarPage = () => {
                                 <Checkbox
                                     label={t('calendar.recurring')}
                                     checked={formState.isRecurring}
-                                    onChange={(event) => setFormState((state) => ({ ...state, isRecurring: event.currentTarget.checked }))}
+                                    onChange={(event) => {
+                                        const checked = event.currentTarget?.checked ?? false
+                                        setFormState((state) => ({ ...state, isRecurring: checked }))
+                                    }}
                                 />
                                 {formState.isRecurring && (
                                     <Stack gap="md">

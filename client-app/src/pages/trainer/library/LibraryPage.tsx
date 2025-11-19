@@ -606,11 +606,12 @@ export const LibraryPage = () => {
                                                                 {exercise?.name || ex.exerciseId}
                                                             </Text>
                                                         </Group>
-                                                        {(ex.sets || ex.reps || ex.duration) && (
+                                                        {(ex.sets || ex.reps || ex.duration || ex.rest) && (
                                                             <Text size="xs" c="dimmed" mt={4} ml={28}>
                                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                                 {ex.duration && ` × ${ex.duration} мин`}
+                                                                {ex.rest && ` · отдых ${ex.rest} сек`}
                                                             </Text>
                                                         )}
                                                     </Card>
@@ -647,12 +648,13 @@ export const LibraryPage = () => {
                                                                 {exercise?.name || ex.exerciseId}
                                                             </Text>
                                                         </Group>
-                                                        {(ex.sets || ex.reps || ex.duration) && (
+                                                        {(ex.sets || ex.reps || ex.duration || ex.weight || ex.rest) && (
                                                             <Text size="xs" c="dimmed" mt={4} ml={28}>
                                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                                 {ex.duration && ` × ${ex.duration} мин`}
                                                                 {ex.weight && ` · ${ex.weight} кг`}
+                                                                {ex.rest && ` · отдых ${ex.rest} сек`}
                                                             </Text>
                                                         )}
                                                     </Card>
@@ -689,11 +691,12 @@ export const LibraryPage = () => {
                                                                 {exercise?.name || ex.exerciseId}
                                                             </Text>
                                                         </Group>
-                                                        {(ex.sets || ex.reps || ex.duration) && (
+                                                        {(ex.sets || ex.reps || ex.duration || ex.rest) && (
                                                             <Text size="xs" c="dimmed" mt={4} ml={28}>
                                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                                 {ex.duration && ` × ${ex.duration} мин`}
+                                                                {ex.rest && ` · отдых ${ex.rest} сек`}
                                                             </Text>
                                                         )}
                                                     </Card>
@@ -806,11 +809,12 @@ export const LibraryPage = () => {
                                                 <IconTrash size={16} />
                                             </ActionIcon>
                                         </Group>
-                                        {(ex.sets || ex.reps || ex.duration) && (
+                                        {(ex.sets || ex.reps || ex.duration || ex.rest) && (
                                             <Text size="xs" c="dimmed" mt={4}>
                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                 {ex.duration && ` × ${ex.duration} мин`}
+                                                {ex.rest && ` · отдых ${ex.rest} сек`}
                                             </Text>
                                         )}
                                     </Card>
@@ -869,12 +873,13 @@ export const LibraryPage = () => {
                                                 <IconTrash size={16} />
                                             </ActionIcon>
                                         </Group>
-                                        {(ex.sets || ex.reps || ex.duration || ex.weight) && (
+                                        {(ex.sets || ex.reps || ex.duration || ex.weight || ex.rest) && (
                                             <Text size="xs" c="dimmed" mt={4}>
                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                 {ex.duration && ` × ${ex.duration} мин`}
                                                 {ex.weight && ` · ${ex.weight} кг`}
+                                                {ex.rest && ` · отдых ${ex.rest} сек`}
                                             </Text>
                                         )}
                                     </Card>
@@ -933,11 +938,12 @@ export const LibraryPage = () => {
                                                 <IconTrash size={16} />
                                             </ActionIcon>
                                         </Group>
-                                        {(ex.sets || ex.reps || ex.duration) && (
+                                        {(ex.sets || ex.reps || ex.duration || ex.rest) && (
                                             <Text size="xs" c="dimmed" mt={4}>
                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                 {ex.duration && ` × ${ex.duration} мин`}
+                                                {ex.rest && ` · отдых ${ex.rest} сек`}
                                             </Text>
                                         )}
                                     </Card>
