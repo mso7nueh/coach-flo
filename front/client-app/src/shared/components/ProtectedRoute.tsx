@@ -1,6 +1,10 @@
 import { Navigate } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
+import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
+import { fetchCurrentUser } from '@/app/store/slices/userSlice'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { apiClient } from '@/shared/api/client'
 
 interface ProtectedRouteProps {
     children: ReactNode
@@ -8,8 +12,30 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     const isAuthenticated = useAppSelector((state) => state.user.isAuthenticated)
+    const token = useAppSelector((state) => state.user.token)
+    const dispatch = useAppDispatch()
+    const [loading, setLoading] = useState(true)
 
-    if (!isAuthenticated) {
+    useEffect(() => {
+        const checkAuth = async () => {
+            const storedToken = apiClient.getToken()
+            if (storedToken && !isAuthenticated) {
+                try {
+                    await dispatch(fetchCurrentUser()).unwrap()
+                } catch (error) {
+                    apiClient.logout()
+                }
+            }
+            setLoading(false)
+        }
+        checkAuth()
+    }, [dispatch, isAuthenticated])
+
+    if (loading) {
+        return null
+    }
+
+    if (!isAuthenticated && !token) {
         return <Navigate to="/login" replace />
     }
 

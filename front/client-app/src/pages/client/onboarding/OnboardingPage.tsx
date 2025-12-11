@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { completeOnboarding, type OnboardingMetrics } from '@/app/store/slices/userSlice'
+import { completeOnboardingApi, type OnboardingMetrics } from '@/app/store/slices/userSlice'
 import { useState } from 'react'
 import { addBodyMetricEntry, addBodyMetric } from '@/app/store/slices/metricsSlice'
+import { notifications } from '@mantine/notifications'
 
 const GOALS = [
     { value: 'weight_loss', label: 'Похудение' },
@@ -22,6 +23,7 @@ export const OnboardingPage = () => {
     const navigate = useNavigate()
 
     const [activeStep, setActiveStep] = useState(0)
+    const [loading, setLoading] = useState(false)
 
     interface OnboardingFormValues extends OnboardingMetrics {
         restrictionsText: string
@@ -65,7 +67,7 @@ export const OnboardingPage = () => {
         }
     }
 
-    const handleComplete = () => {
+    const handleComplete = async () => {
         const restrictions =
             form.values.restrictionsText
                 ?.split(',')
@@ -80,45 +82,57 @@ export const OnboardingPage = () => {
             restrictions,
             activityLevel: form.values.activityLevel,
         }
-        dispatch(completeOnboarding(metrics))
+        
+        setLoading(true)
+        try {
+            await dispatch(completeOnboardingApi(metrics)).unwrap()
 
-        if (typeof window !== 'undefined') {
-            window.localStorage.setItem('coach-flo-onboarding-seen', 'true')
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem('coach-flo-onboarding-seen', 'true')
+            }
+
+            if (metrics.height) {
+                dispatch(
+                    addBodyMetric({
+                        id: 'height',
+                        label: 'Рост',
+                        unit: 'см',
+                    }),
+                )
+            }
+
+            if (metrics.weight) {
+                dispatch(
+                    addBodyMetricEntry({
+                        metricId: 'weight',
+                        value: metrics.weight,
+                        unit: 'кг',
+                        recordedAt: new Date().toISOString(),
+                    }),
+                )
+            }
+
+            if (metrics.height) {
+                dispatch(
+                    addBodyMetricEntry({
+                        metricId: 'height',
+                        value: metrics.height,
+                        unit: 'см',
+                        recordedAt: new Date().toISOString(),
+                    }),
+                )
+            }
+
+            navigate('/dashboard')
+        } catch (error) {
+            notifications.show({
+                title: t('onboarding.error'),
+                message: error instanceof Error ? error.message : t('onboarding.errorGeneric'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
         }
-
-        if (metrics.height) {
-            dispatch(
-                addBodyMetric({
-                    id: 'height',
-                    label: 'Рост',
-                    unit: 'см',
-                }),
-            )
-        }
-
-        if (metrics.weight) {
-            dispatch(
-                addBodyMetricEntry({
-                    metricId: 'weight',
-                    value: metrics.weight,
-                    unit: 'кг',
-                    recordedAt: new Date().toISOString(),
-                }),
-            )
-        }
-
-        if (metrics.height) {
-            dispatch(
-                addBodyMetricEntry({
-                    metricId: 'height',
-                    value: metrics.height,
-                    unit: 'см',
-                    recordedAt: new Date().toISOString(),
-                }),
-            )
-        }
-
-        navigate('/dashboard')
     }
 
     const handleBack = () => {
@@ -225,7 +239,9 @@ export const OnboardingPage = () => {
                         <Button variant="subtle" color="gray" onClick={handleBack} disabled={activeStep === 0}>
                             {t('onboarding.back')}
                         </Button>
-                        <Button onClick={handleNext}>{activeStep === 2 ? t('onboarding.finish') : t('onboarding.next')}</Button>
+                        <Button onClick={handleNext} loading={loading && activeStep === 2}>
+                            {activeStep === 2 ? t('onboarding.finish') : t('onboarding.next')}
+                        </Button>
                     </Group>
                 </Stack>
             </Card>

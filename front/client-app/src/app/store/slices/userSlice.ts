@@ -1,4 +1,5 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, type PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
+import { apiClient, type User as ApiUser } from '@/shared/api/client'
 
 export type UserRole = 'client' | 'trainer'
 export type SupportedLocale = 'en' | 'ru'
@@ -67,6 +68,80 @@ export interface OnboardingMetrics {
     restrictions?: string[]
     activityLevel?: 'low' | 'medium' | 'high'
 }
+
+const mapApiUserToState = (apiUser: ApiUser): Omit<UserState, 'isAuthenticated' | 'token'> => {
+    return {
+        id: apiUser.id,
+        fullName: apiUser.full_name,
+        email: apiUser.email,
+        phone: apiUser.phone || undefined,
+        avatar: apiUser.avatar || undefined,
+        role: apiUser.role,
+        onboardingSeen: apiUser.onboarding_seen,
+        locale: (apiUser.locale as SupportedLocale) || 'ru',
+        trainerConnectionCode: apiUser.trainer_connection_code || undefined,
+    }
+}
+
+export const loginUser = createAsyncThunk(
+    'user/login',
+    async (credentials: { email: string; password: string }) => {
+        const response = await apiClient.login(credentials.email, credentials.password)
+        return {
+            user: mapApiUserToState(response.user),
+            token: response.token,
+        }
+    }
+)
+
+export const registerUserStep1 = createAsyncThunk(
+    'user/registerStep1',
+    async (data: {
+        full_name: string
+        email: string
+        password: string
+        phone: string
+        role: UserRole
+        trainer_code?: string
+    }) => {
+        return await apiClient.registerStep1(data)
+    }
+)
+
+export const registerUserStep2 = createAsyncThunk(
+    'user/registerStep2',
+    async (data: { phone: string; code: string }) => {
+        const response = await apiClient.registerStep2(data.phone, data.code)
+        return {
+            user: mapApiUserToState(response.user),
+            token: response.token,
+            requiresOnboarding: response.requires_onboarding,
+        }
+    }
+)
+
+export const fetchCurrentUser = createAsyncThunk(
+    'user/fetchCurrent',
+    async () => {
+        const user = await apiClient.getCurrentUser()
+        return mapApiUserToState(user)
+    }
+)
+
+export const completeOnboardingApi = createAsyncThunk(
+    'user/completeOnboardingApi',
+    async (metrics: OnboardingMetrics) => {
+        await apiClient.completeOnboarding({
+            weight: metrics.weight,
+            height: metrics.height,
+            age: metrics.age,
+            goals: metrics.goals,
+            restrictions: metrics.restrictions,
+            activity_level: metrics.activityLevel,
+        })
+        return metrics
+    }
+)
 
 const userSlice = createSlice({
     name: 'user',
@@ -161,11 +236,48 @@ const userSlice = createSlice({
             }
         },
         logout(state) {
+            apiClient.logout()
             return {
                 ...initialState,
                 locale: state.locale,
             }
         },
+        setToken(state, action: PayloadAction<string>) {
+            state.token = action.payload
+            state.isAuthenticated = true
+            apiClient.setToken(action.payload)
+        },
+    },
+    extraReducers: (builder) => {
+        builder
+            .addCase(loginUser.fulfilled, (state, action) => {
+                state.isAuthenticated = true
+                state.token = action.payload.token
+                Object.assign(state, action.payload.user)
+            })
+            .addCase(loginUser.rejected, (state) => {
+                state.isAuthenticated = false
+                state.token = undefined
+            })
+            .addCase(registerUserStep2.fulfilled, (state, action) => {
+                state.isAuthenticated = true
+                state.token = action.payload.token
+                state.onboardingSeen = !action.payload.requiresOnboarding
+                Object.assign(state, action.payload.user)
+            })
+            .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+                Object.assign(state, action.payload)
+                state.isAuthenticated = true
+            })
+            .addCase(fetchCurrentUser.rejected, (state) => {
+                state.isAuthenticated = false
+                state.token = undefined
+                apiClient.logout()
+            })
+            .addCase(completeOnboardingApi.fulfilled, (state, action) => {
+                state.onboardingSeen = true
+                state.onboardingMetrics = action.payload
+            })
     },
 })
 
@@ -183,6 +295,7 @@ export const {
     updateTrainerProfile,
     generateConnectionCode,
     logout,
+    setToken,
 } = userSlice.actions
 export default userSlice.reducer
 

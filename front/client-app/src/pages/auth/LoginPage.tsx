@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { login, type LoginCredentials } from '@/app/store/slices/userSlice'
-import { nanoid } from '@reduxjs/toolkit'
+import { loginUser, type LoginCredentials } from '@/app/store/slices/userSlice'
 import { useState } from 'react'
+import { notifications } from '@mantine/notifications'
 import type { UserRole } from '@/app/store/slices/userSlice'
 
 export const LoginPage = () => {
@@ -25,53 +25,25 @@ export const LoginPage = () => {
         },
     })
 
-    const handleSubmit = (values: LoginCredentials) => {
-        const mockToken = `token-${nanoid()}`
-        const onboardingSeen = localStorage.getItem('coach-flo-onboarding-seen') === 'true'
-
-        if (role === 'trainer') {
-            dispatch(
-                login({
-                    user: {
-                        id: 'trainer-001',
-                        fullName: 'Иван Сидоров',
-                        email: values.email,
-                        phone: '+7 (999) 765-43-21',
-                        role: 'trainer',
-                        onboardingSeen: true,
-                        locale: 'ru',
-                        trainerConnectionCode: 'TRAINER123',
-                    },
-                    token: mockToken,
-                }),
-            )
-            navigate('/trainer/clients')
-        } else {
-            dispatch(
-                login({
-                    user: {
-                        id: 'client-001',
-                        fullName: 'Алексей Петров',
-                        email: values.email,
-                        phone: '+7 (999) 123-45-67',
-                        role: 'client',
-                        onboardingSeen,
-                        locale: 'ru',
-                        trainer: {
-                            id: 'trainer-001',
-                            fullName: 'Иван Сидоров',
-                            email: 'ivan.sidorov@coachfit.com',
-                            phone: '+7 (999) 765-43-21',
-                        },
-                    },
-                    token: mockToken,
-                }),
-            )
-            if (onboardingSeen) {
-                navigate('/dashboard')
+    const handleSubmit = async (values: LoginCredentials) => {
+        try {
+            const result = await dispatch(loginUser(values)).unwrap()
+            
+            if (result.user.role === 'trainer') {
+                navigate('/trainer/clients')
             } else {
-                navigate('/onboarding')
+                if (result.user.onboardingSeen) {
+                    navigate('/dashboard')
+                } else {
+                    navigate('/onboarding')
+                }
             }
+        } catch (error) {
+            notifications.show({
+                title: t('auth.loginError'),
+                message: error instanceof Error ? error.message : t('auth.loginErrorGeneric'),
+                color: 'red',
+            })
         }
     }
 
@@ -121,7 +93,7 @@ export const LoginPage = () => {
                                 required
                                 {...form.getInputProps('password')}
                             />
-                            <Button type="submit" fullWidth>
+                            <Button type="submit" fullWidth loading={form.values.email !== '' && form.values.password !== ''}>
                                 {t('auth.login')}
                             </Button>
                             <Text size="sm" c="dimmed" ta="center">
