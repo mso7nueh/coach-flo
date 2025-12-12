@@ -5,14 +5,15 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { loginUser, type LoginCredentials } from '@/app/store/slices/userSlice'
 import { useState } from 'react'
-import { notifications } from '@mantine/notifications'
 import type { UserRole } from '@/app/store/slices/userSlice'
+import { notifications } from '@mantine/notifications'
 
 export const LoginPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
     const [role, setRole] = useState<UserRole>('client')
+    const [loading, setLoading] = useState(false)
 
     const form = useForm<LoginCredentials>({
         initialValues: {
@@ -26,9 +27,13 @@ export const LoginPage = () => {
     })
 
     const handleSubmit = async (values: LoginCredentials) => {
+        setLoading(true)
         try {
-            const result = await dispatch(loginUser(values)).unwrap()
-            
+            const result = await dispatch(loginUser({
+                email: values.email,
+                password: values.password,
+            })).unwrap()
+
             if (result.user.role === 'trainer') {
                 navigate('/trainer/clients')
             } else {
@@ -40,10 +45,12 @@ export const LoginPage = () => {
             }
         } catch (error) {
             notifications.show({
-                title: t('auth.loginError'),
-                message: error instanceof Error ? error.message : t('auth.loginErrorGeneric'),
+                title: t('auth.error'),
+                message: error instanceof Error ? error.message : t('auth.loginError'),
                 color: 'red',
             })
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -93,7 +100,7 @@ export const LoginPage = () => {
                                 required
                                 {...form.getInputProps('password')}
                             />
-                            <Button type="submit" fullWidth loading={form.values.email !== '' && form.values.password !== ''}>
+                            <Button type="submit" fullWidth loading={loading}>
                                 {t('auth.login')}
                             </Button>
                             <Text size="sm" c="dimmed" ta="center">
@@ -109,4 +116,3 @@ export const LoginPage = () => {
         </div>
     )
 }
-
