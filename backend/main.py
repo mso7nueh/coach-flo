@@ -2,9 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.routers import auth, onboarding, users
+import logging
 
-# Создаем таблицы
-Base.metadata.create_all(bind=engine)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Coach Fit API",
@@ -69,4 +69,15 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Создаем таблицы при запуске приложения"""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.warning(f"Could not create database tables: {e}")
+        logger.warning("Make sure PostgreSQL is running. You can start it with: docker-compose up -d db")
 
