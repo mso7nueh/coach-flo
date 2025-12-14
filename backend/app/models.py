@@ -30,7 +30,7 @@ class User(Base):
 
     # Связи
     trainer = relationship("User", remote_side=[id], foreign_keys=[trainer_id])
-    clients = relationship("User", foreign_keys=[trainer_id])
+    clients = relationship("User", foreign_keys=[trainer_id], overlaps="trainer")
     onboarding = relationship("Onboarding", back_populates="user", uselist=False)
     sms_verifications = relationship("SMSVerification", back_populates="user")
 
@@ -78,4 +78,19 @@ class OnboardingRestriction(Base):
     id = Column(String, primary_key=True, index=True)
     onboarding_id = Column(String, ForeignKey("onboardings.id"), nullable=False)
     restriction = Column(String, nullable=False)
+
+
+class PendingRegistration(Base):
+    __tablename__ = "pending_registrations"
+
+    id = Column(String, primary_key=True, index=True)
+    phone = Column(String, nullable=False, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    role = Column(SQLEnum(UserRole), nullable=False)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=True)
+    trainer_connection_code = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
 

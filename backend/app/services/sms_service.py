@@ -9,7 +9,8 @@ import uuid
 
 def generate_sms_code() -> str:
     """Генерирует 4-значный SMS код"""
-    return str(random.randint(1000, 9999))
+    # Временно статический код для разработки
+    return "1111"
 
 
 def send_sms_code(phone: str, code: str) -> bool:
@@ -72,6 +73,8 @@ def verify_sms_code(db: Session, phone: str, code: str) -> bool:
     db.commit()
     
     return True
+
+
 
 
 

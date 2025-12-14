@@ -145,6 +145,7 @@ async def complete_onboarding(
             activity_level=metrics.activity_level
         )
         db.add(onboarding)
+        db.flush()  # Flush чтобы получить ID в базе перед добавлением связанных записей
         
         # Добавляем цели
         if metrics.goals:
