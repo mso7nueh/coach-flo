@@ -12,7 +12,7 @@ export const AppProviders = ({ children }: PropsWithChildren) => {
     <Provider store={store}>
       <I18nextProvider i18n={i18n}>
         <MantineProvider theme={theme} defaultColorScheme="light">
-          <Notifications />
+          <Notifications position="top-right" />
           {children}
         </MantineProvider>
       </I18nextProvider>

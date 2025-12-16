@@ -93,10 +93,19 @@ class ApiClient {
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({
-        detail: 'Произошла ошибка',
-      }))
-      throw new Error(error.detail || `HTTP error! status: ${response.status}`)
+      let errorMessage = 'Произошла ошибка'
+      let errorData: any = null
+      try {
+        errorData = await response.json()
+        errorMessage = errorData.detail || errorData.message || errorData.error || JSON.stringify(errorData)
+      } catch {
+        errorMessage = `HTTP error! status: ${response.status}`
+      }
+      const error = new Error(errorMessage)
+      if (errorData) {
+        (error as any).data = errorData
+      }
+      throw error
     }
 
     return response.json()

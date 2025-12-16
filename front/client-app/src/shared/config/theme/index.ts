@@ -264,6 +264,12 @@ export const theme: MantineThemeOverride = {
         shadow: 'lg',
       },
     },
+    
+    Notification: {
+      defaultProps: {
+        radius: 'md',
+      },
+    },
   },
   
   // Дополнительные настройки доступны через other

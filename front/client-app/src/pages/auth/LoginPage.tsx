@@ -43,11 +43,39 @@ export const LoginPage = () => {
                     navigate('/onboarding')
                 }
             }
-        } catch (error) {
+        } catch (error: unknown) {
+            let errorMessage = t('auth.loginError')
+
+            if (error instanceof Error) {
+                const errorWithData = error as Error & { data?: { detail?: string } }
+                if (errorWithData.data?.detail) {
+                    errorMessage = errorWithData.data.detail
+                } else {
+                    errorMessage = error.message || errorMessage
+                }
+            } else if (typeof error === 'string') {
+                errorMessage = error
+            } else if (error && typeof error === 'object') {
+                if ('detail' in error && typeof error.detail === 'string') {
+                    errorMessage = error.detail
+                } else if ('message' in error && typeof error.message === 'string') {
+                    errorMessage = error.message
+                } else if ('error' in error && typeof error.error === 'string') {
+                    errorMessage = error.error
+                } else if ('data' in error && error.data && typeof error.data === 'object' && 'detail' in error.data) {
+                    errorMessage = String(error.data.detail)
+                }
+            }
+
+            console.error('Login error:', error)
+
             notifications.show({
+                id: 'login-error',
                 title: t('auth.error'),
-                message: error instanceof Error ? error.message : t('auth.loginError'),
+                message: errorMessage,
                 color: 'red',
+                autoClose: 5000,
+                withCloseButton: true,
             })
         } finally {
             setLoading(false)

@@ -128,6 +128,13 @@ export const fetchCurrentUser = createAsyncThunk(
     }
 )
 
+export const sendSMS = createAsyncThunk(
+    'user/sendSMS',
+    async (phone: string) => {
+        return await apiClient.sendSMS(phone)
+    }
+)
+
 export const completeOnboardingApi = createAsyncThunk(
     'user/completeOnboardingApi',
     async (metrics: OnboardingMetrics) => {

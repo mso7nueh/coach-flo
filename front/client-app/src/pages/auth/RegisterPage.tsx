@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { registerUserStep1, registerUserStep2, type RegisterData } from '@/app/store/slices/userSlice'
+import { registerUserStep1, registerUserStep2, sendSMS, type RegisterData } from '@/app/store/slices/userSlice'
 import { useState, useEffect } from 'react'
 import { IconPhone, IconCheck, IconRefresh, IconInfoCircle } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
@@ -12,7 +12,7 @@ import type { UserRole } from '@/app/store/slices/userSlice'
 const formatPhoneNumber = (value: string): string => {
     const cleaned = value.replace(/\D/g, '')
     if (cleaned.length === 0) return ''
-    
+
     let digits = cleaned
     if (digits.startsWith('7')) {
         digits = digits.slice(1)
@@ -87,7 +87,7 @@ export const RegisterPage = () => {
             form.setFieldError('phone', t('auth.phoneInvalid'))
             return
         }
-        
+
         setLoading(true)
         try {
             await dispatch(registerUserStep1({
@@ -98,7 +98,7 @@ export const RegisterPage = () => {
                 role: form.values.role || 'client',
                 trainer_code: form.values.trainerCode,
             })).unwrap()
-            
+
             setPhoneVerificationStep('verify')
             setCanResend(false)
             setResendTimer(60)
@@ -119,21 +119,44 @@ export const RegisterPage = () => {
     }
 
     const handleResendCode = async () => {
-        await handleSendCode()
+        if (!form.values.phone || !validatePhoneNumber(form.values.phone)) {
+            return
+        }
+
+        setLoading(true)
+        try {
+            await dispatch(sendSMS(form.values.phone!)).unwrap()
+
+            setCanResend(false)
+            setResendTimer(60)
+            notifications.show({
+                title: t('auth.codeSent'),
+                message: t('auth.codeSentTo') + ' ' + form.values.phone,
+                color: 'blue',
+            })
+        } catch (error) {
+            notifications.show({
+                title: t('auth.error'),
+                message: error instanceof Error ? error.message : t('auth.errorGeneric'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
     const handleVerifyCode = async () => {
         if (smsCode.length !== 4) {
             return
         }
-        
+
         setLoading(true)
         try {
             const result = await dispatch(registerUserStep2({
                 phone: form.values.phone!,
                 code: smsCode,
             })).unwrap()
-            
+
             const selectedRole = form.values.role || 'client'
             if (selectedRole === 'trainer') {
                 navigate('/trainer/clients')
