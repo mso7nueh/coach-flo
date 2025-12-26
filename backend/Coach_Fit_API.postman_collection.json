@@ -1,0 +1,1808 @@
+{
+	"info": {
+		"_postman_id": "coach-fit-api-collection",
+		"name": "Coach Fit API",
+		"description": "Полная коллекция для тестирования Coach Fit API. Включает все эндпоинты для клиентов и тренеров.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "coach-fit-api"
+	},
+	"item": [
+		{
+			"name": "🔐 Auth - Аутентификация",
+			"item": [
+				{
+					"name": "Register Client Step 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// SMS код будет в консоли сервера"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Иван Иванов\",\n  \"email\": \"client@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+7 (999) 123-45-67\",\n  \"role\": \"client\",\n  \"trainer_code\": \"TRAINER123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register/step1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register", "step1"]
+						},
+						"description": "⚠️ **ВАЖНО:** Для регистрации НЕ нужно вызывать /send-sms отдельно! Эндпоинт автоматически отправляет SMS код.\n\n**Параметры:**\n- ✅ full_name - обязательный (минимум 2 символа)\n- ✅ email - обязательный\n- ✅ password - обязательный (минимум 6 символов)\n- ✅ phone - обязательный\n- ✅ role - обязательный (client или trainer)\n- ❌ trainer_code - необязательный (код тренера для связи)\n\n⚠️ **В режиме разработки SMS код выводится в консоль сервера!**"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Client Step 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"client_token\", jsonData.token);",
+									"    pm.collectionVariables.set(\"client_id\", jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+7 (999) 123-45-67\",\n  \"code\": \"1234\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register/step2",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register", "step2"]
+						},
+						"description": "⚠️ **ВАЖНО:** \n- Используйте тот же телефон, что и в Step 1\n- Код действителен 10 минут\n- Если код истёк, начните регистрацию заново с Step 1\n\n💾 Токен автоматически сохраняется в переменную client_token"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Trainer Step 1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Алексей Тренеров\",\n  \"email\": \"trainer@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+7 (999) 888-77-66\",\n  \"role\": \"trainer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register/step1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register", "step1"]
+						},
+						"description": "Для тренера trainer_code не нужен"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Trainer Step 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"trainer_token\", jsonData.token);",
+									"    pm.collectionVariables.set(\"trainer_id\", jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+7 (999) 888-77-66\",\n  \"code\": \"1234\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register/step2",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register", "step2"]
+						},
+						"description": "💾 Токен автоматически сохраняется в переменную trainer_token"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    var role = jsonData.user.role;",
+									"    if (role === 'client') {",
+									"        pm.collectionVariables.set(\"client_token\", jsonData.token);",
+									"        pm.collectionVariables.set(\"client_id\", jsonData.user.id);",
+									"    } else if (role === 'trainer') {",
+									"        pm.collectionVariables.set(\"trainer_token\", jsonData.token);",
+									"        pm.collectionVariables.set(\"trainer_id\", jsonData.user.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"client@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Авторизация по email и паролю. Токен автоматически сохраняется в соответствующую переменную (client_token или trainer_token) в зависимости от роли."
+					},
+					"response": []
+				},
+				{
+					"name": "Send SMS (не для регистрации)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+7 (999) 123-45-67\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/send-sms",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "send-sms"]
+						},
+						"description": "⚠️ **Этот эндпоинт НЕ используется для регистрации!** Он нужен только для отдельной верификации телефона."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify SMS (не для регистрации)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+7 (999) 123-45-67\",\n  \"code\": \"1234\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/verify-sms",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "verify-sms"]
+						},
+						"description": "⚠️ **Этот эндпоинт НЕ используется для регистрации!** Код действителен 10 минут."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Получение информации о текущем пользователе"
+					},
+					"response": []
+				}
+			],
+			"description": "Эндпоинты для регистрации и авторизации"
+		},
+		{
+			"name": "👤 Users - Пользователи",
+			"item": [
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Current User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Иван Петров\",\n  \"email\": \"newemail@example.com\",\n  \"phone\": \"+7 (999) 999-99-99\",\n  \"avatar\": \"https://example.com/avatar.jpg\",\n  \"locale\": \"en\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me"]
+						},
+						"description": "Все поля необязательные (обновляются только переданные)"
+					},
+					"response": []
+				},
+				{
+					"name": "Link Trainer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"connection_code\": \"TRAINER123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/link-trainer",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "link-trainer"]
+						},
+						"description": "Связать клиента с тренером по коду"
+					},
+					"response": []
+				},
+				{
+					"name": "Unlink Trainer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/unlink-trainer",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "unlink-trainer"]
+						},
+						"description": "Отвязать от тренера"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "⚙️ Settings - Настройки",
+			"item": [
+				{
+					"name": "Get Settings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/me/settings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me", "settings"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Settings",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"locale\": \"en\",\n  \"notificationSettings\": {\n    \"emailEnabled\": true,\n    \"pushEnabled\": false,\n    \"smsEnabled\": true,\n    \"reminderBeforeMinutes\": 60,\n    \"workoutReminders\": true,\n    \"workoutScheduled\": true,\n    \"workoutCompleted\": true,\n    \"metricsUpdate\": true,\n    \"trainerNote\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/me/settings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "me", "settings"]
+						},
+						"description": "locale обязательный (ru или en), notificationSettings обязательный объект"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🎯 Onboarding - Онбординг",
+			"item": [
+				{
+					"name": "Complete Onboarding",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"weight\": 75.5,\n  \"height\": 180,\n  \"age\": 30,\n  \"goals\": [\"weight_loss\", \"muscle_gain\"],\n  \"restrictions\": [\"no_dairy\", \"vegetarian\"],\n  \"activity_level\": \"medium\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/onboarding/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "onboarding", "complete"]
+						},
+						"description": "**Параметры:**\n- ❌ Все поля необязательные\n- goals: weight_loss, muscle_gain, endurance, strength, flexibility, general_fitness\n- activity_level: low, medium, high"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Onboarding",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/onboarding/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "onboarding", ""]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Onboarding",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"weight\": 77.0,\n  \"goals\": [\"weight_loss\", \"endurance\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/onboarding/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "onboarding", ""]
+						},
+						"description": "Можно обновить только нужные поля"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🏋️ Workouts - Тренировки",
+			"item": [
+				{
+					"name": "Create Workout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Утренняя пробежка\",\n  \"start\": \"2024-01-15T08:00:00\",\n  \"end\": \"2024-01-15T09:00:00\",\n  \"location\": \"Парк Горького\",\n  \"format\": \"offline\",\n  \"trainer_id\": \"trainer-uuid\",\n  \"program_day_id\": \"day-uuid\",\n  \"recurrence_frequency\": \"weekly\",\n  \"recurrence_interval\": 1,\n  \"recurrence_days_of_week\": [1, 3, 5],\n  \"recurrence_end_date\": \"2024-03-15T09:00:00\",\n  \"recurrence_occurrences\": 12\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/workouts",
+							"host": ["{{base_url}}"],
+							"path": ["api", "workouts"]
+						},
+						"description": "**Обязательные:** title, start, end\n**Необязательные:** location, format (online/offline), trainer_id, program_day_id, recurrence_*"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Workouts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/workouts?start_date=2024-01-01T00:00:00&end_date=2024-01-31T23:59:59",
+							"host": ["{{base_url}}"],
+							"path": ["api", "workouts"],
+							"query": [
+								{
+									"key": "start_date",
+									"value": "2024-01-01T00:00:00"
+								},
+								{
+									"key": "end_date",
+									"value": "2024-01-31T23:59:59"
+								}
+							]
+						},
+						"description": "Для тренера можно добавить trainer_view=true и client_id для фильтрации"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Workout by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/workouts/:workout_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "workouts", ":workout_id"],
+							"variable": [
+								{
+									"key": "workout_id",
+									"value": "workout-uuid"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Workout",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Обновленная тренировка\",\n  \"start\": \"2024-01-15T09:00:00\",\n  \"end\": \"2024-01-15T10:00:00\",\n  \"attendance\": \"completed\",\n  \"coach_note\": \"Отличная тренировка!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/workouts/:workout_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "workouts", ":workout_id"],
+							"variable": [
+								{
+									"key": "workout_id",
+									"value": "workout-uuid"
+								}
+							]
+						},
+						"description": "Все поля необязательные"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Workout",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/workouts/:workout_id?delete_series=false",
+							"host": ["{{base_url}}"],
+							"path": ["api", "workouts", ":workout_id"],
+							"query": [
+								{
+									"key": "delete_series",
+									"value": "false"
+								}
+							],
+							"variable": [
+								{
+									"key": "workout_id",
+									"value": "workout-uuid"
+								}
+							]
+						},
+						"description": "delete_series=true для удаления всей серии повторяющихся тренировок"
+					},
+					"response": []
+				},
+				{
+					"name": "Trainer: Get All Workouts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/workouts?trainer_view=true&client_id={{client_id}}&start_date=2024-01-01&end_date=2024-01-31",
+							"host": ["{{base_url}}"],
+							"path": ["api", "workouts"],
+							"query": [
+								{
+									"key": "trainer_view",
+									"value": "true"
+								},
+								{
+									"key": "client_id",
+									"value": "{{client_id}}"
+								},
+								{
+									"key": "start_date",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "end_date",
+									"value": "2024-01-31"
+								}
+							]
+						},
+						"description": "Просмотр всех тренировок команды (только для тренера)"
+					},
+					"response": []
+				},
+				{
+					"name": "Trainer: Create Workout for Client",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Силовая тренировка\",\n  \"start\": \"2024-01-15T10:00:00\",\n  \"end\": \"2024-01-15T11:30:00\",\n  \"location\": \"Зал №2\",\n  \"format\": \"offline\",\n  \"user_id\": \"{{client_id}}\",\n  \"program_day_id\": \"day-uuid\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/workouts",
+							"host": ["{{base_url}}"],
+							"path": ["api", "workouts"]
+						},
+						"description": "Для тренера user_id обязательный (ID клиента)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📋 Programs - Программы тренировок",
+			"item": [
+				{
+					"name": "Create Program",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Программа для похудения\",\n  \"description\": \"Интенсивная программа на 12 недель\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/programs",
+							"host": ["{{base_url}}"],
+							"path": ["api", "programs"]
+						},
+						"description": "title обязательный, description необязательный"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Programs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/programs",
+							"host": ["{{base_url}}"],
+							"path": ["api", "programs"]
+						},
+						"description": "Для тренера можно добавить user_id={{client_id}} для просмотра программ клиента"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Program by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/programs/:program_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "programs", ":program_id"],
+							"variable": [
+								{
+									"key": "program_id",
+									"value": "program-uuid"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Program",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/programs/:program_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "programs", ":program_id"],
+							"variable": [
+								{
+									"key": "program_id",
+									"value": "program-uuid"
+								}
+							]
+						},
+						"description": "Тренер может удалять только свои программы. Клиент может удалять только свои программы."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Program Day",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"День 1: Верх тела\",\n  \"notes\": \"Фокус на грудь и спину\",\n  \"blocks\": [\n    {\n      \"type\": \"warmup\",\n      \"title\": \"Разминка\",\n      \"exercises\": [\n        {\n          \"title\": \"Беговая дорожка\",\n          \"sets\": 1,\n          \"duration\": \"10 минут\"\n        }\n      ]\n    },\n    {\n      \"type\": \"main\",\n      \"title\": \"Основная часть\",\n      \"exercises\": [\n        {\n          \"title\": \"Жим лежа\",\n          \"sets\": 4,\n          \"reps\": 10,\n          \"weight\": \"80 кг\",\n          \"rest\": \"2 минуты\"\n        }\n      ]\n    },\n    {\n      \"type\": \"cooldown\",\n      \"title\": \"Заминка\",\n      \"exercises\": [\n        {\n          \"title\": \"Растяжка\",\n          \"sets\": 1,\n          \"duration\": \"15 минут\"\n        }\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/programs/:program_id/days",
+							"host": ["{{base_url}}"],
+							"path": ["api", "programs", ":program_id", "days"],
+							"variable": [
+								{
+									"key": "program_id",
+									"value": "program-uuid"
+								}
+							]
+						},
+						"description": "name обязательный, notes и blocks необязательные"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Program Day by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/programs/:program_id/days/:day_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "programs", ":program_id", "days", ":day_id"],
+							"variable": [
+								{
+									"key": "program_id",
+									"value": "program-uuid"
+								},
+								{
+									"key": "day_id",
+									"value": "day-uuid"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📊 Metrics - Метрики",
+			"item": [
+				{
+					"name": "Body Metrics",
+					"item": [
+						{
+							"name": "Create Body Metric",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"label\": \"Вес\",\n  \"unit\": \"кг\",\n  \"target\": 70.0\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/metrics/body",
+									"host": ["{{base_url}}"],
+									"path": ["api", "metrics", "body"]
+								},
+								"description": "label и unit обязательные, target необязательный"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Body Metrics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/metrics/body?user_id={{client_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "metrics", "body"],
+									"query": [
+										{
+											"key": "user_id",
+											"value": "{{client_id}}",
+											"description": "Только для тренеров"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Body Metric Entry",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"metric_id\": \"metric-uuid\",\n  \"value\": 75.5,\n  \"recorded_at\": \"2024-01-15T08:00:00\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/metrics/body/entries",
+									"host": ["{{base_url}}"],
+									"path": ["api", "metrics", "body", "entries"]
+								},
+								"description": "Все поля обязательные"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Body Metric Entries",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/metrics/body/entries?metric_id=metric-uuid&start_date=2024-01-01&end_date=2024-01-31",
+									"host": ["{{base_url}}"],
+									"path": ["api", "metrics", "body", "entries"],
+									"query": [
+										{
+											"key": "metric_id",
+											"value": "metric-uuid"
+										},
+										{
+											"key": "start_date",
+											"value": "2024-01-01"
+										},
+										{
+											"key": "end_date",
+											"value": "2024-01-31"
+										},
+										{
+											"key": "user_id",
+											"value": "{{client_id}}",
+											"description": "Только для тренеров",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Exercise Metrics",
+					"item": [
+						{
+							"name": "Create Exercise Metric",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"label\": \"Жим лежа\",\n  \"muscle_group\": \"Грудь\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/metrics/exercise",
+									"host": ["{{base_url}}"],
+									"path": ["api", "metrics", "exercise"]
+								},
+								"description": "label обязательный, muscle_group необязательный"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Exercise Metrics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/metrics/exercise?user_id={{client_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "metrics", "exercise"],
+									"query": [
+										{
+											"key": "user_id",
+											"value": "{{client_id}}",
+											"description": "Только для тренеров",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Exercise Metric Entry",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"exercise_metric_id\": \"exercise-metric-uuid\",\n  \"date\": \"2024-01-15T08:00:00\",\n  \"weight\": 80.0,\n  \"repetitions\": 10,\n  \"sets\": 4\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/metrics/exercise/entries",
+									"host": ["{{base_url}}"],
+									"path": ["api", "metrics", "exercise", "entries"]
+								},
+								"description": "exercise_metric_id и date обязательные, weight/repetitions/sets необязательные"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "🍎 Nutrition - Питание",
+			"item": [
+				{
+					"name": "Create/Update Nutrition Entry",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2024-01-15T00:00:00\",\n  \"calories\": 2000,\n  \"proteins\": 150,\n  \"fats\": 60,\n  \"carbs\": 250,\n  \"notes\": \"Завтрак: овсянка с фруктами\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/nutrition/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "nutrition", ""]
+						},
+						"description": "date и calories обязательные. Если запись на эту дату уже существует, она будет обновлена."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Nutrition Entries",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/nutrition/?start_date=2024-01-01&end_date=2024-01-31",
+							"host": ["{{base_url}}"],
+							"path": ["api", "nutrition", ""],
+							"query": [
+								{
+									"key": "start_date",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "end_date",
+									"value": "2024-01-31"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Nutrition Entry by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/nutrition/:entry_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "nutrition", ":entry_id"],
+							"variable": [
+								{
+									"key": "entry_id",
+									"value": "entry-uuid"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Nutrition Entry",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2024-01-15T00:00:00\",\n  \"calories\": 2200,\n  \"proteins\": 160,\n  \"fats\": 70,\n  \"carbs\": 280,\n  \"notes\": \"Обновленные данные\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/nutrition/:entry_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "nutrition", ":entry_id"],
+							"variable": [
+								{
+									"key": "entry_id",
+									"value": "entry-uuid"
+								}
+							]
+						},
+						"description": "date и calories обязательные, остальные поля необязательные"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Nutrition Entry",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/nutrition/:entry_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "nutrition", ":entry_id"],
+							"variable": [
+								{
+									"key": "entry_id",
+									"value": "entry-uuid"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📈 Dashboard - Дашборд",
+			"item": [
+				{
+					"name": "Get Dashboard Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/stats?period=7d",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard", "stats"],
+							"query": [
+								{
+									"key": "period",
+									"value": "7d",
+									"description": "7d, 14d, 30d"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "👥 Clients - Клиенты (для тренера)",
+			"item": [
+				{
+					"name": "Get Clients",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/clients?search=Иван",
+							"host": ["{{base_url}}"],
+							"path": ["api", "clients"],
+							"query": [
+								{
+									"key": "search",
+									"value": "Иван",
+									"description": "Поиск по имени"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Client",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201 || pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"client_id\", jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Новый Клиент\",\n  \"email\": \"newclient@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+7 (999) 111-22-33\",\n  \"role\": \"client\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/clients",
+							"host": ["{{base_url}}"],
+							"path": ["api", "clients"]
+						},
+						"description": "**Обязательные:** full_name, email, password, role (должен быть client)\n**Необязательные:** phone\n\n💾 client_id автоматически сохраняется в переменную"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/clients/{{client_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "clients", "{{client_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Client",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"Обновленное Имя\",\n  \"email\": \"updated@example.com\",\n  \"client_format\": \"both\",\n  \"workouts_package\": 12,\n  \"package_expiry_date\": \"2024-12-31T23:59:59\",\n  \"is_active\": true,\n  \"weight\": 75.5,\n  \"height\": 180,\n  \"age\": 30,\n  \"goals\": [\"weight_loss\", \"muscle_gain\"],\n  \"restrictions\": [\"no_dairy\"],\n  \"activity_level\": \"high\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/clients/{{client_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "clients", "{{client_id}}"]
+						},
+						"description": "Все поля необязательные. Можно обновить основные данные, данные клиента и онбординг одновременно."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/clients/{{client_id}}/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "clients", "{{client_id}}", "stats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Onboarding",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/clients/{{client_id}}/onboarding",
+							"host": ["{{base_url}}"],
+							"path": ["api", "clients", "{{client_id}}", "onboarding"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "💰 Finances - Финансы (для тренера)",
+			"item": [
+				{
+					"name": "Create Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"amount\": 5000,\n  \"date\": \"2024-01-15T00:00:00\",\n  \"type\": \"package\",\n  \"package_size\": 12,\n  \"subscription_days\": 30,\n  \"notes\": \"Пакет на 12 тренировок\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/finances",
+							"host": ["{{base_url}}"],
+							"path": ["api", "finances"]
+						},
+						"description": "**Обязательные:** client_id, amount, date, type (package/subscription/single)\n**Необязательные:** package_size, subscription_days, notes"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/finances?client_id={{client_id}}&start_date=2024-01-01&end_date=2024-01-31",
+							"host": ["{{base_url}}"],
+							"path": ["api", "finances"],
+							"query": [
+								{
+									"key": "client_id",
+									"value": "{{client_id}}"
+								},
+								{
+									"key": "start_date",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "end_date",
+									"value": "2024-01-31"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Finance Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/finances/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "finances", "stats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Payment",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/finances/:payment_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "finances", ":payment_id"],
+							"variable": [
+								{
+									"key": "payment_id",
+									"value": "payment-uuid"
+								}
+							]
+						},
+						"description": "Только тренер может удалять платежи"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📚 Exercises - Библиотека упражнений (для тренера)",
+			"item": [
+				{
+					"name": "Create Exercise",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Жим лежа\",\n  \"description\": \"Базовое упражнение для развития груди\",\n  \"muscle_groups\": \"Грудь, Трицепс\",\n  \"equipment\": \"Штанга, Скамья\",\n  \"difficulty\": \"intermediate\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/exercises",
+							"host": ["{{base_url}}"],
+							"path": ["api", "exercises"]
+						},
+						"description": "name обязательный, остальные поля необязательные"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Exercises",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/exercises?search=жим&muscle_group=Грудь",
+							"host": ["{{base_url}}"],
+							"path": ["api", "exercises"],
+							"query": [
+								{
+									"key": "search",
+									"value": "жим"
+								},
+								{
+									"key": "muscle_group",
+									"value": "Грудь"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Exercise by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/exercises/:exercise_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "exercises", ":exercise_id"],
+							"variable": [
+								{
+									"key": "exercise_id",
+									"value": "exercise-uuid"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Exercise",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Жим лежа (обновлено)\",\n  \"description\": \"Обновленное описание\",\n  \"muscle_groups\": \"Грудь, Трицепс, Плечи\",\n  \"equipment\": \"Штанга, Скамья\",\n  \"difficulty\": \"advanced\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/exercises/:exercise_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "exercises", ":exercise_id"],
+							"variable": [
+								{
+									"key": "exercise_id",
+									"value": "exercise-uuid"
+								}
+							]
+						},
+						"description": "name обязательный. Тренер может обновлять только свои упражнения."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Exercise",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/exercises/:exercise_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "exercises", ":exercise_id"],
+							"variable": [
+								{
+									"key": "exercise_id",
+									"value": "exercise-uuid"
+								}
+							]
+						},
+						"description": "Тренер может удалять только свои упражнения"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📝 Notes - Заметки",
+			"item": [
+				{
+					"name": "Create Note (Trainer)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"title\": \"Прогресс за неделю\",\n  \"content\": \"Отличный прогресс в жиме лежа. Увеличил вес на 5 кг.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/notes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notes"]
+						},
+						"description": "**Обязательные:** client_id, title\n**Необязательные:** content"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Notes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notes?client_id={{client_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notes"],
+							"query": [
+								{
+									"key": "client_id",
+									"value": "{{client_id}}",
+									"description": "Для фильтрации по клиенту"
+								}
+							]
+						},
+						"description": "Клиенты также могут использовать этот эндпоинт для просмотра заметок от своего тренера"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Note by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notes/:note_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notes", ":note_id"],
+							"variable": [
+								{
+									"key": "note_id",
+									"value": "note-uuid"
+								}
+							]
+						},
+						"description": "Тренер видит свои заметки, клиент - заметки от своего тренера"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Note",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Обновленный заголовок\",\n  \"content\": \"Обновленное содержание\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/notes/:note_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notes", ":note_id"],
+							"variable": [
+								{
+									"key": "note_id",
+									"value": "note-uuid"
+								}
+							]
+						},
+						"description": "Все поля необязательные"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Note",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{trainer_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notes/:note_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notes", ":note_id"],
+							"variable": [
+								{
+									"key": "note_id",
+									"value": "note-uuid"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "client_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "trainer_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "trainer_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

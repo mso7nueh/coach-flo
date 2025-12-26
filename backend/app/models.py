@@ -25,6 +25,12 @@ class User(Base):
     trainer_connection_code = Column(String, nullable=True, unique=True, index=True)
     trainer_id = Column(String, ForeignKey("users.id"), nullable=True)
     phone_verified = Column(Boolean, default=False)
+    notification_settings = Column(Text, nullable=True)  # JSON строка с настройками уведомлений
+    # Поля для клиентов (управляются тренером)
+    client_format = Column(String, nullable=True)  # 'online', 'offline', 'both'
+    workouts_package = Column(Integer, nullable=True)  # Количество тренировок в пакете
+    package_expiry_date = Column(DateTime(timezone=True), nullable=True)  # Дата окончания пакета
+    is_active = Column(Boolean, default=True)  # Активен ли клиент
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -33,6 +39,18 @@ class User(Base):
     clients = relationship("User", foreign_keys=[trainer_id], overlaps="trainer")
     onboarding = relationship("Onboarding", back_populates="user", uselist=False)
     sms_verifications = relationship("SMSVerification", back_populates="user")
+    # Relationships - SQLAlchemy определит foreign_keys автоматически из ForeignKey определений
+    workouts = relationship("Workout", back_populates="user", lazy="select", foreign_keys="[Workout.user_id]")
+    trainer_workouts = relationship("Workout", back_populates="trainer", lazy="select", foreign_keys="[Workout.trainer_id]")
+    training_programs = relationship("TrainingProgram", back_populates="user", lazy="select")
+    body_metrics = relationship("BodyMetric", back_populates="user", lazy="select")
+    exercise_metrics = relationship("ExerciseMetric", back_populates="user", lazy="select")
+    nutrition_entries = relationship("NutritionEntry", back_populates="user", lazy="select")
+    payments_as_trainer = relationship("Payment", back_populates="trainer", lazy="select", foreign_keys="[Payment.trainer_id]")
+    payments_as_client = relationship("Payment", back_populates="client", lazy="select", foreign_keys="[Payment.client_id]")
+    exercises = relationship("Exercise", back_populates="trainer", lazy="select")
+    trainer_notes = relationship("TrainerNote", back_populates="trainer", lazy="select", foreign_keys="[TrainerNote.trainer_id]")
+    client_notes = relationship("TrainerNote", back_populates="client", lazy="select", foreign_keys="[TrainerNote.client_id]")
 
 
 class SMSVerification(Base):
@@ -93,4 +111,241 @@ class PendingRegistration(Base):
     trainer_connection_code = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+# Workout models
+class AttendanceStatus(str, enum.Enum):
+    SCHEDULED = "scheduled"
+    COMPLETED = "completed"
+    MISSED = "missed"
+
+
+class WorkoutFormat(str, enum.Enum):
+    ONLINE = "online"
+    OFFLINE = "offline"
+
+
+class Workout(Base):
+    __tablename__ = "workouts"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    title = Column(String, nullable=False)
+    start = Column(DateTime(timezone=True), nullable=False, index=True)
+    end = Column(DateTime(timezone=True), nullable=False)
+    location = Column(String, nullable=True)
+    attendance = Column(SQLEnum(AttendanceStatus), default=AttendanceStatus.SCHEDULED)
+    coach_note = Column(Text, nullable=True)
+    program_day_id = Column(String, ForeignKey("program_days.id"), nullable=True)
+    format = Column(SQLEnum(WorkoutFormat), nullable=True)
+    recurrence_series_id = Column(String, nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])
+    trainer = relationship("User", foreign_keys=[trainer_id])
+
+
+# Training Program models
+class TrainingProgram(Base):
+    __tablename__ = "training_programs"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    owner = Column(String, nullable=False)  # 'trainer' or 'client'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User")
+    days = relationship("ProgramDay", back_populates="program", cascade="all, delete-orphan")
+
+
+class ProgramDay(Base):
+    __tablename__ = "program_days"
+
+    id = Column(String, primary_key=True, index=True)
+    program_id = Column(String, ForeignKey("training_programs.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    order = Column(Integer, nullable=False, default=0)
+    notes = Column(Text, nullable=True)
+    owner = Column(String, nullable=False)  # 'trainer' or 'client'
+    source_template_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    program = relationship("TrainingProgram", back_populates="days")
+    blocks = relationship("ProgramBlock", back_populates="day", cascade="all, delete-orphan", order_by="ProgramBlock.order")
+
+
+class ProgramBlockType(str, enum.Enum):
+    WARMUP = "warmup"
+    MAIN = "main"
+    COOLDOWN = "cooldown"
+
+
+class ProgramBlock(Base):
+    __tablename__ = "program_blocks"
+
+    id = Column(String, primary_key=True, index=True)
+    day_id = Column(String, ForeignKey("program_days.id"), nullable=False, index=True)
+    type = Column(SQLEnum(ProgramBlockType), nullable=False)
+    title = Column(String, nullable=False)
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    day = relationship("ProgramDay", back_populates="blocks")
+    exercises = relationship("ProgramExercise", back_populates="block", cascade="all, delete-orphan", order_by="ProgramExercise.order")
+
+
+class ProgramExercise(Base):
+    __tablename__ = "program_exercises"
+
+    id = Column(String, primary_key=True, index=True)
+    block_id = Column(String, ForeignKey("program_blocks.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    sets = Column(Integer, nullable=False, default=1)
+    reps = Column(Integer, nullable=True)
+    duration = Column(String, nullable=True)  # e.g., "8 мин"
+    rest = Column(String, nullable=True)  # e.g., "90 сек"
+    weight = Column(String, nullable=True)  # e.g., "70 кг"
+    order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    block = relationship("ProgramBlock", back_populates="exercises")
+
+
+# Metrics models
+class BodyMetric(Base):
+    __tablename__ = "body_metrics"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    label = Column(String, nullable=False)
+    unit = Column(String, nullable=False)
+    target = Column(Float, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    entries = relationship("BodyMetricEntry", back_populates="metric", cascade="all, delete-orphan")
+
+
+class BodyMetricEntry(Base):
+    __tablename__ = "body_metric_entries"
+
+    id = Column(String, primary_key=True, index=True)
+    metric_id = Column(String, ForeignKey("body_metrics.id"), nullable=False, index=True)
+    value = Column(Float, nullable=False)
+    recorded_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    metric = relationship("BodyMetric", back_populates="entries")
+
+
+class ExerciseMetric(Base):
+    __tablename__ = "exercise_metrics"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    label = Column(String, nullable=False)
+    muscle_group = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    entries = relationship("ExerciseMetricEntry", back_populates="exercise_metric", cascade="all, delete-orphan")
+
+
+class ExerciseMetricEntry(Base):
+    __tablename__ = "exercise_metric_entries"
+
+    id = Column(String, primary_key=True, index=True)
+    exercise_metric_id = Column(String, ForeignKey("exercise_metrics.id"), nullable=False, index=True)
+    date = Column(DateTime(timezone=True), nullable=False, index=True)
+    weight = Column(Float, nullable=True)
+    repetitions = Column(Integer, nullable=True)
+    sets = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    exercise_metric = relationship("ExerciseMetric", back_populates="entries")
+
+
+# Nutrition models
+class NutritionEntry(Base):
+    __tablename__ = "nutrition_entries"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(DateTime(timezone=True), nullable=False, index=True)
+    calories = Column(Float, nullable=False)
+    proteins = Column(Float, nullable=True)
+    fats = Column(Float, nullable=True)
+    carbs = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User")
+
+
+# Finance models
+class PaymentType(str, enum.Enum):
+    SINGLE = "single"
+    PACKAGE = "package"
+    SUBSCRIPTION = "subscription"
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(String, primary_key=True, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    client_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False, index=True)
+    type = Column(SQLEnum(PaymentType), nullable=False)
+    package_size = Column(Integer, nullable=True)
+    remaining_sessions = Column(Integer, nullable=True)
+    subscription_days = Column(Integer, nullable=True)
+    next_payment_date = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    trainer = relationship("User", foreign_keys=[trainer_id])
+    client = relationship("User", foreign_keys=[client_id])
+
+
+# Exercise Library models
+class Exercise(Base):
+    __tablename__ = "exercises"
+
+    id = Column(String, primary_key=True, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)  # null = общая библиотека
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    muscle_groups = Column(String, nullable=True)  # comma-separated
+    equipment = Column(String, nullable=True)
+    difficulty = Column(String, nullable=True)  # beginner, intermediate, advanced
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    trainer = relationship("User")
+
+
+# Trainer Notes models
+class TrainerNote(Base):
+    __tablename__ = "trainer_notes"
+
+    id = Column(String, primary_key=True, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    client_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    trainer = relationship("User", foreign_keys=[trainer_id])
+    client = relationship("User", foreign_keys=[client_id])
 

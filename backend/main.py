@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import auth, onboarding, users
+from app.routers import (
+    auth, onboarding, users, workouts, programs, metrics,
+    nutrition, finances, clients, exercises, notes, dashboard, settings
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,6 +62,16 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(onboarding.router, prefix="/api/onboarding", tags=["onboarding"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(workouts.router, prefix="/api/workouts", tags=["workouts"])
+app.include_router(programs.router, prefix="/api/programs", tags=["programs"])
+app.include_router(metrics.router, prefix="/api/metrics", tags=["metrics"])
+app.include_router(nutrition.router, prefix="/api/nutrition", tags=["nutrition"])
+app.include_router(finances.router, prefix="/api/finances", tags=["finances"])
+app.include_router(clients.router, prefix="/api/clients", tags=["clients"])
+app.include_router(exercises.router, prefix="/api/exercises", tags=["exercises"])
+app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(settings.router, prefix="/api/users/me/settings", tags=["settings"])
 
 
 @app.get("/")
