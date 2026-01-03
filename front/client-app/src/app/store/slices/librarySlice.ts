@@ -1,4 +1,5 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit'
+import { apiClient } from '@/shared/api/client'
 
 export type WorkoutLevel = 'beginner' | 'intermediate' | 'advanced'
 export type WorkoutGoal = 'weight_loss' | 'muscle_gain' | 'endurance' | 'flexibility' | 'general'
@@ -73,101 +74,94 @@ interface LibraryState {
     }
     selectedWorkoutId: string | null
     selectedExerciseId: string | null
+    loading: boolean
+    error: string | null
 }
 
-const sampleExercises: Exercise[] = [
-    {
-        id: '1',
-        name: 'Приседания',
-        muscleGroup: 'legs',
-        equipment: ['bodyweight', 'barbell', 'dumbbells'],
-        description: 'Базовое упражнение для ног',
-        visibility: 'all',
-    },
-    {
-        id: '2',
-        name: 'Жим лёжа',
-        muscleGroup: 'chest',
-        equipment: ['barbell', 'dumbbells'],
-        description: 'Упражнение для грудных мышц',
-        visibility: 'all',
-    },
-    {
-        id: '3',
-        name: 'Становая тяга',
-        muscleGroup: 'back',
-        equipment: ['barbell'],
-        description: 'Комплексное упражнение для спины',
-        visibility: 'all',
-    },
-    {
-        id: '4',
-        name: 'Подтягивания',
-        muscleGroup: 'back',
-        equipment: ['bodyweight'],
-        description: 'Упражнение для спины и бицепса',
-        visibility: 'all',
-    },
-    {
-        id: '5',
-        name: 'Отжимания',
-        muscleGroup: 'chest',
-        equipment: ['bodyweight'],
-        description: 'Базовое упражнение для груди',
-        visibility: 'all',
-    },
-]
-
-const sampleWorkouts: WorkoutTemplate[] = [
-    {
-        id: '1',
-        name: 'Фулбоди для начинающих',
-        duration: 45,
-        level: 'beginner',
-        goal: 'general',
-        description: 'Комплексная тренировка для всего тела',
-        warmup: [
-            {
-                exerciseId: 'warmup-1',
-                duration: 5,
-                notes: 'Разминка суставов',
-            },
-        ],
-        main: [
-            {
-                exerciseId: '1',
-                sets: 3,
-                reps: 12,
-                rest: 60,
-            },
-            {
-                exerciseId: '5',
-                sets: 3,
-                reps: 10,
-                rest: 60,
-            },
-        ],
-        cooldown: [
-            {
-                exerciseId: 'cooldown-1',
-                duration: 5,
-                notes: 'Растяжка',
-            },
-        ],
-        muscleGroups: ['full_body'],
-        equipment: ['bodyweight'],
-        isCustom: false,
-    },
-]
-
 const initialState: LibraryState = {
-    workouts: sampleWorkouts,
-    exercises: sampleExercises,
+    workouts: [],
+    exercises: [],
     workoutFilters: {},
     exerciseFilters: {},
     selectedWorkoutId: null,
     selectedExerciseId: null,
+    loading: false,
+    error: null,
 }
+
+// Маппинг данных из API в формат фронтенда
+const mapApiExerciseToState = (apiExercise: any): Exercise => {
+    // Преобразуем muscle_groups из строки в первый элемент массива или 'chest' по умолчанию
+    const muscleGroupMap: Record<string, MuscleGroup> = {
+        'chest': 'chest',
+        'back': 'back',
+        'shoulders': 'shoulders',
+        'arms': 'arms',
+        'legs': 'legs',
+        'core': 'core',
+        'cardio': 'cardio',
+        'full_body': 'full_body',
+    }
+    
+    const muscleGroupStr = apiExercise.muscle_groups?.toLowerCase() || ''
+    let muscleGroup: MuscleGroup = 'chest'
+    for (const [key, value] of Object.entries(muscleGroupMap)) {
+        if (muscleGroupStr.includes(key)) {
+            muscleGroup = value
+            break
+        }
+    }
+    
+    // Преобразуем equipment из строки в массив
+    const equipmentStr = apiExercise.equipment?.toLowerCase() || ''
+    const equipment: Equipment[] = []
+    const equipmentMap: Record<string, Equipment> = {
+        'bodyweight': 'bodyweight',
+        'dumbbells': 'dumbbells',
+        'barbell': 'barbell',
+        'machine': 'machine',
+        'cable': 'cable',
+        'kettlebell': 'kettlebell',
+        'resistance_bands': 'resistance_bands',
+    }
+    
+    for (const [key, value] of Object.entries(equipmentMap)) {
+        if (equipmentStr.includes(key)) {
+            equipment.push(value)
+        }
+    }
+    
+    // Определяем visibility на основе trainer_id
+    const visibility: 'all' | 'client' | 'trainer' = apiExercise.trainer_id ? 'trainer' : 'all'
+    
+    return {
+        id: apiExercise.id,
+        name: apiExercise.name,
+        muscleGroup,
+        equipment: equipment.length > 0 ? equipment : ['bodyweight'],
+        description: apiExercise.description || undefined,
+        instructions: undefined,
+        startingPosition: undefined,
+        executionInstructions: undefined,
+        notes: undefined,
+        imageUrl: undefined,
+        videoUrl: undefined,
+        visibility,
+        clientId: undefined,
+    }
+}
+
+export const fetchExercises = createAsyncThunk(
+    'library/fetchExercises',
+    async (params: { search?: string; muscle_group?: string } | undefined, { rejectWithValue }) => {
+        try {
+            const exercises = await apiClient.getExercises(params)
+            return exercises.map(mapApiExerciseToState)
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка загрузки упражнений')
+        }
+    }
+)
 
 const librarySlice = createSlice({
     name: 'library',
@@ -247,6 +241,21 @@ const librarySlice = createSlice({
         setSelectedExercise(state, action: PayloadAction<string | null>) {
             state.selectedExerciseId = action.payload
         },
+    },
+    extraReducers: (builder) => {
+        builder
+            .addCase(fetchExercises.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(fetchExercises.fulfilled, (state, action) => {
+                state.loading = false
+                state.exercises = action.payload
+            })
+            .addCase(fetchExercises.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload as string
+            })
     },
 })
 

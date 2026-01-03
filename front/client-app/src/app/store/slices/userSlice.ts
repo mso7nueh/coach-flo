@@ -80,6 +80,14 @@ const mapApiUserToState = (apiUser: ApiUser): Omit<UserState, 'isAuthenticated' 
         onboardingSeen: apiUser.onboarding_seen,
         locale: (apiUser.locale as SupportedLocale) || 'ru',
         trainerConnectionCode: apiUser.trainer_connection_code || undefined,
+        trainer: apiUser.trainer ? {
+            id: apiUser.trainer.id,
+            fullName: apiUser.trainer.full_name,
+            email: apiUser.trainer.email,
+            phone: apiUser.trainer.phone || undefined,
+            avatar: apiUser.trainer.avatar || undefined,
+            connectionCode: apiUser.trainer.trainer_connection_code || undefined,
+        } : undefined,
     }
 }
 
@@ -122,9 +130,17 @@ export const registerUserStep2 = createAsyncThunk(
 
 export const fetchCurrentUser = createAsyncThunk(
     'user/fetchCurrent',
-    async () => {
-        const user = await apiClient.getCurrentUser()
-        return mapApiUserToState(user)
+    async (_, { rejectWithValue }) => {
+        try {
+            const user = await apiClient.getCurrentUser()
+            return mapApiUserToState(user)
+        } catch (error: any) {
+            // Передаем статус ошибки для правильной обработки
+            return rejectWithValue({ 
+                status: error?.status || error?.response?.status,
+                message: error?.message 
+            })
+        }
     }
 )
 
@@ -276,10 +292,15 @@ const userSlice = createSlice({
                 Object.assign(state, action.payload)
                 state.isAuthenticated = true
             })
-            .addCase(fetchCurrentUser.rejected, (state) => {
-                state.isAuthenticated = false
-                state.token = undefined
-                apiClient.logout()
+            .addCase(fetchCurrentUser.rejected, (state, action) => {
+                // Разлогиниваем только при ошибках авторизации (401), а не при всех ошибках
+                const status = (action.payload as any)?.status || (action.error as any)?.status
+                if (status === 401) {
+                    state.isAuthenticated = false
+                    state.token = undefined
+                    apiClient.logout()
+                }
+                // При других ошибках (сеть, сервер) не разлогиниваем пользователя
             })
             .addCase(completeOnboardingApi.fulfilled, (state, action) => {
                 state.onboardingSeen = true

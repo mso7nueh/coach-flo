@@ -1,4 +1,6 @@
-import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, type PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
+import { apiClient } from '@/shared/api/client'
+import type { DashboardStats } from '@/shared/api/client'
 
 export type MetricPeriod = '7d' | '14d' | '30d'
 
@@ -33,109 +35,42 @@ interface DashboardState {
     trainerNotes: TrainerNote[]
     configurationOpened: boolean
     metricGoals: Record<string, number>
+    stats: DashboardStats | null
+    loading: boolean
+    error: string | null
 }
-
-const sampleTiles: DashboardTile[] = [
-    {
-        id: 'sessions-7',
-        labelKey: 'dashboard.tiles.sessions',
-        value: '4',
-        secondaryValue: '12',
-        period: '7d',
-        category: 'training',
-        highlight: true,
-    },
-    {
-        id: 'attendance',
-        labelKey: 'dashboard.tiles.attendance',
-        value: '82%',
-        period: '30d',
-        category: 'attendance',
-    },
-    {
-        id: 'next-session',
-        labelKey: 'dashboard.tiles.nextSession',
-        value: '15 ноя, 18:00',
-        period: '7d',
-        category: 'schedule',
-    },
-    {
-        id: 'weight',
-        labelKey: 'dashboard.tiles.weight',
-        value: '78.4 кг',
-        secondaryValue: '-1.3 кг',
-        period: '30d',
-        category: 'vitals',
-        showTodayValue: false, // вес не меняется в течение дня
-    },
-    {
-        id: 'sleep',
-        labelKey: 'dashboard.tiles.sleep',
-        value: '7 ч 20 м',
-        todayValue: '6 ч 30 м',
-        secondaryValue: '+0.3 ч',
-        period: '7d',
-        category: 'vitals',
-        showTodayValue: true,
-    },
-    {
-        id: 'steps',
-        labelKey: 'dashboard.tiles.steps',
-        value: '9 800',
-        todayValue: '8 200',
-        secondaryValue: '+4.2%',
-        period: '7d',
-        category: 'vitals',
-        showTodayValue: true,
-    },
-    {
-        id: 'heartRate',
-        labelKey: 'dashboard.tiles.heartRate',
-        value: '72 уд/мин',
-        todayValue: '68 уд/мин',
-        secondaryValue: '↓ -3',
-        period: '7d',
-        category: 'vitals',
-        showTodayValue: true,
-    },
-    {
-        id: 'calories',
-        labelKey: 'dashboard.tiles.calories',
-        value: '2 450 ккал',
-        todayValue: '1 850 ккал',
-        secondaryValue: '↑ +120',
-        period: '7d',
-        category: 'vitals',
-        showTodayValue: true,
-    },
-]
-
-const trainerNotes: TrainerNote[] = [
-    {
-        id: nanoid(),
-        title: 'Нагрузка',
-        content: 'Следить за пульсом в диапазоне 130-140, добавить кардио по утрам дважды в неделю.',
-        updatedAt: new Date().toISOString(),
-    },
-    {
-        id: nanoid(),
-        title: 'Диета',
-        content: 'Отправить обновленный план питания после контрольного взвешивания 20 ноября.',
-        updatedAt: new Date().toISOString(),
-    },
-]
 
 const initialState: DashboardState = {
-    tiles: sampleTiles,
-    availableTiles: sampleTiles,
+    tiles: [],
+    availableTiles: [],
     period: '7d',
-    trainerNotes,
+    trainerNotes: [],
     configurationOpened: false,
-    metricGoals: {
-        weight: 72.0,
-        sleep: 8.0,
-    },
+    metricGoals: {},
+    stats: null,
+    loading: false,
+    error: null,
 }
+
+export const fetchDashboardStats = createAsyncThunk(
+    'dashboard/fetchStats',
+    async (period: '7d' | '14d' | '30d') => {
+        return await apiClient.getDashboardStats(period)
+    }
+)
+
+export const fetchTrainerNotes = createAsyncThunk(
+    'dashboard/fetchNotes',
+    async () => {
+        const notes = await apiClient.getNotes()
+        return notes.map((note) => ({
+            id: note.id,
+            title: note.title,
+            content: note.content || '',
+            updatedAt: note.created_at,
+        }))
+    }
+)
 
 const dashboardSlice = createSlice({
     name: 'dashboard',
@@ -183,6 +118,27 @@ const dashboardSlice = createSlice({
         setMetricGoal(state, action: PayloadAction<{ metricId: string; value: number }>) {
             state.metricGoals[action.payload.metricId] = action.payload.value
         },
+        setStats(state, action: PayloadAction<DashboardStats>) {
+            state.stats = action.payload
+        },
+    },
+    extraReducers: (builder) => {
+        builder
+            .addCase(fetchDashboardStats.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(fetchDashboardStats.fulfilled, (state, action) => {
+                state.loading = false
+                state.stats = action.payload
+            })
+            .addCase(fetchDashboardStats.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.error.message || 'Ошибка загрузки статистики'
+            })
+            .addCase(fetchTrainerNotes.fulfilled, (state, action) => {
+                state.trainerNotes = action.payload
+            })
     },
 })
 
@@ -195,6 +151,7 @@ export const {
     openConfiguration,
     closeConfiguration,
     setMetricGoal,
+    setStats,
 } = dashboardSlice.actions
 export default dashboardSlice.reducer
 

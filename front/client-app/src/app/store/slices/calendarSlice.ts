@@ -1,5 +1,12 @@
-import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, nanoid, type PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
 import dayjs from 'dayjs'
+import isoWeek from 'dayjs/plugin/isoWeek'
+import 'dayjs/locale/ru'
+
+dayjs.extend(isoWeek)
+dayjs.locale('ru')
+import { apiClient } from '@/shared/api/client'
+import type { Workout } from '@/shared/api/client'
 
 export type AttendanceStatus = 'scheduled' | 'completed' | 'missed'
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly'
@@ -44,129 +51,85 @@ interface CalendarState {
   view: CalendarView
   currentStartDate: string
   trainerAvailability: TrainerAvailabilityMap
+  loading: boolean
+  error: string | null
 }
 
 const today = dayjs()
 
-const trainerAvailabilityById: TrainerAvailabilityMap = {
-  'trainer-default': {
-    [today.add(1, 'day').startOf('day').toISOString()]: [
-      {
-        start: today.add(1, 'day').hour(9).minute(0).second(0).toISOString(),
-        end: today.add(1, 'day').hour(10).minute(0).second(0).toISOString(),
-      },
-      {
-        start: today.add(1, 'day').hour(12).minute(0).second(0).toISOString(),
-        end: today.add(1, 'day').hour(13).minute(0).second(0).toISOString(),
-      },
-    ],
-    [today.add(2, 'day').startOf('day').toISOString()]: [
-      {
-        start: today.add(2, 'day').hour(15).minute(0).second(0).toISOString(),
-        end: today.add(2, 'day').hour(16).minute(0).second(0).toISOString(),
-      },
-    ],
-    [today.add(4, 'day').startOf('day').toISOString()]: [
-      {
-        start: today.add(4, 'day').hour(8).minute(30).second(0).toISOString(),
-        end: today.add(4, 'day').hour(9).minute(30).second(0).toISOString(),
-      },
-      {
-        start: today.add(4, 'day').hour(18).minute(0).second(0).toISOString(),
-        end: today.add(4, 'day').hour(19).minute(0).second(0).toISOString(),
-      },
-    ],
-    [today.add(7, 'day').startOf('day').toISOString()]: [
-      {
-        start: today.add(7, 'day').hour(11).minute(0).second(0).toISOString(),
-        end: today.add(7, 'day').hour(12).minute(0).second(0).toISOString(),
-      },
-    ],
-  },
-}
+const mapApiWorkoutToState = (workout: Workout): ClientWorkout => ({
+  id: workout.id,
+  title: workout.title,
+  start: workout.start,
+  end: workout.end,
+  location: workout.location || undefined,
+  programDayId: workout.program_day_id || undefined,
+  attendance: workout.attendance as AttendanceStatus,
+  coachNote: workout.coach_note || undefined,
+  trainerId: workout.trainer_id || undefined,
+  withTrainer: !!workout.trainer_id,
+  format: workout.format || undefined,
+})
 
-const sampleWorkouts: ClientWorkout[] = [
-  {
-    id: nanoid(),
-    title: 'Силовая тренировка',
-    start: today.hour(18).minute(0).second(0).toISOString(),
-    end: today.hour(19).minute(30).second(0).toISOString(),
-    location: 'Зал №2',
-    programDayId: 'day-1',
-    attendance: 'scheduled',
-    trainerId: 'trainer-default',
-    withTrainer: true,
-    format: 'offline',
-  },
-  {
-    id: nanoid(),
-    title: 'Функциональная тренировка',
-    start: today.add(2, 'day').hour(18).minute(0).toISOString(),
-    end: today.add(2, 'day').hour(19).minute(0).toISOString(),
-    programDayId: 'day-2',
-    attendance: 'scheduled',
-    trainerId: 'trainer-default',
-    withTrainer: true,
-    format: 'online',
-  },
-  {
-    id: nanoid(),
-    title: 'Кардио',
-    start: today.add(4, 'day').hour(9).minute(0).toISOString(),
-    end: today.add(4, 'day').hour(10).minute(0).toISOString(),
-    location: 'Зал №1',
-    attendance: 'scheduled',
-  },
-  {
-    id: nanoid(),
-    title: 'Силовая тренировка',
-    start: today.add(6, 'day').hour(18).minute(0).toISOString(),
-    end: today.add(6, 'day').hour(19).minute(30).toISOString(),
-    location: 'Зал №2',
-    programDayId: 'day-1',
-    attendance: 'scheduled',
-  },
-  {
-    id: nanoid(),
-    title: 'Кардио',
-    start: today.subtract(3, 'day').hour(7).minute(30).toISOString(),
-    end: today.subtract(3, 'day').hour(8).minute(15).toISOString(),
-    location: 'Зал №1',
-    attendance: 'completed',
-  },
-  {
-    id: nanoid(),
-    title: 'Растяжка',
-    start: today.subtract(6, 'day').hour(20).minute(0).toISOString(),
-    end: today.subtract(6, 'day').hour(20).minute(45).toISOString(),
-    attendance: 'missed',
-    coachNote: 'Перенести на следующую неделю',
-  },
-  {
-    id: nanoid(),
-    title: 'Функциональная тренировка',
-    start: today.subtract(5, 'day').hour(18).minute(0).toISOString(),
-    end: today.subtract(5, 'day').hour(19).minute(0).toISOString(),
-    programDayId: 'day-2',
-    attendance: 'completed',
-  },
-  {
-    id: nanoid(),
-    title: 'Силовая тренировка',
-    start: today.subtract(7, 'day').hour(18).minute(0).toISOString(),
-    end: today.subtract(7, 'day').hour(19).minute(30).toISOString(),
-    location: 'Зал №2',
-    programDayId: 'day-1',
-    attendance: 'completed',
-  },
-]
+export const fetchWorkouts = createAsyncThunk(
+  'calendar/fetchWorkouts',
+  async (params?: { start_date?: string; end_date?: string }) => {
+    const workouts = await apiClient.getWorkouts(params)
+    return workouts.map(mapApiWorkoutToState)
+  }
+)
+
+export const createWorkout = createAsyncThunk(
+  'calendar/createWorkout',
+  async (
+    workoutData: {
+      title: string
+      start: string
+      end: string
+      location?: string
+      format?: 'online' | 'offline'
+      trainerId?: string
+      programDayId?: string
+      recurrence?: RecurrenceRule
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiData: Parameters<typeof apiClient.createWorkout>[0] = {
+        title: workoutData.title,
+        start: workoutData.start,
+        end: workoutData.end,
+        location: workoutData.location,
+        format: workoutData.format,
+        trainer_id: workoutData.trainerId,
+        program_day_id: workoutData.programDayId,
+      }
+
+      // Преобразуем recurrence в формат API
+      if (workoutData.recurrence) {
+        apiData.recurrence_frequency = workoutData.recurrence.frequency
+        apiData.recurrence_interval = workoutData.recurrence.interval
+        apiData.recurrence_days_of_week = workoutData.recurrence.daysOfWeek
+        apiData.recurrence_end_date = workoutData.recurrence.endDate
+        apiData.recurrence_occurrences = workoutData.recurrence.occurrences
+      }
+
+      const workout = await apiClient.createWorkout(apiData)
+      return mapApiWorkoutToState(workout)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка создания тренировки')
+    }
+  }
+)
 
 const initialState: CalendarState = {
-  workouts: sampleWorkouts,
+  workouts: [],
   selectedDate: today.startOf('day').toISOString(),
-  view: '2w',
-  currentStartDate: today.startOf('week').toISOString(),
-  trainerAvailability: trainerAvailabilityById,
+  view: '1w', // Календарь отображает одну неделю
+  currentStartDate: today.startOf('isoWeek').toISOString(),
+  trainerAvailability: {},
+  loading: false,
+  error: null,
 }
 
 const calendarSlice = createSlice({
@@ -185,17 +148,17 @@ const calendarSlice = createSlice({
     goToToday(state) {
       const today = dayjs().startOf('day')
       state.selectedDate = today.toISOString()
-      state.currentStartDate = today.startOf('week').toISOString()
+      state.currentStartDate = today.startOf('isoWeek').toISOString()
     },
     goToPreviousWeek(state) {
       const current = dayjs(state.currentStartDate)
-      const weeks = state.view === '1w' ? 1 : state.view === '2w' ? 2 : state.view === '4w' ? 4 : 4
-      state.currentStartDate = current.subtract(weeks, 'week').startOf('week').toISOString()
+      // Всегда переходим на 1 неделю назад для последовательной навигации
+      state.currentStartDate = current.subtract(1, 'week').startOf('isoWeek').toISOString()
     },
     goToNextWeek(state) {
       const current = dayjs(state.currentStartDate)
-      const weeks = state.view === '1w' ? 1 : state.view === '2w' ? 2 : state.view === '4w' ? 4 : 4
-      state.currentStartDate = current.add(weeks, 'week').startOf('week').toISOString()
+      // Всегда переходим на 1 неделю вперед для последовательной навигации
+      state.currentStartDate = current.add(1, 'week').startOf('isoWeek').toISOString()
     },
     updateWorkoutAttendance(state, action: PayloadAction<{ workoutId: string; attendance: AttendanceStatus }>) {
       const workout = state.workouts.find((item) => item.id === action.payload.workoutId)
@@ -309,6 +272,39 @@ const calendarSlice = createSlice({
         state.workouts = state.workouts.filter((item) => item.id !== action.payload.workoutId)
       }
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchWorkouts.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(fetchWorkouts.fulfilled, (state, action) => {
+        state.loading = false
+        state.workouts = action.payload
+      })
+      .addCase(fetchWorkouts.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || 'Ошибка загрузки тренировок'
+      })
+      .addCase(createWorkout.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(createWorkout.fulfilled, (state, action) => {
+        state.loading = false
+        // Добавляем созданную тренировку в state
+        const existingIndex = state.workouts.findIndex(w => w.id === action.payload.id)
+        if (existingIndex >= 0) {
+          state.workouts[existingIndex] = action.payload
+        } else {
+          state.workouts.push(action.payload)
+        }
+      })
+      .addCase(createWorkout.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
   },
 })
 

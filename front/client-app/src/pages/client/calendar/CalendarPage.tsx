@@ -15,7 +15,13 @@ import {
 } from '@mantine/core'
 import { DateInput, TimeInput } from '@mantine/dates'
 import dayjs from 'dayjs'
+import isoWeek from 'dayjs/plugin/isoWeek'
+import 'dayjs/locale/ru'
+
+dayjs.extend(isoWeek)
+dayjs.locale('ru')
 import { useTranslation } from 'react-i18next'
+import { notifications } from '@mantine/notifications'
 import {
     IconCalendar,
     IconCalendarEvent,
@@ -37,17 +43,18 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
     removeWorkout,
-    scheduleWorkout,
+    createWorkout,
     goToToday,
     goToPreviousWeek,
     goToNextWeek,
     updateWorkout,
+    fetchWorkouts,
     type RecurrenceFrequency,
     type DayOfWeek,
     moveWorkout,
     type ClientWorkout,
 } from '@/app/store/slices/calendarSlice'
-import { useMemo, useState, type DragEvent } from 'react'
+import { useMemo, useState, useEffect, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { Modal } from '@mantine/core'
 import { nanoid } from '@reduxjs/toolkit'
@@ -103,12 +110,22 @@ export const CalendarPage = () => {
     const [activeDragWorkout, setActiveDragWorkout] = useState<ClientWorkout | null>(null)
     const [dragError, setDragError] = useState<string | null>(null)
 
-    const startDate = dayjs(currentStartDate).startOf('week')
+    // Загружаем тренировки при открытии календаря и при изменении периода
+    useEffect(() => {
+        const startDate = dayjs(currentStartDate).startOf('isoWeek')
+        const endDate = startDate.endOf('isoWeek').add(1, 'week') // Загружаем на неделю вперед для плавной прокрутки
+        dispatch(fetchWorkouts({
+            start_date: startDate.subtract(1, 'week').toISOString(), // Загружаем неделю назад для плавной прокрутки
+            end_date: endDate.toISOString(),
+        }))
+    }, [dispatch, currentStartDate])
+
+    const startDate = dayjs(currentStartDate).startOf('isoWeek')
 
     const calendarDays = useMemo(() => {
         const days: dayjs.Dayjs[] = []
-        let current = startDate.startOf('week')
-        const end = startDate.endOf('week')
+        let current = startDate.startOf('isoWeek')
+        const end = startDate.endOf('isoWeek')
 
         while (current.isBefore(end) || current.isSame(end, 'day')) {
             days.push(current)
@@ -204,7 +221,7 @@ export const CalendarPage = () => {
         open()
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!formState.date) {
             return
         }
@@ -217,10 +234,8 @@ export const CalendarPage = () => {
             start: start.toISOString(),
             end: end.toISOString(),
             location: formState.location,
-            attendance: 'scheduled' as const,
             programDayId: formState.programDayId,
             trainerId: formState.withTrainer ? formState.trainerId ?? trainerInfo?.id : undefined,
-            withTrainer: formState.withTrainer,
             format: formState.format,
             recurrence: formState.isRecurring
                 ? {
@@ -237,21 +252,51 @@ export const CalendarPage = () => {
                 : undefined,
         }
 
-        if (formState.id) {
-            dispatch(
-                updateWorkout({
-                    id: formState.id,
-                    ...workoutData,
-                }),
-            )
-        } else {
-            dispatch(scheduleWorkout(workoutData))
+        try {
+            if (formState.id) {
+                dispatch(
+                    updateWorkout({
+                        id: formState.id,
+                        ...workoutData,
+                        attendance: 'scheduled' as const,
+                        withTrainer: formState.withTrainer,
+                    }),
+                )
+            } else {
+                await dispatch(createWorkout(workoutData)).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('calendar.workoutCreated'),
+                    color: 'green',
+                })
+                // Перезагружаем тренировки после создания
+                const startDate = dayjs(currentStartDate).startOf('week')
+                const endDate = startDate.endOf('week').add(1, 'week')
+                dispatch(fetchWorkouts({
+                    start_date: startDate.subtract(1, 'week').toISOString(),
+                    end_date: endDate.toISOString(),
+                }))
+            }
+            close()
+            setFormState(buildFormState(selectedDate, { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }))
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error || t('calendar.error.createWorkout'),
+                color: 'red',
+            })
         }
-        close()
-        setFormState(buildFormState(selectedDate, { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }))
     }
 
-    const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+    const dayNames = [
+        t('calendar.monday'),
+        t('calendar.tuesday'),
+        t('calendar.wednesday'),
+        t('calendar.thursday'),
+        t('calendar.friday'),
+        t('calendar.saturday'),
+        t('calendar.sunday'),
+    ]
 
     const isToday = (date: dayjs.Dayjs) => date.isSame(dayjs(), 'day')
     const isPast = (date: dayjs.Dayjs) => date.isBefore(dayjs(), 'day')
@@ -346,7 +391,7 @@ export const CalendarPage = () => {
                             <IconChevronLeft size={18} />
                         </ActionIcon>
                         <Button variant="subtle" onClick={() => dispatch(goToToday())}>
-                            {startDate.format('MMM D')} - {startDate.endOf('week').format('MMM D')}
+                            {startDate.format('MMM D')} - {startDate.endOf('isoWeek').format('MMM D')}
                         </Button>
                         <ActionIcon variant="light" onClick={() => dispatch(goToNextWeek())}>
                             <IconChevronRight size={18} />
@@ -397,7 +442,7 @@ export const CalendarPage = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', minHeight: '600px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
                         {calendarDays.map((day, index) => {
-                            const dayOfWeek = day.day()
+                            const dayOfWeek = day.isoWeekday() // ISO неделя: понедельник = 1, воскресенье = 7
                             const isFirstDay = index === 0
                             return (
                                 <div
@@ -411,7 +456,7 @@ export const CalendarPage = () => {
                                     }}
                                 >
                                     <Text size="xs" fw={600} c="dimmed" tt="uppercase">
-                                        {dayNames[dayOfWeek]}
+                                        {dayNames[dayOfWeek - 1]} {/* -1 потому что массив начинается с 0 */}
                                     </Text>
                                 </div>
                             )
@@ -547,9 +592,17 @@ export const CalendarPage = () => {
                                                                         variant="subtle"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
-                                                                            const newWorkout = { ...workout }
-                                                                            newWorkout.id = nanoid()
-                                                                            dispatch(scheduleWorkout(newWorkout))
+                                                                            const { id, ...newWorkoutData } = workout
+                                                                            dispatch(createWorkout({
+                                                                                title: newWorkoutData.title,
+                                                                                start: newWorkoutData.start,
+                                                                                end: newWorkoutData.end,
+                                                                                location: newWorkoutData.location,
+                                                                                format: newWorkoutData.format,
+                                                                                trainerId: newWorkoutData.trainerId,
+                                                                                programDayId: newWorkoutData.programDayId,
+                                                                                recurrence: newWorkoutData.recurrence,
+                                                                            }))
                                                                         }}
                                                                     >
                                                                         <IconCopy size={12} />

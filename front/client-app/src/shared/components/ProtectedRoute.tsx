@@ -22,8 +22,12 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
             if (storedToken && !isAuthenticated) {
                 try {
                     await dispatch(fetchCurrentUser()).unwrap()
-                } catch (error) {
-                    apiClient.logout()
+                } catch (error: any) {
+                    // Разлогиниваем только при ошибках авторизации (401), а не при всех ошибках
+                    // Ошибки сети или сервера не должны разлогинивать пользователя
+                    if (error?.status === 401 || error?.payload?.status === 401) {
+                        apiClient.logout()
+                    }
                 }
             }
             setLoading(false)

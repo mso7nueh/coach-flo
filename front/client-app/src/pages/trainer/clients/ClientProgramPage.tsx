@@ -15,14 +15,38 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
+import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
+import { useEffect } from 'react'
 import { IconArrowLeft } from '@tabler/icons-react'
+import { fetchPrograms, fetchProgramDays, selectProgram } from '@/app/store/slices/programSlice'
 
 export const ClientProgramPage = () => {
     const { t } = useTranslation()
     const { clientId } = useParams<{ clientId: string }>()
     const navigate = useNavigate()
+    const dispatch = useAppDispatch()
     const { clients } = useAppSelector((state) => state.clients)
-    const { days, selectedDayId } = useAppSelector((state) => state.program)
+    const { days, selectedProgramId, selectedDayId } = useAppSelector((state) => state.program)
+    
+    // Загружаем программы клиента при открытии страницы
+    useEffect(() => {
+        if (clientId) {
+            // Загружаем программы клиента через API с параметром user_id
+            dispatch(fetchPrograms(clientId)).then((result) => {
+                if (fetchPrograms.fulfilled.match(result) && result.payload.length > 0) {
+                    dispatch(selectProgram(result.payload[0].id))
+                    dispatch(fetchProgramDays(result.payload[0].id))
+                }
+            })
+        }
+    }, [dispatch, clientId])
+    
+    // Загружаем дни программы при выборе программы
+    useEffect(() => {
+        if (selectedProgramId) {
+            dispatch(fetchProgramDays(selectedProgramId))
+        }
+    }, [dispatch, selectedProgramId])
 
     const client = clients.find((c) => c.id === clientId)
 
@@ -161,7 +185,7 @@ export const ClientProgramPage = () => {
                                                                                 )}
                                                                                 {exercise.rest && (
                                                                                     <Text size="xs" c="dimmed">
-                                                                                        {t('program.rest')}: {exercise.rest}
+                                                                                        {exercise.rest}
                                                                                     </Text>
                                                                                 )}
                                                                             </Group>

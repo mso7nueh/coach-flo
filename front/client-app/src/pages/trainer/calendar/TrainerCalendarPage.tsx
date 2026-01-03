@@ -16,7 +16,13 @@ import {
 } from '@mantine/core'
 import { DateInput, TimeInput } from '@mantine/dates'
 import dayjs from 'dayjs'
+import isoWeek from 'dayjs/plugin/isoWeek'
+import 'dayjs/locale/ru'
+
+dayjs.extend(isoWeek)
+dayjs.locale('ru')
 import { useTranslation } from 'react-i18next'
+import { notifications } from '@mantine/notifications'
 import {
     IconCalendar,
     IconCalendarEvent,
@@ -30,9 +36,6 @@ import {
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
-    addWorkout,
-    updateWorkout,
-    removeWorkout,
     setView,
     goToToday,
     goToPreviousWeek,
@@ -41,10 +44,14 @@ import {
     goToNextDay,
     setSelectedClients,
     moveWorkout,
+    fetchTrainerWorkouts,
+    createTrainerWorkout,
+    updateTrainerWorkout,
+    deleteTrainerWorkout,
     type TrainerCalendarView,
     type TrainerWorkout,
 } from '@/app/store/slices/trainerCalendarSlice'
-import { useMemo, useState, type DragEvent } from 'react'
+import { useMemo, useState, useEffect, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { useSearchParams } from 'react-router-dom'
 import type { RecurrenceFrequency, DayOfWeek } from '@/app/store/slices/calendarSlice'
@@ -100,20 +107,33 @@ export const TrainerCalendarPage = () => {
     const [activeDragWorkout, setActiveDragWorkout] = useState<TrainerWorkout | null>(null)
     const [dragOverDay, setDragOverDay] = useState<string | null>(null)
 
+    // Загружаем тренировки при открытии календаря и при изменении периода
+    useEffect(() => {
+        const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
+        const endDate = view === 'week' 
+            ? startDate.endOf('isoWeek').add(1, 'week') // Для недели загружаем на неделю вперед
+            : startDate.endOf('day').add(7, 'days') // Для дня загружаем на неделю вперед
+        dispatch(fetchTrainerWorkouts({
+            start_date: startDate.subtract(1, 'week').toISOString(), // Загружаем неделю назад для плавной прокрутки
+            end_date: endDate.toISOString(),
+            client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined, // Если выбран один клиент, фильтруем по нему
+        }))
+    }, [dispatch, currentDate, view, selectedClientIds])
+
     const filteredWorkouts = useMemo(() => {
         if (selectedClientIds.length === 0) return workouts
         return workouts.filter((w) => selectedClientIds.includes(w.clientId))
     }, [workouts, selectedClientIds])
 
-    const startDate = dayjs(currentDate).startOf(view === 'week' ? 'week' : 'day')
+    const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
 
     const calendarDays = useMemo(() => {
         if (view === 'day') {
             return [startDate]
         }
         const days: dayjs.Dayjs[] = []
-        let current = startDate.startOf('week')
-        const end = startDate.endOf('week')
+        let current = startDate.startOf('isoWeek')
+        const end = startDate.endOf('isoWeek')
         while (current.isBefore(end) || current.isSame(end, 'day')) {
             days.push(current)
             current = current.add(1, 'day')
@@ -143,7 +163,7 @@ export const TrainerCalendarPage = () => {
         open()
     }
 
-    const handleSaveWorkout = () => {
+    const handleSaveWorkout = async () => {
         if (!formState.clientId || !formState.title || !formState.date) return
 
         const startDateTime = dayjs(formState.date)
@@ -163,22 +183,72 @@ export const TrainerCalendarPage = () => {
             end: endDateTime.toISOString(),
             location: formState.location,
             format: formState.format,
-            attendance: 'scheduled' as const,
+            programDayId: formState.templateId,
         }
 
-        if (formState.id) {
-            dispatch(updateWorkout({ id: formState.id, updates: workoutData }))
-        } else {
-            dispatch(addWorkout(workoutData))
+        try {
+            if (formState.id) {
+                await dispatch(updateTrainerWorkout({ id: formState.id, updates: workoutData })).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('calendar.workoutUpdated'),
+                    color: 'green',
+                })
+            } else {
+                await dispatch(createTrainerWorkout(workoutData)).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('calendar.workoutCreated'),
+                    color: 'green',
+                })
+            }
+            // Перезагружаем тренировки после создания/обновления
+            const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
+            const endDate = view === 'week' 
+                ? startDate.endOf('isoWeek').add(1, 'week')
+                : startDate.endOf('day').add(7, 'days')
+            dispatch(fetchTrainerWorkouts({
+                start_date: startDate.subtract(1, 'week').toISOString(),
+                end_date: endDate.toISOString(),
+                client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined,
+            }))
+            close()
+            setFormState(buildFormState())
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error || t('calendar.error.createWorkout'),
+                color: 'red',
+            })
         }
-
-        close()
-        setFormState(buildFormState())
     }
 
-    const handleDeleteWorkout = (id: string) => {
+    const handleDeleteWorkout = async (id: string) => {
         if (confirm(t('common.delete') + '?')) {
-            dispatch(removeWorkout(id))
+            try {
+                await dispatch(deleteTrainerWorkout(id)).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('calendar.workoutDeleted'),
+                    color: 'green',
+                })
+                // Перезагружаем тренировки после удаления
+                const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
+                const endDate = view === 'week' 
+                    ? startDate.endOf('isoWeek').add(1, 'week')
+                    : startDate.endOf('day').add(7, 'days')
+                dispatch(fetchTrainerWorkouts({
+                    start_date: startDate.subtract(1, 'week').toISOString(),
+                    end_date: endDate.toISOString(),
+                    client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined,
+                }))
+            } catch (error: any) {
+                notifications.show({
+                    title: t('common.error'),
+                    message: error || t('calendar.error.deleteWorkout'),
+                    color: 'red',
+                })
+            }
         }
     }
 
@@ -286,7 +356,7 @@ export const TrainerCalendarPage = () => {
                             </Group>
                             <Text fw={500}>
                                 {view === 'week'
-                                    ? `${startDate.format('D MMM')} - ${startDate.endOf('week').format('D MMM YYYY')}`
+                                    ? `${startDate.format('D MMM')} - ${startDate.endOf('isoWeek').format('D MMM YYYY')}`
                                     : startDate.format('D MMM YYYY')}
                             </Text>
                         </Group>
@@ -325,7 +395,19 @@ export const TrainerCalendarPage = () => {
                                         }}
                                     >
                                         <Text size="xs" c="dimmed">
-                                            {day.format('ddd')}
+                                            {(() => {
+                                                const dayOfWeek = day.isoWeekday() // ISO неделя: понедельник = 1, воскресенье = 7
+                                                const dayNames = [
+                                                    t('calendar.monday'),
+                                                    t('calendar.tuesday'),
+                                                    t('calendar.wednesday'),
+                                                    t('calendar.thursday'),
+                                                    t('calendar.friday'),
+                                                    t('calendar.saturday'),
+                                                    t('calendar.sunday'),
+                                                ]
+                                                return dayNames[dayOfWeek - 1] // -1 потому что массив начинается с 0
+                                            })()}
                                         </Text>
                                         <Text size="lg" c={isToday ? 'violet' : undefined}>{day.format('D')}</Text>
                                     </div>

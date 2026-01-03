@@ -1,5 +1,7 @@
-import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, nanoid, type PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
 import dayjs from 'dayjs'
+import { apiClient } from '@/shared/api/client'
+import type { BodyMetric as ApiBodyMetric, BodyMetricEntry as ApiBodyMetricEntry } from '@/shared/api/client'
 
 export type MetricsPeriod = '1w' | '4w' | '12w' | 'all'
 
@@ -57,62 +59,158 @@ interface MetricsState {
   nutritionEntries: DailyNutritionEntry[]
 }
 
-const today = dayjs()
-
-const bodyDescriptors: BodyMetricDescriptor[] = [
-  { id: 'weight', label: 'Вес', unit: 'кг', latestChange: -1.3, latestDate: today.toISOString() },
-  { id: 'bodyFat', label: 'Жировая масса', unit: '%', latestChange: -0.6, latestDate: today.subtract(7, 'day').toISOString() },
-  { id: 'muscleMass', label: 'Мышечная масса', unit: 'кг', latestChange: 0.3, latestDate: today.subtract(7, 'day').toISOString() },
-  { id: 'waist', label: 'Талия', unit: 'см', latestChange: -2, latestDate: today.subtract(14, 'day').toISOString() },
-  { id: 'chest', label: 'Грудь', unit: 'см', latestChange: 1, latestDate: today.subtract(14, 'day').toISOString() },
-  { id: 'hips', label: 'Бёдра', unit: 'см', latestChange: -1, latestDate: today.subtract(14, 'day').toISOString() },
-  { id: 'steps', label: 'Шаги', unit: 'шагов' },
-  { id: 'sleep', label: 'Сон', unit: 'ч' },
-]
-
-const bodyEntries: BodyMetricEntry[] = bodyDescriptors.flatMap((descriptor) => {
-  return Array.from({ length: 8 }).map((_, index) => ({
-    id: nanoid(),
-    metricId: descriptor.id,
-    value: descriptor.id === 'sleep' ? 7 + Math.random() * 1 : descriptor.id === 'steps' ? 8000 + Math.random() * 3000 : 70 + Math.random() * 5,
-    unit: descriptor.unit,
-    recordedAt: today.subtract(index, 'week').toISOString(),
-  }))
-})
-
-const exerciseDescriptors: ExerciseMetricDescriptor[] = [
-  { id: 'bench_press', label: 'Жим лёжа', muscleGroup: 'Грудь' },
-  { id: 'squat', label: 'Приседания', muscleGroup: 'Ноги' },
-  { id: 'deadlift', label: 'Становая тяга', muscleGroup: 'Спина' },
-  { id: 'oh_press', label: 'Жим стоя', muscleGroup: 'Плечи' },
-  { id: 'pullups', label: 'Подтягивания', muscleGroup: 'Спина' },
-]
-
-const exerciseEntries: ExerciseMetricEntry[] = exerciseDescriptors.flatMap((descriptor) => {
-  return Array.from({ length: 6 }).map((_, index) => ({
-    id: nanoid(),
-    exerciseId: descriptor.id,
-    date: today.subtract(index, 'week').toISOString(),
-    weight: descriptor.id === 'pullups' ? 0 : 40 + Math.random() * 50,
-    repetitions: 6 + Math.floor(Math.random() * 4),
-    sets: 3,
-  }))
-})
-
 const initialState: MetricsState = {
   period: '4w',
-  bodyMetrics: bodyDescriptors,
-  bodyMetricEntries: bodyEntries,
-  exerciseMetrics: exerciseDescriptors,
-  exerciseMetricEntries: exerciseEntries,
-  bodyMetricGoals: {
-    weight: 72.0,
-    sleep: 8.0,
-  },
+  bodyMetrics: [],
+  bodyMetricEntries: [],
+  exerciseMetrics: [],
+  exerciseMetricEntries: [],
+  bodyMetricGoals: {},
   exerciseMetricGoals: {},
   bodyMetricStartValues: {},
   nutritionEntries: [],
 }
+
+const mapApiBodyMetricToState = (metric: ApiBodyMetric): BodyMetricDescriptor => ({
+  id: metric.id,
+  label: metric.label,
+  unit: metric.unit,
+  target: metric.target || undefined,
+})
+
+const mapApiBodyMetricEntryToState = (entry: ApiBodyMetricEntry, unit: string): BodyMetricEntry => ({
+  id: entry.id,
+  metricId: entry.metric_id,
+  value: entry.value,
+  unit,
+  recordedAt: entry.recorded_at,
+})
+
+export const fetchBodyMetrics = createAsyncThunk(
+  'metrics/fetchBodyMetrics',
+  async () => {
+    const metrics = await apiClient.getBodyMetrics()
+    return metrics.map(mapApiBodyMetricToState)
+  }
+)
+
+export const fetchBodyMetricEntries = createAsyncThunk(
+  'metrics/fetchBodyMetricEntries',
+  async (params: { metric_id?: string; start_date?: string; end_date?: string } | undefined, { getState }) => {
+    const entries = await apiClient.getBodyMetricEntries(params)
+    // Получаем unit из уже загруженных метрик в state, чтобы избежать дополнительного запроса
+    const state = getState() as { metrics: MetricsState }
+    let metrics = state.metrics.bodyMetrics
+    let metricMap = new Map(metrics.map(m => [m.id, m.unit]))
+
+    // Если метрики еще не загружены, загружаем их (fallback)
+    if (metrics.length === 0) {
+      const loadedMetrics = await apiClient.getBodyMetrics()
+      metrics = loadedMetrics.map(mapApiBodyMetricToState)
+      metricMap = new Map(metrics.map(m => [m.id, m.unit]))
+    }
+
+    return entries.map(entry => mapApiBodyMetricEntryToState(entry, metricMap.get(entry.metric_id) || ''))
+  }
+)
+
+const mapApiExerciseMetricToState = (metric: any): ExerciseMetricDescriptor => ({
+  id: metric.id,
+  label: metric.label,
+  muscleGroup: metric.muscle_group || '',
+})
+
+const mapApiExerciseMetricEntryToState = (entry: any): ExerciseMetricEntry => ({
+  id: entry.id,
+  exerciseId: entry.exercise_metric_id,
+  date: entry.date,
+  weight: entry.weight || 0,
+  repetitions: entry.repetitions || 0,
+  sets: entry.sets || 0,
+})
+
+export const fetchExerciseMetrics = createAsyncThunk(
+  'metrics/fetchExerciseMetrics',
+  async () => {
+    const metrics = await apiClient.getExerciseMetrics()
+    return metrics.map(mapApiExerciseMetricToState)
+  }
+)
+
+export const fetchExerciseMetricEntries = createAsyncThunk(
+  'metrics/fetchExerciseMetricEntries',
+  async (params?: { exercise_metric_id?: string; start_date?: string; end_date?: string }) => {
+    const entries = await apiClient.getExerciseMetricEntries(params)
+    return entries.map(mapApiExerciseMetricEntryToState)
+  }
+)
+
+export const addBodyMetricEntryApi = createAsyncThunk(
+  'metrics/addBodyMetricEntryApi',
+  async (data: { metricId: string; value: number; recordedAt: string }, { rejectWithValue, getState }) => {
+    try {
+      const entry = await apiClient.addBodyMetricEntry({
+        metric_id: data.metricId,
+        value: data.value,
+        recorded_at: data.recordedAt,
+      })
+      // Получаем unit из уже загруженных метрик в state, чтобы избежать дополнительного запроса
+      const state = getState() as { metrics: MetricsState }
+      const metric = state.metrics.bodyMetrics.find(m => m.id === data.metricId)
+      return mapApiBodyMetricEntryToState(entry, metric?.unit || '')
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка добавления записи метрики')
+    }
+  }
+)
+
+export const addExerciseMetricEntryApi = createAsyncThunk(
+  'metrics/addExerciseMetricEntryApi',
+  async (data: { exerciseId: string; date: string; weight: number; repetitions: number; sets: number }, { rejectWithValue }) => {
+    try {
+      const entry = await apiClient.addExerciseMetricEntry({
+        exercise_metric_id: data.exerciseId,
+        date: data.date,
+        weight: data.weight,
+        repetitions: data.repetitions,
+        sets: data.sets,
+      })
+      return mapApiExerciseMetricEntryToState(entry)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка добавления записи метрики упражнения')
+    }
+  }
+)
+
+export const createBodyMetricApi = createAsyncThunk(
+  'metrics/createBodyMetricApi',
+  async (data: { label: string; unit: string; target?: number }, { rejectWithValue, dispatch }) => {
+    try {
+      const metric = await apiClient.createBodyMetric(data)
+      const mappedMetric = mapApiBodyMetricToState(metric)
+      // После создания метрики перезагружаем список метрик
+      await dispatch(fetchBodyMetrics())
+      return mappedMetric
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка создания метрики тела')
+    }
+  }
+)
+
+export const createExerciseMetricApi = createAsyncThunk(
+  'metrics/createExerciseMetricApi',
+  async (data: { label: string; muscle_group?: string }, { rejectWithValue, dispatch }) => {
+    try {
+      const metric = await apiClient.createExerciseMetric(data)
+      const mappedMetric = mapApiExerciseMetricToState(metric)
+      // После создания метрики перезагружаем список метрик
+      await dispatch(fetchExerciseMetrics())
+      return mappedMetric
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка создания метрики упражнения')
+    }
+  }
+)
 
 const metricsSlice = createSlice({
   name: 'metrics',
@@ -200,6 +298,53 @@ const metricsSlice = createSlice({
         })
       }
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchBodyMetrics.fulfilled, (state, action) => {
+        state.bodyMetrics = action.payload
+      })
+      .addCase(fetchBodyMetricEntries.fulfilled, (state, action) => {
+        // Объединяем новые записи с существующими, избегая дубликатов
+        const existingIds = new Set(state.bodyMetricEntries.map(e => e.id))
+        const newEntries = action.payload.filter(e => !existingIds.has(e.id))
+        state.bodyMetricEntries = [...state.bodyMetricEntries, ...newEntries]
+      })
+      .addCase(fetchExerciseMetrics.fulfilled, (state, action) => {
+        state.exerciseMetrics = action.payload
+      })
+      .addCase(fetchExerciseMetricEntries.fulfilled, (state, action) => {
+        // Объединяем новые записи с существующими, избегая дубликатов
+        const existingIds = new Set(state.exerciseMetricEntries.map(e => e.id))
+        const newEntries = action.payload.filter(e => !existingIds.has(e.id))
+        state.exerciseMetricEntries = [...state.exerciseMetricEntries, ...newEntries]
+      })
+      .addCase(addBodyMetricEntryApi.fulfilled, (state, action) => {
+        // Добавляем новую запись или обновляем существующую
+        const existingIndex = state.bodyMetricEntries.findIndex(
+          (entry) =>
+            entry.metricId === action.payload.metricId &&
+            dayjs(entry.recordedAt).isSame(dayjs(action.payload.recordedAt), 'day')
+        )
+        if (existingIndex >= 0) {
+          state.bodyMetricEntries[existingIndex] = action.payload
+        } else {
+          state.bodyMetricEntries.push(action.payload)
+        }
+      })
+      .addCase(addExerciseMetricEntryApi.fulfilled, (state, action) => {
+        // Добавляем новую запись или обновляем существующую
+        const existingIndex = state.exerciseMetricEntries.findIndex(
+          (entry) =>
+            entry.exerciseId === action.payload.exerciseId &&
+            dayjs(entry.date).isSame(dayjs(action.payload.date), 'day')
+        )
+        if (existingIndex >= 0) {
+          state.exerciseMetricEntries[existingIndex] = action.payload
+        } else {
+          state.exerciseMetricEntries.push(action.payload)
+        }
+      })
   },
 })
 
