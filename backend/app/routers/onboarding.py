@@ -145,6 +145,7 @@ async def complete_onboarding(
             activity_level=metrics.activity_level
         )
         db.add(onboarding)
+        db.flush()  # Flush чтобы получить ID в базе перед добавлением связанных записей
         
         # Добавляем цели
         if metrics.goals:
@@ -182,6 +183,94 @@ async def complete_onboarding(
             activity_level=onboarding.activity_level,
             created_at=onboarding.created_at
         )
+
+
+@router.put(
+    "/",
+    response_model=schemas.OnboardingResponse,
+    summary="Обновить данные онбординга",
+    description="""
+    Обновляет данные онбординга для текущего пользователя.
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
+async def update_onboarding(
+    metrics: schemas.OnboardingMetrics,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновление онбординга"""
+    onboarding = db.query(models.Onboarding).filter(
+        models.Onboarding.user_id == current_user.id
+    ).first()
+    
+    if not onboarding:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Онбординг не найден. Используйте POST /api/onboarding/complete для создания."
+        )
+    
+    # Обновляем существующий онбординг
+    if metrics.weight is not None:
+        onboarding.weight = metrics.weight
+    if metrics.height is not None:
+        onboarding.height = metrics.height
+    if metrics.age is not None:
+        onboarding.age = metrics.age
+    if metrics.activity_level is not None:
+        onboarding.activity_level = metrics.activity_level
+    
+    # Удаляем старые цели и ограничения
+    db.query(models.OnboardingGoal).filter(
+        models.OnboardingGoal.onboarding_id == onboarding.id
+    ).delete()
+    db.query(models.OnboardingRestriction).filter(
+        models.OnboardingRestriction.onboarding_id == onboarding.id
+    ).delete()
+    
+    # Добавляем новые цели
+    if metrics.goals:
+        for goal in metrics.goals:
+            goal_obj = models.OnboardingGoal(
+                id=str(uuid.uuid4()),
+                onboarding_id=onboarding.id,
+                goal=goal
+            )
+            db.add(goal_obj)
+    
+    # Добавляем новые ограничения
+    if metrics.restrictions:
+        for restriction in metrics.restrictions:
+            restriction_obj = models.OnboardingRestriction(
+                id=str(uuid.uuid4()),
+                onboarding_id=onboarding.id,
+                restriction=restriction
+            )
+            db.add(restriction_obj)
+    
+    db.commit()
+    db.refresh(onboarding)
+    
+    # Получаем цели и ограничения
+    goals = [g.goal for g in db.query(models.OnboardingGoal).filter(
+        models.OnboardingGoal.onboarding_id == onboarding.id
+    ).all()]
+    restrictions = [r.restriction for r in db.query(models.OnboardingRestriction).filter(
+        models.OnboardingRestriction.onboarding_id == onboarding.id
+    ).all()]
+    
+    return schemas.OnboardingResponse(
+        id=onboarding.id,
+        user_id=onboarding.user_id,
+        weight=onboarding.weight,
+        height=onboarding.height,
+        age=onboarding.age,
+        goals=goals,
+        restrictions=restrictions,
+        activity_level=onboarding.activity_level,
+        created_at=onboarding.created_at
+    )
 
 
 @router.get(

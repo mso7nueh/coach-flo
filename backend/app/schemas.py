@@ -13,7 +13,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=6, description="Пароль (минимум 6 символов, любой длины)")
 
 
 class UserRegister(UserCreate):
@@ -37,10 +37,43 @@ class UserWithTrainer(UserResponse):
     trainer: Optional["UserResponse"] = None
 
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    locale: Optional[str] = None
+    # Поля для клиентов (только для тренеров)
+    client_format: Optional[str] = None  # 'online', 'offline', 'both'
+    workouts_package: Optional[int] = None
+    package_expiry_date: Optional[datetime] = None
+    is_active: Optional[bool] = None
+
+
+# Client update schema (для обновления данных клиента тренером, включая онбординг)
+class ClientUpdate(BaseModel):
+    # Основные данные
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    client_format: Optional[str] = None
+    workouts_package: Optional[int] = None
+    package_expiry_date: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    # Данные онбординга
+    weight: Optional[float] = None
+    height: Optional[float] = None
+    age: Optional[int] = None
+    goals: Optional[List[str]] = None
+    restrictions: Optional[List[str]] = None
+    activity_level: Optional[str] = None
+
+
 # Auth schemas
 class LoginRequest(BaseModel):
     email: EmailStr = Field(..., description="Email пользователя", example="user@example.com")
-    password: str = Field(..., min_length=6, description="Пароль (минимум 6 символов)", example="password123")
+    password: str = Field(..., min_length=6, max_length=72, description="Пароль (6-72 символа). Пароли длиннее 72 символов будут обрезаны.", example="password123")
 
 
 class Token(BaseModel):
@@ -76,7 +109,7 @@ class VerifySMSResponse(BaseModel):
 class RegisterStep1Request(BaseModel):
     full_name: str = Field(..., description="Полное имя пользователя", example="Иван Иванов", min_length=2)
     email: EmailStr = Field(..., description="Email пользователя", example="ivan@example.com")
-    password: str = Field(..., min_length=6, description="Пароль (минимум 6 символов)", example="password123")
+    password: str = Field(..., min_length=6, max_length=72, description="Пароль (6-72 символа). Пароли длиннее 72 символов будут обрезаны.", example="password123")
     phone: str = Field(..., description="Номер телефона в формате +7 (999) 123-45-67", example="+7 (999) 123-45-67")
     role: UserRole = Field(..., description="Роль пользователя: client или trainer", example="client")
     trainer_code: Optional[str] = Field(None, description="Код подключения тренера (только для клиентов)", example="TRAINER123")
@@ -117,3 +150,317 @@ class OnboardingResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# Workout schemas
+from app.models import AttendanceStatus, WorkoutFormat
+
+class WorkoutBase(BaseModel):
+    title: str
+    start: datetime
+    end: datetime
+    location: Optional[str] = None
+    format: Optional[WorkoutFormat] = None
+    program_day_id: Optional[str] = None
+    trainer_id: Optional[str] = None  # Для тренеров: ID клиента, для клиентов: ID тренера
+    user_id: Optional[str] = None  # Для тренеров: ID клиента (альтернатива trainer_id)
+
+
+class WorkoutCreate(WorkoutBase):
+    recurrence_series_id: Optional[str] = None
+    recurrence_frequency: Optional[str] = None  # daily, weekly, monthly
+    recurrence_interval: Optional[int] = None
+    recurrence_days_of_week: Optional[List[int]] = None
+    recurrence_end_date: Optional[datetime] = None
+    recurrence_occurrences: Optional[int] = None
+
+
+class WorkoutUpdate(BaseModel):
+    title: Optional[str] = None
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    location: Optional[str] = None
+    attendance: Optional[AttendanceStatus] = None
+    coach_note: Optional[str] = None
+    format: Optional[WorkoutFormat] = None
+
+
+class WorkoutResponse(WorkoutBase):
+    id: str
+    user_id: str
+    attendance: AttendanceStatus
+    coach_note: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Training Program schemas
+class ProgramExerciseBase(BaseModel):
+    title: str
+    sets: int = 1
+    reps: Optional[int] = None
+    duration: Optional[str] = None
+    rest: Optional[str] = None
+    weight: Optional[str] = None
+
+
+class ProgramExerciseCreate(ProgramExerciseBase):
+    pass
+
+
+class ProgramExerciseResponse(ProgramExerciseBase):
+    id: str
+    order: int
+
+    class Config:
+        from_attributes = True
+
+
+class ProgramBlockBase(BaseModel):
+    type: str  # warmup, main, cooldown
+    title: str
+    exercises: List[ProgramExerciseCreate] = []
+
+
+class ProgramBlockResponse(BaseModel):
+    id: str
+    type: str
+    title: str
+    order: int
+    exercises: List[ProgramExerciseResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class ProgramDayBase(BaseModel):
+    name: str
+    blocks: List[ProgramBlockBase] = []
+    notes: Optional[str] = None
+
+
+class ProgramDayCreate(ProgramDayBase):
+    source_template_id: Optional[str] = None
+
+
+class ProgramDayResponse(BaseModel):
+    id: str
+    name: str
+    order: int
+    notes: Optional[str] = None
+    owner: str
+    source_template_id: Optional[str] = None
+    program_id: str
+    blocks: List[ProgramBlockResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class TrainingProgramBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+
+
+class TrainingProgramCreate(TrainingProgramBase):
+    pass
+
+
+class TrainingProgramResponse(TrainingProgramBase):
+    id: str
+    owner: str
+    user_id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Metrics schemas
+class BodyMetricBase(BaseModel):
+    label: str
+    unit: str
+    target: Optional[float] = None
+
+
+class BodyMetricCreate(BodyMetricBase):
+    pass
+
+
+class BodyMetricResponse(BodyMetricBase):
+    id: str
+    user_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BodyMetricEntryBase(BaseModel):
+    value: float
+    recorded_at: datetime
+
+
+class BodyMetricEntryCreate(BodyMetricEntryBase):
+    metric_id: str
+
+
+class BodyMetricEntryResponse(BodyMetricEntryBase):
+    id: str
+    metric_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ExerciseMetricBase(BaseModel):
+    label: str
+    muscle_group: Optional[str] = None
+
+
+class ExerciseMetricCreate(ExerciseMetricBase):
+    pass
+
+
+class ExerciseMetricResponse(ExerciseMetricBase):
+    id: str
+    user_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ExerciseMetricEntryBase(BaseModel):
+    date: datetime
+    weight: Optional[float] = None
+    repetitions: Optional[int] = None
+    sets: Optional[int] = None
+
+
+class ExerciseMetricEntryCreate(ExerciseMetricEntryBase):
+    exercise_metric_id: str
+
+
+class ExerciseMetricEntryResponse(ExerciseMetricEntryBase):
+    id: str
+    exercise_metric_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Nutrition schemas
+class NutritionEntryBase(BaseModel):
+    date: datetime
+    calories: float
+    proteins: Optional[float] = None
+    fats: Optional[float] = None
+    carbs: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class NutritionEntryCreate(NutritionEntryBase):
+    pass
+
+
+class NutritionEntryResponse(NutritionEntryBase):
+    id: str
+    user_id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Finance schemas
+from app.models import PaymentType
+
+class PaymentBase(BaseModel):
+    client_id: str
+    amount: float
+    date: datetime
+    type: PaymentType
+    package_size: Optional[int] = None
+    subscription_days: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class PaymentCreate(PaymentBase):
+    pass
+
+
+class PaymentResponse(PaymentBase):
+    id: str
+    trainer_id: str
+    remaining_sessions: Optional[int] = None
+    next_payment_date: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Exercise Library schemas
+class ExerciseBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    muscle_groups: Optional[str] = None
+    equipment: Optional[str] = None
+    difficulty: Optional[str] = None
+
+
+class ExerciseCreate(ExerciseBase):
+    pass
+
+
+class ExerciseResponse(ExerciseBase):
+    id: str
+    trainer_id: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Trainer Notes schemas
+class TrainerNoteBase(BaseModel):
+    client_id: str
+    title: str
+    content: Optional[str] = None
+
+
+class TrainerNoteCreate(TrainerNoteBase):
+    pass
+
+
+class TrainerNoteUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+
+class TrainerNoteResponse(TrainerNoteBase):
+    id: str
+    trainer_id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Dashboard schemas
+class DashboardStats(BaseModel):
+    total_workouts: int
+    completed_workouts: int
+    attendance_rate: float
+    today_workouts: int
+    next_workout: Optional[WorkoutResponse] = None

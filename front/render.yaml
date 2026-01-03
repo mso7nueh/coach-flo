@@ -6,5 +6,5 @@ services:
     pullRequestPreviewsEnabled: false
     envVars:
       - key: VITE_API_URL
-        value: http://45.144.221.74:8000
+        value: http://147.45.143.221:8000
 

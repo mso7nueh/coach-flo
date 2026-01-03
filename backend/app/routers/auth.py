@@ -10,7 +10,7 @@ from app.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from app.services.sms_service import create_sms_verification, verify_sms_code
-from datetime import timedelta
+from datetime import timedelta, datetime
 import uuid
 import string
 
@@ -109,12 +109,13 @@ async def verify_sms_code_endpoint(
     description="""
     Первый шаг регистрации пользователя.
     
-    Создает пользователя в системе и отправляет SMS код на указанный телефон.
+    Сохраняет данные регистрации временно и отправляет SMS код на указанный телефон.
+    **Пользователь НЕ создается на этом этапе** - он будет создан только после подтверждения SMS кода в step2.
     
     **Процесс регистрации:**
     1. Вызовите этот эндпоинт с данными пользователя
-    2. Получите SMS код (в разработке - в консоли сервера)
-    3. Вызовите `/register/step2` с кодом для завершения регистрации
+    2. Получите SMS код (в разработке - в консоли сервера, код: 1111)
+    3. Вызовите `/register/step2` с кодом для завершения регистрации и создания аккаунта
     
     **Роли:**
     - `client` - клиент (требует онбординг после регистрации)
@@ -126,7 +127,7 @@ async def verify_sms_code_endpoint(
     """,
     responses={
         200: {
-            "description": "Пользователь создан, SMS код отправлен",
+            "description": "Данные сохранены, SMS код отправлен",
             "content": {
                 "application/json": {
                     "example": {
@@ -145,7 +146,7 @@ async def register_step1(
     request: schemas.RegisterStep1Request,
     db: Session = Depends(get_db)
 ):
-    """Шаг 1 регистрации: создание пользователя и отправка SMS"""
+    """Шаг 1 регистрации: сохранение данных и отправка SMS"""
     # Проверяем, существует ли пользователь с таким email
     existing_user = db.query(models.User).filter(models.User.email == request.email).first()
     if existing_user:
@@ -177,34 +178,38 @@ async def register_step1(
             )
         trainer_id = trainer.id
     
-    # Создаем пользователя (пока не подтвержден телефон)
-    user_id = str(uuid.uuid4())
-    user = models.User(
-        id=user_id,
-        full_name=request.full_name,
-        email=request.email,
-        phone=request.phone,
-        hashed_password=get_password_hash(request.password),
-        role=request.role,
-        trainer_id=trainer_id,
-        phone_verified=False,
-        onboarding_seen=request.role == models.UserRole.TRAINER  # Тренеры пропускают онбординг
-    )
+    # Удаляем старые незавершенные регистрации для этого телефона/email
+    db.query(models.PendingRegistration).filter(
+        (models.PendingRegistration.phone == request.phone) |
+        (models.PendingRegistration.email == request.email)
+    ).delete()
     
     # Генерируем код подключения для тренера
+    trainer_connection_code = None
     if request.role == models.UserRole.TRAINER:
         import random
         import string as string_module
-        code = ''.join(random.choices(string_module.ascii_uppercase + string_module.digits, k=8))
-        user.trainer_connection_code = code
+        trainer_connection_code = ''.join(random.choices(string_module.ascii_uppercase + string_module.digits, k=8))
     
-    db.add(user)
+    # Сохраняем данные во временную таблицу (не создаем пользователя)
+    pending_id = str(uuid.uuid4())
+    pending_registration = models.PendingRegistration(
+        id=pending_id,
+        phone=request.phone,
+        full_name=request.full_name,
+        email=request.email,
+        hashed_password=get_password_hash(request.password),
+        role=request.role,
+        trainer_id=trainer_id,
+        trainer_connection_code=trainer_connection_code,
+        expires_at=datetime.utcnow() + timedelta(minutes=30)  # Данные действительны 30 минут
+    )
+    db.add(pending_registration)
     db.commit()
-    db.refresh(user)
     
-    # Отправляем SMS код
+    # Отправляем SMS код (без user_id, так как пользователь еще не создан)
     if request.phone:
-        create_sms_verification(db, request.phone, user_id)
+        create_sms_verification(db, request.phone)
     
     return schemas.VerifySMSResponse(
         verified=False,
@@ -261,7 +266,7 @@ async def register_step2(
     request: schemas.RegisterStep2Request,
     db: Session = Depends(get_db)
 ):
-    """Шаг 2 регистрации: подтверждение SMS кода и завершение регистрации"""
+    """Шаг 2 регистрации: подтверждение SMS кода и создание пользователя"""
     # Проверяем код
     is_valid = verify_sms_code(db, request.phone, request.code)
     if not is_valid:
@@ -270,16 +275,53 @@ async def register_step2(
             detail="Неверный код или код истек"
         )
     
-    # Находим пользователя по телефону
-    user = db.query(models.User).filter(models.User.phone == request.phone).first()
-    if not user:
+    # Находим незавершенную регистрацию по телефону
+    pending_registration = db.query(models.PendingRegistration).filter(
+        models.PendingRegistration.phone == request.phone,
+        models.PendingRegistration.expires_at > datetime.utcnow()
+    ).first()
+    
+    if not pending_registration:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден"
+            detail="Данные регистрации не найдены или истекли. Пожалуйста, начните регистрацию заново."
         )
     
-    # Помечаем телефон как подтвержденный
-    user.phone_verified = True
+    # Проверяем, не создан ли уже пользователь с таким email/телефоном
+    existing_user = db.query(models.User).filter(
+        (models.User.email == pending_registration.email) |
+        (models.User.phone == pending_registration.phone)
+    ).first()
+    
+    if existing_user:
+        # Удаляем незавершенную регистрацию
+        db.delete(pending_registration)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Пользователь с таким email или телефоном уже существует"
+        )
+    
+    # Создаем пользователя
+    user_id = str(uuid.uuid4())
+    user = models.User(
+        id=user_id,
+        full_name=pending_registration.full_name,
+        email=pending_registration.email,
+        phone=pending_registration.phone,
+        hashed_password=pending_registration.hashed_password,
+        role=pending_registration.role,
+        trainer_id=pending_registration.trainer_id,
+        trainer_connection_code=pending_registration.trainer_connection_code,
+        phone_verified=True,  # Телефон подтвержден через SMS
+        onboarding_seen=pending_registration.role == models.UserRole.TRAINER  # Тренеры пропускают онбординг
+    )
+    
+    db.add(user)
+    
+    # Удаляем незавершенную регистрацию
+    db.delete(pending_registration)
+    
     db.commit()
     db.refresh(user)
     
