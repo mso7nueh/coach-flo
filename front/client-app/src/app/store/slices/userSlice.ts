@@ -30,6 +30,17 @@ interface UserState {
     token?: string
 }
 
+// Проверяем наличие токена в localStorage при инициализации
+const getInitialToken = (): string | undefined => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('auth_token')
+        return token || undefined
+    }
+    return undefined
+}
+
+const initialToken = getInitialToken()
+
 const initialState: UserState = {
     id: '',
     fullName: '',
@@ -41,8 +52,8 @@ const initialState: UserState = {
     locale: 'ru',
     trainer: undefined,
     trainerConnectionCode: undefined,
-    isAuthenticated: false,
-    token: undefined,
+    isAuthenticated: !!initialToken, // Устанавливаем true, если токен есть
+    token: initialToken,
 }
 
 export interface LoginCredentials {
@@ -51,14 +62,14 @@ export interface LoginCredentials {
 }
 
 export interface RegisterData {
-        fullName: string
-        email: string
-        password: string
-        phone?: string
-        role?: UserRole
-        confirmPassword?: string
-        trainerCode?: string
-    }
+    fullName: string
+    email: string
+    password: string
+    phone?: string
+    role?: UserRole
+    confirmPassword?: string
+    trainerCode?: string
+}
 
 export interface OnboardingMetrics {
     weight?: number
@@ -118,10 +129,22 @@ export const registerUserStep1 = createAsyncThunk(
 
 export const registerUserStep2 = createAsyncThunk(
     'user/registerStep2',
-    async (data: { phone: string; code: string }) => {
+    async (data: { phone: string; code: string }, { dispatch }) => {
         const response = await apiClient.registerStep2(data.phone, data.code)
+        // Устанавливаем токен перед вызовом getCurrentUser
+        apiClient.setToken(response.token)
+        // После регистрации получаем полную информацию о пользователе,
+        // чтобы получить данные о тренере, если он был привязан при регистрации
+        let fullUserData = mapApiUserToState(response.user)
+        try {
+            const fullUser = await apiClient.getCurrentUser()
+            fullUserData = mapApiUserToState(fullUser)
+        } catch (error) {
+            // Если не удалось получить полные данные, используем данные из ответа регистрации
+            console.warn('Не удалось получить полные данные пользователя после регистрации:', error)
+        }
         return {
-            user: mapApiUserToState(response.user),
+            user: fullUserData,
             token: response.token,
             requiresOnboarding: response.requires_onboarding,
         }
@@ -136,10 +159,38 @@ export const fetchCurrentUser = createAsyncThunk(
             return mapApiUserToState(user)
         } catch (error: any) {
             // Передаем статус ошибки для правильной обработки
-            return rejectWithValue({ 
+            return rejectWithValue({
                 status: error?.status || error?.response?.status,
-                message: error?.message 
+                message: error?.message
             })
+        }
+    }
+)
+
+export const linkTrainerApi = createAsyncThunk(
+    'user/linkTrainer',
+    async (connectionCode: string, { rejectWithValue, dispatch }) => {
+        try {
+            await apiClient.linkTrainer(connectionCode)
+            // После успешного связывания обновляем данные пользователя
+            const user = await apiClient.getCurrentUser()
+            return mapApiUserToState(user)
+        } catch (error: any) {
+            return rejectWithValue(error?.message || 'Ошибка связывания с тренером')
+        }
+    }
+)
+
+export const unlinkTrainerApi = createAsyncThunk(
+    'user/unlinkTrainer',
+    async (_, { rejectWithValue, dispatch }) => {
+        try {
+            await apiClient.unlinkTrainer()
+            // После успешного отвязывания обновляем данные пользователя
+            const user = await apiClient.getCurrentUser()
+            return mapApiUserToState(user)
+        } catch (error: any) {
+            return rejectWithValue(error?.message || 'Ошибка отвязывания тренера')
         }
     }
 )
@@ -208,6 +259,8 @@ const userSlice = createSlice({
             state.onboardingSeen = true
             state.onboardingMetrics = action.payload
         },
+        // Устаревшие синхронные actions, оставлены для обратной совместимости
+        // Используйте linkTrainerApi и unlinkTrainerApi вместо них
         linkTrainer(state, action: PayloadAction<{ connectionCode: string }>) {
             // В мок-режиме просто создаём тренера по коду
             if (state.role === 'client') {
@@ -305,6 +358,12 @@ const userSlice = createSlice({
             .addCase(completeOnboardingApi.fulfilled, (state, action) => {
                 state.onboardingSeen = true
                 state.onboardingMetrics = action.payload
+            })
+            .addCase(linkTrainerApi.fulfilled, (state, action) => {
+                Object.assign(state, action.payload)
+            })
+            .addCase(unlinkTrainerApi.fulfilled, (state, action) => {
+                Object.assign(state, action.payload)
             })
     },
 })

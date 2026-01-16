@@ -19,8 +19,10 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     useEffect(() => {
         const checkAuth = async () => {
             const storedToken = apiClient.getToken()
-            if (storedToken && !isAuthenticated) {
+            if (storedToken) {
                 try {
+                    // Всегда загружаем данные пользователя при наличии токена,
+                    // чтобы получить актуальную информацию (включая привязанного тренера)
                     await dispatch(fetchCurrentUser()).unwrap()
                 } catch (error: any) {
                     // Разлогиниваем только при ошибках авторизации (401), а не при всех ошибках
@@ -33,7 +35,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
             setLoading(false)
         }
         checkAuth()
-    }, [dispatch, isAuthenticated])
+    }, [dispatch])
 
     if (loading) {
         return null

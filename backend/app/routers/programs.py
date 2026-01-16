@@ -274,6 +274,341 @@ async def get_program_day(
     return day
 
 
+@router.put("/{program_id}/days/{day_id}", response_model=schemas.ProgramDayResponse)
+async def update_program_day(
+    program_id: str,
+    day_id: str,
+    day_update: schemas.ProgramDayUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновить день программы (переименование)"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверяем права доступа
+    if current_user.role == models.UserRole.TRAINER:
+        # Тренер может обновлять дни в своих программах и программах клиентов
+        if program.user_id != current_user.id:
+            client = db.query(models.User).filter(
+                and_(
+                    models.User.id == program.user_id,
+                    models.User.trainer_id == current_user.id
+                )
+            ).first()
+            if not client:
+                raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    else:
+        # Клиент может обновлять дни только в своих программах
+        if program.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    # Обновляем поля
+    if day_update.name is not None:
+        day.name = day_update.name
+    if day_update.order is not None:
+        day.order = day_update.order
+    
+    db.commit()
+    db.refresh(day)
+    
+    return day
+
+
+@router.delete("/{program_id}/days/{day_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_program_day(
+    program_id: str,
+    day_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Удалить день программы"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверяем права доступа
+    if current_user.role == models.UserRole.TRAINER:
+        # Тренер может удалять дни в своих программах и программах клиентов
+        if program.user_id != current_user.id:
+            client = db.query(models.User).filter(
+                and_(
+                    models.User.id == program.user_id,
+                    models.User.trainer_id == current_user.id
+                )
+            ).first()
+            if not client:
+                raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    else:
+        # Клиент может удалять дни только в своих программах
+        if program.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    db.delete(day)
+    db.commit()
+    return None
+
+
+@router.post("/{program_id}/days/{day_id}/blocks/{block_id}/exercises", response_model=schemas.ProgramExerciseResponse, status_code=status.HTTP_201_CREATED)
+async def add_exercise_to_program_day(
+    program_id: str,
+    day_id: str,
+    block_id: str,
+    exercise: schemas.ProgramExerciseCreate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Добавить упражнение в блок дня программы"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверяем права доступа
+    if current_user.role == models.UserRole.TRAINER:
+        if program.user_id != current_user.id:
+            client = db.query(models.User).filter(
+                and_(
+                    models.User.id == program.user_id,
+                    models.User.trainer_id == current_user.id
+                )
+            ).first()
+            if not client:
+                raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    else:
+        if program.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    block = db.query(models.ProgramBlock).filter(
+        and_(
+            models.ProgramBlock.id == block_id,
+            models.ProgramBlock.day_id == day_id
+        )
+    ).first()
+    
+    if not block:
+        raise HTTPException(status_code=404, detail="Блок не найден")
+    
+    # Получаем текущий порядок упражнений в блоке
+    existing_exercises = db.query(models.ProgramExercise).filter(
+        models.ProgramExercise.block_id == block_id
+    ).all()
+    order = len(existing_exercises)
+    
+    exercise_id = str(uuid.uuid4())
+    # Преобразуем числовые значения в строки для хранения в БД
+    duration_str = str(exercise.duration) + " мин" if exercise.duration is not None else None
+    rest_str = str(exercise.rest) + " сек" if exercise.rest is not None else None
+    weight_str = str(exercise.weight) + " кг" if exercise.weight is not None else None
+    
+    db_exercise = models.ProgramExercise(
+        id=exercise_id,
+        block_id=block_id,
+        title=exercise.title,
+        sets=exercise.sets,
+        reps=exercise.reps,
+        duration=duration_str,
+        rest=rest_str,
+        weight=weight_str,
+        order=order
+    )
+    db.add(db_exercise)
+    db.commit()
+    db.refresh(db_exercise)
+    
+    return db_exercise
+
+
+@router.put("/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}", response_model=schemas.ProgramExerciseResponse)
+async def update_exercise_in_program_day(
+    program_id: str,
+    day_id: str,
+    block_id: str,
+    exercise_id: str,
+    exercise_update: schemas.ProgramExerciseUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновить упражнение в блоке дня программы"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверяем права доступа
+    if current_user.role == models.UserRole.TRAINER:
+        if program.user_id != current_user.id:
+            client = db.query(models.User).filter(
+                and_(
+                    models.User.id == program.user_id,
+                    models.User.trainer_id == current_user.id
+                )
+            ).first()
+            if not client:
+                raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    else:
+        if program.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    block = db.query(models.ProgramBlock).filter(
+        and_(
+            models.ProgramBlock.id == block_id,
+            models.ProgramBlock.day_id == day_id
+        )
+    ).first()
+    
+    if not block:
+        raise HTTPException(status_code=404, detail="Блок не найден")
+    
+    exercise = db.query(models.ProgramExercise).filter(
+        and_(
+            models.ProgramExercise.id == exercise_id,
+            models.ProgramExercise.block_id == block_id
+        )
+    ).first()
+    
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Упражнение не найдено")
+    
+    # Обновляем поля
+    if exercise_update.title is not None:
+        exercise.title = exercise_update.title
+    if exercise_update.sets is not None:
+        exercise.sets = exercise_update.sets
+    if exercise_update.reps is not None:
+        exercise.reps = exercise_update.reps
+    if exercise_update.duration is not None:
+        exercise.duration = str(exercise_update.duration) + " мин"
+    if exercise_update.rest is not None:
+        exercise.rest = str(exercise_update.rest) + " сек"
+    if exercise_update.weight is not None:
+        exercise.weight = str(exercise_update.weight) + " кг"
+    
+    db.commit()
+    db.refresh(exercise)
+    
+    # Преобразуем строковые значения обратно в числа для ответа
+    return schemas.ProgramExerciseResponse.from_orm(exercise)
+
+
+@router.delete("/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_exercise_from_program_day(
+    program_id: str,
+    day_id: str,
+    block_id: str,
+    exercise_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Удалить упражнение из блока дня программы"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверяем права доступа
+    if current_user.role == models.UserRole.TRAINER:
+        if program.user_id != current_user.id:
+            client = db.query(models.User).filter(
+                and_(
+                    models.User.id == program.user_id,
+                    models.User.trainer_id == current_user.id
+                )
+            ).first()
+            if not client:
+                raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    else:
+        if program.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    block = db.query(models.ProgramBlock).filter(
+        and_(
+            models.ProgramBlock.id == block_id,
+            models.ProgramBlock.day_id == day_id
+        )
+    ).first()
+    
+    if not block:
+        raise HTTPException(status_code=404, detail="Блок не найден")
+    
+    exercise = db.query(models.ProgramExercise).filter(
+        and_(
+            models.ProgramExercise.id == exercise_id,
+            models.ProgramExercise.block_id == block_id
+        )
+    ).first()
+    
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Упражнение не найдено")
+    
+    db.delete(exercise)
+    db.commit()
+    return None
+
+
 @router.delete("/{program_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_program(
     program_id: str,

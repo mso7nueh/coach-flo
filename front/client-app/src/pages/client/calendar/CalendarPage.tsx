@@ -120,6 +120,17 @@ export const CalendarPage = () => {
         }))
     }, [dispatch, currentStartDate])
 
+    // Обновляем форму при изменении trainerInfo
+    useEffect(() => {
+        if (!modalOpened && trainerInfo?.id) {
+            setFormState((state) => ({
+                ...state,
+                trainerId: trainerInfo.id,
+                withTrainer: Boolean(trainerInfo && trainerInfo.id),
+            }))
+        }
+    }, [trainerInfo, modalOpened])
+
     const startDate = dayjs(currentStartDate).startOf('isoWeek')
 
     const calendarDays = useMemo(() => {
@@ -772,12 +783,12 @@ export const CalendarPage = () => {
                     <Checkbox
                         label={t('calendar.withTrainer')}
                         description={
-                            trainerInfo
+                            trainerInfo && trainerInfo.id
                                 ? t('calendar.withTrainerDescription')
                                 : t('calendar.withTrainerUnavailable')
                         }
                         checked={formState.withTrainer}
-                        disabled={!trainerInfo}
+                        disabled={!trainerInfo || !trainerInfo.id}
                         onChange={(event) => {
                             const checked = event.currentTarget?.checked ?? false
                             setFormState((state) => ({

@@ -303,13 +303,17 @@ export const AppLayout = () => {
             </AppShell.Navbar>
             <AppShell.Main
                 style={{
-                    paddingTop: `${headerHeight}px`,
-                    minHeight: `calc(100vh - ${headerHeight}px)`,
+                    paddingTop: location.pathname === '/onboarding' ? `${headerHeight}px` : `${headerHeight}px`,
+                    minHeight: location.pathname === '/onboarding' ? '100vh' : `calc(100vh - ${headerHeight}px)`,
                 }}
             >
-                <Box p="lg" style={{ height: '100%' }}>
+                {location.pathname === '/onboarding' ? (
                     <Outlet />
-                </Box>
+                ) : (
+                    <Box p="lg" style={{ height: '100%' }}>
+                        <Outlet />
+                    </Box>
+                )}
             </AppShell.Main>
         </AppShell>
     )

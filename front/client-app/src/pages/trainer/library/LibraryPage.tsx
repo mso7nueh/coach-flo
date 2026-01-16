@@ -25,15 +25,17 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
     addWorkout,
-    updateWorkout,
-    addExercise,
-    updateExercise,
     removeWorkout,
     removeExercise,
     cloneExercise,
     setWorkoutFilters,
     setExerciseFilters,
     fetchExercises,
+    createExerciseApi,
+    updateExerciseApi,
+    deleteExerciseApi,
+    createWorkoutApi,
+    updateWorkoutApi,
 } from '@/app/store/slices/librarySlice'
 import {
     createProgram,
@@ -167,8 +169,22 @@ export const LibraryPage = () => {
             executionInstructions: '',
             notes: '',
             videoUrl: '',
-        visibility: 'trainer' as const,
+            visibility: 'all' as const,
             clientId: undefined,
+        },
+        validate: {
+            executionInstructions: (value) => {
+                if (!value || value.trim().length === 0) {
+                    return t('trainer.library.exerciseForm.executionInstructionsRequired')
+                }
+                return null
+            },
+            clientId: (value, values) => {
+                if (values.visibility === 'client' && !value) {
+                    return t('trainer.library.exerciseForm.clientIdRequired')
+                }
+                return null
+            },
         },
     })
 
@@ -225,20 +241,58 @@ export const LibraryPage = () => {
         openWorkoutModal()
     }
 
-    const handleSaveWorkout = (values: typeof workoutForm.values) => {
-        if (editingWorkout) {
-            dispatch(
-                updateWorkout({
-                    id: editingWorkout.id,
-                    updates: values,
-                }),
-            )
-        } else {
-            dispatch(addWorkout({ ...values, isCustom: true }))
+    const handleSaveWorkout = async (values: typeof workoutForm.values) => {
+        try {
+            // Для сохранения шаблона тренировки используем эндпоинт создания дня программы
+            // Нужно получить или создать программу для шаблонов
+            let targetProgramId = resolveProgramId()
+            if (!targetProgramId) {
+                // Если нет программы, создаем новую
+                await handleAddTrainerProgram()
+                targetProgramId = resolveProgramId()
+                if (!targetProgramId) {
+                    notifications.show({
+                        title: t('common.error'),
+                        message: t('program.error.createProgram'),
+                        color: 'red',
+                    })
+                    return
+                }
+            }
+            
+            if (editingWorkout) {
+                // Для обновления используем updateProgramDay
+                // TODO: Реализовать полное обновление блоков через API
+                await dispatch(
+                    updateWorkoutApi({
+                        id: editingWorkout.id,
+                        updates: { ...values, programId: targetProgramId },
+                    }),
+                ).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.library.workoutUpdated'),
+                    color: 'green',
+                })
+            } else {
+                // Создаем шаблон тренировки как день программы через API
+                await dispatch(createWorkoutApi({ ...values, isCustom: true, programId: targetProgramId })).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.library.workoutCreated'),
+                    color: 'green',
+                })
+            }
+            closeWorkoutModal()
+            workoutForm.reset()
+            setEditingWorkout(null)
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error || t('trainer.library.error.createWorkout'),
+                color: 'red',
+            })
         }
-        closeWorkoutModal()
-        workoutForm.reset()
-        setEditingWorkout(null)
     }
 
 
@@ -744,20 +798,38 @@ export const LibraryPage = () => {
         openExerciseModal()
     }
 
-    const handleSaveExercise = (values: typeof exerciseForm.values) => {
-        if (editingExercise) {
-            dispatch(
-                updateExercise({
-                    id: editingExercise.id,
-                    updates: values,
-                }),
-            )
-        } else {
-            dispatch(addExercise(values))
+    const handleSaveExercise = async (values: typeof exerciseForm.values) => {
+        try {
+            if (editingExercise) {
+                await dispatch(
+                    updateExerciseApi({
+                        id: editingExercise.id,
+                        updates: values,
+                    }),
+                ).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.library.exerciseUpdated'),
+                    color: 'green',
+                })
+            } else {
+                await dispatch(createExerciseApi(values)).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.library.exerciseCreated'),
+                    color: 'green',
+                })
+            }
+            closeExerciseModal()
+            exerciseForm.reset()
+            setEditingExercise(null)
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error || t('trainer.library.error.createExercise'),
+                color: 'red',
+            })
         }
-        closeExerciseModal()
-        exerciseForm.reset()
-        setEditingExercise(null)
     }
 
     return (
@@ -817,8 +889,7 @@ export const LibraryPage = () => {
                                     onClick={(e) => {
                                         const target = e.target as HTMLElement
                                         if (!target.closest('[data-menu-trigger]') && !target.closest('[data-menu-dropdown]')) {
-                                            setViewingExercise(exercise)
-                                            openViewExerciseModal()
+                                            handleEditExercise(exercise)
                                         }
                                     }}
                                 >
@@ -887,9 +958,22 @@ export const LibraryPage = () => {
                                                     <Menu.Item
                                                         color="red"
                                                         leftSection={<IconTrash size={16} />}
-                                                        onClick={(e) => {
+                                                        onClick={async (e) => {
                                                             e.stopPropagation()
-                                                            dispatch(removeExercise(exercise.id))
+                                                            try {
+                                                                await dispatch(deleteExerciseApi(exercise.id)).unwrap()
+                                                                notifications.show({
+                                                                    title: t('common.success'),
+                                                                    message: t('trainer.library.exerciseDeleted'),
+                                                                    color: 'green',
+                                                                })
+                                                            } catch (error: any) {
+                                                                notifications.show({
+                                                                    title: t('common.error'),
+                                                                    message: error || t('trainer.library.error.deleteExercise'),
+                                                                    color: 'red',
+                                                                })
+                                                            }
                                                         }}
                                                     >
                                                         {t('trainer.library.delete')}
@@ -1740,11 +1824,11 @@ export const LibraryPage = () => {
                 title={editingWorkout ? t('trainer.library.editWorkout') : t('trainer.library.createWorkout')}
                 size="xl"
                 styles={{
-                    body: { maxHeight: '85vh', overflowY: 'auto', paddingBottom: 'var(--mantine-spacing-xl)' },
+                    body: { maxHeight: '85vh', overflowY: 'auto', paddingBottom: 'calc(var(--mantine-spacing-xl) * 2)' },
                 }}
             >
                 <form onSubmit={workoutForm.onSubmit(handleSaveWorkout)}>
-                    <Stack gap="md">
+                    <Stack gap="md" style={{ paddingBottom: 'var(--mantine-spacing-md)' }}>
                         <TextInput label={t('trainer.library.workoutForm.name')} required {...workoutForm.getInputProps('name')} />
                         <Group grow>
                             <NumberInput
@@ -1971,7 +2055,7 @@ export const LibraryPage = () => {
                             </Button>
                         </Stack>
 
-                        <Group justify="flex-end" mt="md">
+                        <Group justify="flex-end" mt="xl" mb="md">
                             <Button variant="subtle" onClick={closeWorkoutModal}>
                                 {t('common.cancel')}
                             </Button>
@@ -1987,11 +2071,11 @@ export const LibraryPage = () => {
                 title={editingExercise ? t('trainer.library.editExercise') : t('trainer.library.createExercise')}
                 size="xl"
                 styles={{
-                    body: { maxHeight: '85vh', overflowY: 'auto', paddingBottom: 'var(--mantine-spacing-xl)' },
+                    body: { maxHeight: '85vh', overflowY: 'auto', paddingBottom: 'calc(var(--mantine-spacing-xl) * 2)' },
                 }}
             >
                 <form onSubmit={exerciseForm.onSubmit(handleSaveExercise)}>
-                    <Stack gap="lg">
+                    <Stack gap="lg" style={{ paddingBottom: 'var(--mantine-spacing-md)' }}>
                         <Group grow>
                             <TextInput 
                                 label={t('trainer.library.exerciseForm.name')} 
@@ -2231,6 +2315,59 @@ export const LibraryPage = () => {
                                                 )
                                             }
                                             
+                                            // Проверяем, является ли URL прямой ссылкой на изображение (включая GIF)
+                                            const isImageUrl = /\.(gif|jpg|jpeg|png|webp|svg|bmp|ico)(\?.*)?$/i.test(url)
+                                            if (isImageUrl) {
+                                                return (
+                                                    <img
+                                                        key={`direct-image-${url}`}
+                                                        src={url}
+                                                        alt="Exercise preview"
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: '100%',
+                                                            height: '100%',
+                                                            objectFit: 'contain',
+                                                            cursor: 'pointer',
+                                                        }}
+                                                        onClick={() => window.open(url, '_blank')}
+                                                        onError={(e) => {
+                                                            // Если изображение не загрузилось, показываем fallback
+                                                            const target = e.target as HTMLImageElement
+                                                            target.style.display = 'none'
+                                                        }}
+                                                    />
+                                                )
+                                            }
+                                            
+                                            // Проверяем, является ли URL прямой ссылкой на видео файл
+                                            const isDirectVideoUrl = /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv|m4v|3gp)(\?.*)?$/i.test(url)
+                                            if (isDirectVideoUrl) {
+                                                return (
+                                                    <video
+                                                        key={`direct-video-${url}`}
+                                                        src={url}
+                                                        controls
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: '100%',
+                                                            height: '100%',
+                                                            objectFit: 'contain',
+                                                        }}
+                                                        preload="metadata"
+                                                    >
+                                                        Ваш браузер не поддерживает воспроизведение видео.
+                                                        <a href={url} target="_blank" rel="noopener noreferrer">
+                                                            Открыть видео в новой вкладке
+                                                        </a>
+                                                    </video>
+                                                )
+                                            }
+                                            
                                             return (
                                                 <div style={{
                                                     position: 'absolute',
@@ -2279,7 +2416,7 @@ export const LibraryPage = () => {
                             {...exerciseForm.getInputProps('notes')} 
                         />
 
-                        <Group justify="flex-end" mt="md">
+                        <Group justify="flex-end" mt="xl" mb="md">
                             <Button variant="subtle" onClick={closeExerciseModal}>
                                 {t('common.cancel')}
                             </Button>
@@ -2506,6 +2643,59 @@ export const LibraryPage = () => {
                                                         allowFullScreen
                                                         loading="eager"
                                                     />
+                                                )
+                                            }
+                                            
+                                            // Проверяем, является ли URL прямой ссылкой на изображение (включая GIF)
+                                            const isImageUrl = /\.(gif|jpg|jpeg|png|webp|svg|bmp|ico)(\?.*)?$/i.test(url)
+                                            if (isImageUrl) {
+                                                return (
+                                                    <img
+                                                        key={`direct-image-${url}`}
+                                                        src={url}
+                                                        alt="Exercise preview"
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: '100%',
+                                                            height: '100%',
+                                                            objectFit: 'contain',
+                                                            cursor: 'pointer',
+                                                        }}
+                                                        onClick={() => window.open(url, '_blank')}
+                                                        onError={(e) => {
+                                                            // Если изображение не загрузилось, показываем fallback
+                                                            const target = e.target as HTMLImageElement
+                                                            target.style.display = 'none'
+                                                        }}
+                                                    />
+                                                )
+                                            }
+                                            
+                                            // Проверяем, является ли URL прямой ссылкой на видео файл
+                                            const isDirectVideoUrl = /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv|m4v|3gp)(\?.*)?$/i.test(url)
+                                            if (isDirectVideoUrl) {
+                                                return (
+                                                    <video
+                                                        key={`direct-video-${url}`}
+                                                        src={url}
+                                                        controls
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: '100%',
+                                                            height: '100%',
+                                                            objectFit: 'contain',
+                                                        }}
+                                                        preload="metadata"
+                                                    >
+                                                        Ваш браузер не поддерживает воспроизведение видео.
+                                                        <a href={url} target="_blank" rel="noopener noreferrer">
+                                                            Открыть видео в новой вкладке
+                                                        </a>
+                                                    </video>
                                                 )
                                             }
                                             

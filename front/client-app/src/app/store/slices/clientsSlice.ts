@@ -42,17 +42,26 @@ const clientsSlice = createSlice({
     name: 'clients',
     initialState,
     reducers: {
-        addClient(state, action: PayloadAction<Omit<Client, 'id' | 'attendanceRate' | 'totalWorkouts' | 'completedWorkouts' | 'joinedDate'>>) {
+        setClients(state, action: PayloadAction<Client[]>) {
+            state.clients = action.payload
+        },
+        addClient(state, action: PayloadAction<Omit<Client, 'id' | 'attendanceRate' | 'totalWorkouts' | 'completedWorkouts' | 'joinedDate'> & { id?: string }>) {
             const newClient: Client = {
                 ...action.payload,
-                id: crypto.randomUUID(),
+                id: action.payload.id || crypto.randomUUID(),
                 attendanceRate: 0,
                 totalWorkouts: 0,
                 completedWorkouts: 0,
                 joinedDate: new Date().toISOString(),
                 isActive: action.payload.isActive ?? true,
             }
-            state.clients.push(newClient)
+            // Проверяем, нет ли уже клиента с таким ID
+            const existingIndex = state.clients.findIndex(c => c.id === newClient.id)
+            if (existingIndex === -1) {
+                state.clients.push(newClient)
+            } else {
+                state.clients[existingIndex] = newClient
+            }
         },
         updateClient(state, action: PayloadAction<{ id: string; updates: Partial<Client> }>) {
             const index = state.clients.findIndex((c) => c.id === action.payload.id)
@@ -94,7 +103,7 @@ const clientsSlice = createSlice({
     },
 })
 
-export const { addClient, updateClient, removeClient, setSearchQuery, setSelectedClient, updateClientAttendance, checkAndDeactivateExpiredClients } =
+export const { setClients, addClient, updateClient, removeClient, setSearchQuery, setSelectedClient, updateClientAttendance, checkAndDeactivateExpiredClients } =
     clientsSlice.actions
 export default clientsSlice.reducer
 

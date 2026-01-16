@@ -233,6 +233,28 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Обработка 401 Unauthorized
+    if (error.response?.status === 401) {
+      const token = localStorage.getItem('auth_token')
+      console.error('401 Unauthorized error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        hasToken: !!token,
+        tokenLength: token?.length,
+        response: error.response?.data,
+      })
+
+      // Удаляем токен только если это не запрос на логин/регистрацию
+      const isAuthRequest = error.config?.url?.includes('/auth/login') ||
+        error.config?.url?.includes('/auth/register') ||
+        error.config?.url?.includes('/auth/send-sms') ||
+        error.config?.url?.includes('/auth/verify-sms')
+
+      if (!isAuthRequest && token) {
+        localStorage.removeItem('auth_token')
+      }
+    }
+
     const errorMessage =
       error.response?.data?.detail ||
       error.response?.data?.message ||
@@ -297,11 +319,15 @@ export const login = async (email: string, password: string): Promise<LoginRespo
 
 export const logout = () => {
   setToken(null)
+  // Перенаправляем на страницу входа только если мы не на ней
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+    window.location.href = '/login'
+  }
 }
 
 // User API
 export const getCurrentUser = async (): Promise<User> => {
-  const { data } = await api.get<User>('/api/users/me')
+  const { data } = await api.get<User>('/api/auth/me')
   return data
 }
 
@@ -325,7 +351,7 @@ export const unlinkTrainer = async (): Promise<void> => {
 }
 
 export const getSettings = async (): Promise<UserSettings> => {
-  const { data } = await api.get<UserSettings>('/api/users/me/settings')
+  const { data } = await api.get<UserSettings>('/api/users/me/settings/')
   return data
 }
 
@@ -333,7 +359,7 @@ export const updateSettings = async (data: {
   locale: string
   notificationSettings: UserSettings['notificationSettings']
 }): Promise<UserSettings> => {
-  const { data: response } = await api.put<UserSettings>('/api/users/me/settings', data)
+  const { data: response } = await api.put<UserSettings>('/api/users/me/settings/', data)
   return response
 }
 
@@ -346,6 +372,7 @@ export const completeOnboarding = async (data: {
   restrictions?: string[]
   activity_level?: 'low' | 'medium' | 'high'
 }): Promise<OnboardingResponse> => {
+  // Для этого эндпоинта слеш не нужен
   const { data: response } = await api.post<OnboardingResponse>('/api/onboarding/complete', data)
   return response
 }
@@ -377,7 +404,8 @@ export const createWorkout = async (data: {
   trainer_id?: string
   user_id?: string // Для тренеров: ID клиента, для которого создается тренировка
   program_day_id?: string
-  recurrence_frequency?: 'daily' | 'weekly' | 'monthly'
+  recurrence_series_id?: string
+  recurrence_frequency?: string // 'daily' | 'weekly' | 'monthly'
   recurrence_interval?: number
   recurrence_days_of_week?: number[]
   recurrence_end_date?: string
@@ -677,7 +705,51 @@ export const getNote = async (note_id: string): Promise<Note> => {
 
 // Trainer API
 export const getClients = async (): Promise<any[]> => {
-  const { data } = await api.get<any[]>('/api/trainer/clients')
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data } = await api.get<any[]>('/api/clients/')
+  return data
+}
+
+export const createClient = async (data: {
+  full_name: string
+  email: string
+  password: string
+  phone?: string
+  role: 'client'
+}): Promise<any> => {
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data: response } = await api.post<any>('/api/clients/', data)
+  return response
+}
+
+export const updateClient = async (
+  client_id: string,
+  data: {
+    full_name?: string
+    email?: string
+    phone?: string
+    client_format?: 'online' | 'offline' | 'both'
+    workouts_package?: number
+    package_expiry_date?: string
+    is_active?: boolean
+    weight?: number
+    height?: number
+    age?: number
+    goals?: string[]
+    restrictions?: string[]
+    activity_level?: 'low' | 'medium' | 'high'
+  }
+): Promise<any> => {
+  const { data: response } = await api.put<any>(`/api/clients/${client_id}`, data)
+  return response
+}
+
+export const deleteClient = async (client_id: string): Promise<void> => {
+  await api.delete<void>(`/api/clients/${client_id}`)
+}
+
+export const getClient = async (client_id: string): Promise<any> => {
+  const { data } = await api.get<any>(`/api/clients/${client_id}`)
   return data
 }
 
@@ -713,6 +785,39 @@ export const getTrainerWorkouts = async (params?: {
 
 export const getTrainerAvailability = async (trainer_id: string, date: string): Promise<any[]> => {
   const { data } = await api.get<any[]>(`/api/trainer/${trainer_id}/availability`, { params: { date } })
+  return data
+}
+
+// Finances API
+export const createPayment = async (data: {
+  client_id: string
+  amount: number
+  date: string
+  type: 'single' | 'package' | 'subscription'
+  package_size?: number
+  subscription_days?: number
+  notes?: string
+}): Promise<any> => {
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data: response } = await api.post<any>('/api/finances/', data)
+  return response
+}
+
+export const getPayments = async (params?: {
+  client_id?: string
+  start_date?: string
+  end_date?: string
+}): Promise<any[]> => {
+  const { data } = await api.get<any[]>('/api/finances/', { params })
+  return data
+}
+
+export const deletePayment = async (payment_id: string): Promise<void> => {
+  await api.delete<void>(`/api/finances/${payment_id}`)
+}
+
+export const getFinanceStats = async (): Promise<any> => {
+  const { data } = await api.get<any>('/api/finances/stats')
   return data
 }
 
@@ -755,7 +860,8 @@ export const createTrainerClientNote = async (
     content?: string
   }
 ): Promise<any> => {
-  const { data: response } = await api.post<any>(`/api/trainer/clients/${client_id}/notes`, data)
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data: response } = await api.post<any>(`/api/trainer/clients/${client_id}/notes/`, data)
   return response
 }
 
@@ -793,7 +899,8 @@ export const createWorkoutTemplate = async (data: {
     weight?: number
   }[]
 }): Promise<any> => {
-  const { data: response } = await api.post<any>('/api/library/workout-templates', data)
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data: response } = await api.post<any>('/api/library/workout-templates/', data)
   return response
 }
 
@@ -824,8 +931,51 @@ export const getExercises = async (params?: {
   search?: string
   muscle_group?: string
 }): Promise<any[]> => {
-  const { data } = await api.get<any[]>('/api/exercises', { params })
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data } = await api.get<any[]>('/api/exercises/', { params })
   return data
+}
+
+export const createExercise = async (data: {
+  name: string
+  description?: string
+  muscle_groups?: string
+  equipment?: string
+  difficulty?: string
+  starting_position?: string
+  execution_instructions?: string
+  video_url?: string
+  notes?: string
+  visibility?: 'all' | 'client' | 'trainer'
+  client_id?: string | null
+}): Promise<any> => {
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data: response } = await api.post<any>('/api/exercises/', data)
+  return response
+}
+
+export const updateExercise = async (
+  exercise_id: string,
+  data: {
+    name?: string
+    description?: string
+    muscle_groups?: string
+    equipment?: string
+    difficulty?: string
+    starting_position?: string
+    execution_instructions?: string
+    video_url?: string
+    notes?: string
+    visibility?: 'all' | 'client' | 'trainer'
+    client_id?: string | null
+  }
+): Promise<any> => {
+  const { data: response } = await api.put<any>(`/api/exercises/${exercise_id}`, data)
+  return response
+}
+
+export const deleteExercise = async (exercise_id: string): Promise<void> => {
+  await api.delete<void>(`/api/exercises/${exercise_id}`)
 }
 
 export const getExerciseTemplates = async (): Promise<any[]> => {
@@ -838,7 +988,8 @@ export const createExerciseTemplate = async (data: {
   description?: string
   muscle_group?: string
 }): Promise<any> => {
-  const { data: response } = await api.post<any>('/api/library/exercise-templates', data)
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const { data: response } = await api.post<any>('/api/library/exercise-templates/', data)
   return response
 }
 
@@ -910,11 +1061,19 @@ export const apiClient = {
   getNotes,
   getNote,
   getClients,
+  createClient,
+  updateClient,
+  deleteClient,
+  getClient,
   getClientDashboard,
   getClientMetrics,
   getClientProgram,
   getTrainerWorkouts,
   getTrainerAvailability,
+  createPayment,
+  getPayments,
+  deletePayment,
+  getFinanceStats,
   getTrainerFinanceStats,
   getTrainerClientWorkouts,
   getTrainerClientMetrics,
@@ -927,6 +1086,9 @@ export const apiClient = {
   updateWorkoutTemplate,
   deleteWorkoutTemplate,
   getExercises,
+  createExercise,
+  updateExercise,
+  deleteExercise,
   getExerciseTemplates,
   createExerciseTemplate,
   updateExerciseTemplate,
