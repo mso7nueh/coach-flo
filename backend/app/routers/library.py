@@ -82,7 +82,37 @@ def _check_template_access(template: models.WorkoutTemplate, current_user: model
         return template.trainer_id == current_user.trainer_id
 
 
-@router.post("/workout-templates/", response_model=WorkoutTemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/workout-templates/",
+    response_model=WorkoutTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать шаблон тренировки",
+    description="""
+    Создание шаблона тренировки (только для тренеров).
+    
+    Шаблон тренировки - это переиспользуемый набор упражнений, который можно применять при создании дней программ.
+    
+    **Параметры:**
+    - `title` - название шаблона (обязательное)
+    - `description` - описание тренировки
+    - `duration` - длительность тренировки в минутах
+    - `level` - уровень сложности: "beginner", "intermediate", "advanced"
+    - `goal` - цель тренировки: "weight_loss", "muscle_gain", "endurance", "flexibility", "general"
+    - `muscle_groups` - массив групп мышц
+    - `equipment` - массив необходимого оборудования
+    - `exercises` - массив упражнений с параметрами:
+      - `exercise_id` - ID упражнения из библиотеки (обязательное)
+      - `block_type` - тип блока: "warmup", "main", "cooldown" (обязательное)
+      - `sets` - количество подходов (обязательное)
+      - `reps` - количество повторений
+      - `duration` - длительность в минутах (если упражнение на время)
+      - `rest` - время отдыха в секундах
+      - `weight` - вес в кг
+      - `notes` - заметки к упражнению
+    
+    **Требуется аутентификация:** Да (JWT токен, только для тренеров)
+    """
+)
 async def create_workout_template(
     template: WorkoutTemplateCreate,
     current_user: models.User = Depends(get_current_active_user),
@@ -167,7 +197,27 @@ async def create_workout_template(
     )
 
 
-@router.get("/workout-templates", response_model=List[WorkoutTemplateResponse])
+@router.get(
+    "/workout-templates",
+    response_model=List[WorkoutTemplateResponse],
+    summary="Получить список шаблонов тренировок",
+    description="""
+    Получение списка шаблонов тренировок с фильтрацией.
+    
+    **Права доступа:**
+    - Тренеры видят только свои шаблоны
+    - Клиенты видят шаблоны своих тренеров
+    
+    **Параметры запроса:**
+    - `search` - поиск по названию
+    - `level` - фильтр по уровню: "beginner", "intermediate", "advanced"
+    - `goal` - фильтр по цели: "weight_loss", "muscle_gain", "endurance", "flexibility", "general"
+    - `muscle_group` - фильтр по группе мышц
+    - `equipment` - фильтр по оборудованию
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def get_workout_templates(
     search: Optional[str] = Query(None, description="Поиск по названию"),
     level: Optional[str] = Query(None, description="Фильтр по уровню"),
@@ -239,7 +289,20 @@ async def get_workout_templates(
     return result
 
 
-@router.get("/workout-templates/{template_id}", response_model=WorkoutTemplateResponse)
+@router.get(
+    "/workout-templates/{template_id}",
+    response_model=WorkoutTemplateResponse,
+    summary="Получить шаблон тренировки по ID",
+    description="""
+    Получение шаблона тренировки по ID.
+    
+    **Права доступа:**
+    - Тренер может получить доступ к своим шаблонам
+    - Клиент может получить доступ только к шаблонам своего тренера
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def get_workout_template(
     template_id: str,
     current_user: models.User = Depends(get_current_active_user),
@@ -287,7 +350,19 @@ async def get_workout_template(
     )
 
 
-@router.put("/workout-templates/{template_id}", response_model=WorkoutTemplateResponse)
+@router.put(
+    "/workout-templates/{template_id}",
+    response_model=WorkoutTemplateResponse,
+    summary="Обновить шаблон тренировки",
+    description="""
+    Обновление шаблона тренировки (только для тренеров, только свои шаблоны).
+    
+    Все поля опциональные (частичное обновление).
+    Если передается `exercises`, список упражнений полностью заменяется.
+    
+    **Требуется аутентификация:** Да (JWT токен, только для тренеров)
+    """
+)
 async def update_workout_template(
     template_id: str,
     template_update: WorkoutTemplateUpdate,
@@ -400,7 +475,16 @@ async def update_workout_template(
     )
 
 
-@router.delete("/workout-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/workout-templates/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить шаблон тренировки",
+    description="""
+    Удаление шаблона тренировки (только для тренеров, только свои шаблоны).
+    
+    **Требуется аутентификация:** Да (JWT токен, только для тренеров)
+    """
+)
 async def delete_workout_template(
     template_id: str,
     current_user: models.User = Depends(get_current_active_user),

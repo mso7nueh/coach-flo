@@ -25,7 +25,33 @@ class ExerciseUpdate(BaseModel):
     client_id: Optional[str] = None
 
 
-@router.post("/", response_model=schemas.ExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=schemas.ExerciseResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать упражнение",
+    description="""
+    Создание нового упражнения в библиотеке (только для тренеров).
+    
+    **Новые поля:**
+    - `starting_position` - исходное положение для выполнения упражнения
+    - `execution_instructions` - инструкция по выполнению упражнения (обязательное на фронтенде)
+    - `video_url` - ссылка на видео с техникой выполнения (YouTube, Vimeo, Rutube)
+    - `notes` - дополнительные заметки и рекомендации
+    - `visibility` - видимость упражнения:
+      - `"all"` - видно всем клиентам тренера (по умолчанию)
+      - `"client"` - видно только конкретному клиенту (требует `client_id`)
+      - `"trainer"` - видно только тренеру (не видно клиентам)
+    - `client_id` - ID клиента, для которого упражнение доступно (используется только если `visibility === "client"`)
+    
+    **Валидация:**
+    - Если `visibility='client'`, то `client_id` обязателен
+    - Если `visibility!='client'`, то `client_id` должен быть `NULL`
+    - Указанный `client_id` должен быть клиентом текущего тренера
+    
+    **Требуется аутентификация:** Да (JWT токен, только для тренеров)
+    """
+)
 async def create_exercise(
     exercise: schemas.ExerciseCreate,
     current_user: models.User = Depends(get_current_active_user),
@@ -80,7 +106,24 @@ async def create_exercise(
     return db_exercise
 
 
-@router.get("/", response_model=List[schemas.ExerciseResponse])
+@router.get(
+    "/",
+    response_model=List[schemas.ExerciseResponse],
+    summary="Получить список упражнений",
+    description="""
+    Получение списка упражнений с фильтрацией по видимости.
+    
+    **Фильтрация по видимости:**
+    - Если пользователь - тренер: возвращаются все его упражнения (включая с `visibility="trainer"`)
+    - Если пользователь - клиент: возвращаются только упражнения с `visibility="all"` или `visibility="client"` и `client_id` равен ID клиента
+    
+    **Параметры запроса:**
+    - `search` - поиск по названию упражнения
+    - `muscle_group` - фильтр по группе мышц
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def get_exercises(
     search: Optional[str] = Query(None, description="Поиск по названию"),
     muscle_group: Optional[str] = Query(None, description="Фильтр по группе мышц"),
@@ -148,7 +191,23 @@ async def get_exercise(
     return exercise
 
 
-@router.put("/{exercise_id}", response_model=schemas.ExerciseResponse)
+@router.put(
+    "/{exercise_id}",
+    response_model=schemas.ExerciseResponse,
+    summary="Обновить упражнение",
+    description="""
+    Обновление упражнения (только для тренеров, только свои упражнения).
+    
+    Все поля опциональные (частичное обновление).
+    
+    **Валидация:**
+    - Если обновляется `visibility='client'`, то `client_id` обязателен
+    - Если обновляется `visibility!='client'`, то `client_id` должен быть `NULL`
+    - Указанный `client_id` должен быть клиентом текущего тренера
+    
+    **Требуется аутентификация:** Да (JWT токен, только для тренеров)
+    """
+)
 async def update_exercise(
     exercise_id: str,
     exercise_update: ExerciseUpdate,

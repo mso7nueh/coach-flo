@@ -395,7 +395,24 @@ def _check_program_access(program: models.TrainingProgram, current_user: models.
         return program.user_id == current_user.id
 
 
-@router.put("/{program_id}/days/{day_id}", response_model=schemas.ProgramDayResponse)
+@router.put(
+    "/{program_id}/days/{day_id}",
+    response_model=schemas.ProgramDayResponse,
+    summary="Обновить день программы",
+    description="""
+    Обновление дня программы (переименование и изменение порядка).
+    
+    **Параметры:**
+    - `program_id` - ID программы
+    - `day_id` - ID дня программы
+    
+    **Права доступа:**
+    - Тренер может обновлять дни в своих программах и программах своих клиентов
+    - Клиент может обновлять дни только в своих программах
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def update_program_day(
     program_id: str,
     day_id: str,
@@ -435,7 +452,32 @@ async def update_program_day(
     return day
 
 
-@router.post("/{program_id}/days/{day_id}/blocks/{block_id}/exercises", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{program_id}/days/{day_id}/blocks/{block_id}/exercises",
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить упражнение в блок",
+    description="""
+    Добавление упражнения в блок дня программы.
+    
+    **Параметры:**
+    - `program_id` - ID программы
+    - `day_id` - ID дня программы
+    - `block_id` - ID блока дня программы
+    
+    **Формат данных:**
+    - `rest` передается как integer (секунды)
+    - `duration` передается как integer (минуты)
+    - `weight` передается как float (кг)
+    
+    В базе данных эти значения хранятся как строки с единицами измерения.
+    
+    **Права доступа:**
+    - Тренер может добавлять упражнения в дни своих программ и программ своих клиентов
+    - Клиент может добавлять упражнения в дни только своих программ
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def create_program_exercise(
     program_id: str,
     day_id: str,
@@ -506,7 +548,27 @@ async def create_program_exercise(
     return _exercise_to_numeric_response(db_exercise)
 
 
-@router.put("/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}")
+@router.put(
+    "/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}",
+    summary="Обновить упражнение в блоке",
+    description="""
+    Обновление упражнения в блоке дня программы.
+    
+    **Параметры:**
+    - `program_id` - ID программы
+    - `day_id` - ID дня программы
+    - `block_id` - ID блока дня программы
+    - `exercise_id` - ID упражнения
+    
+    Все поля опциональные (частичное обновление).
+    
+    **Права доступа:**
+    - Тренер может обновлять упражнения в днях своих программ и программ своих клиентов
+    - Клиент может обновлять упражнения в днях только своих программ
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def update_program_exercise(
     program_id: str,
     day_id: str,
@@ -560,7 +622,26 @@ async def update_program_exercise(
     return _exercise_to_numeric_response(exercise)
 
 
-@router.delete("/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить упражнение из блока",
+    description="""
+    Удаление упражнения из блока дня программы.
+    
+    **Параметры:**
+    - `program_id` - ID программы
+    - `day_id` - ID дня программы
+    - `block_id` - ID блока дня программы
+    - `exercise_id` - ID упражнения
+    
+    **Права доступа:**
+    - Тренер может удалять упражнения из дней своих программ и программ своих клиентов
+    - Клиент может удалять упражнения из дней только своих программ
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def delete_program_exercise(
     program_id: str,
     day_id: str,

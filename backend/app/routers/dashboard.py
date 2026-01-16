@@ -10,7 +10,63 @@ from typing import Optional
 router = APIRouter()
 
 
-@router.get("/stats", response_model=schemas.DashboardStats)
+@router.get(
+    "/stats",
+    response_model=schemas.DashboardStats,
+    summary="Статистика дашборда",
+    description="""
+    Получить статистику для дашборда пользователя.
+    
+    Возвращает:
+    - Общее количество тренировок за период
+    - Количество завершенных тренировок
+    - Процент посещаемости
+    - Количество тренировок на сегодня
+    - Ближайшую запланированную тренировку
+    - **Активную цель пользователя** (если есть) с дедлайном и прогрессом
+    - **Последние фото прогресса** (до 3 штук)
+    
+    **Параметры:**
+    - `period` - период для статистики тренировок (7d, 14d, 30d). По умолчанию 30d.
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """,
+    responses={
+        200: {
+            "description": "Статистика дашборда",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_workouts": 12,
+                        "completed_workouts": 10,
+                        "attendance_rate": 83.33,
+                        "today_workouts": 1,
+                        "next_workout": {
+                            "id": "uuid",
+                            "title": "Утренняя пробежка",
+                            "start": "2026-01-02T08:00:00Z",
+                            "end": "2026-01-02T09:00:00Z"
+                        },
+                        "goal": {
+                            "headline": "Пробежать марафон без остановки",
+                            "description": "Фокус на выносливости и контроле темпа",
+                            "milestone": "City2Surf 10km Challenge",
+                            "days_left": 35,
+                            "progress": 65
+                        },
+                        "progress_photos": [
+                            {
+                                "id": "uuid-1",
+                                "date": "2022-10-15T00:00:00Z",
+                                "url": "/uploads/photos/user123/photo1.jpg"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+)
 async def get_dashboard_stats(
     period: str = "30d",  # 7d, 14d, 30d
     current_user: models.User = Depends(get_current_active_user),

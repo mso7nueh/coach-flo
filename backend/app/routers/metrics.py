@@ -12,7 +12,24 @@ router = APIRouter()
 
 
 # Body Metrics
-@router.post("/body", response_model=schemas.BodyMetricResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/body",
+    response_model=schemas.BodyMetricResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать метрику тела",
+    description="""
+    Создание новой метрики тела для отслеживания прогресса.
+    
+    **Параметры:**
+    - `label` - название метрики (обязательное), например: "Вес", "Рост", "Процент жира"
+    - `unit` - единица измерения (обязательное), например: "кг", "см", "%"
+    - `target` - целевое значение метрики (опциональное)
+    
+    Метрика автоматически привязывается к текущему пользователю.
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def create_body_metric(
     metric: schemas.BodyMetricCreate,
     current_user: models.User = Depends(get_current_active_user),
@@ -144,7 +161,24 @@ async def get_body_metric_entries(
 
 
 # Exercise Metrics
-@router.post("/exercise", response_model=schemas.ExerciseMetricResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/exercise",
+    response_model=schemas.ExerciseMetricResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать метрику упражнения",
+    description="""
+    Создание новой метрики упражнения для отслеживания прогресса по конкретным упражнениям.
+    
+    **Параметры:**
+    - `label` - название упражнения (обязательное), например: "Жим лежа", "Приседания"
+    - `muscle_group` - группа мышц (опциональное), например: "Грудь", "Ноги", "Спина"
+    
+    Метрика автоматически привязывается к текущему пользователю.
+    После создания метрики можно добавлять записи (entries) с данными о весе, повторениях и подходах.
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
 async def create_exercise_metric(
     metric: schemas.ExerciseMetricCreate,
     current_user: models.User = Depends(get_current_active_user),
