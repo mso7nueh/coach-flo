@@ -35,6 +35,21 @@ class ProgramDayUpdate(BaseModel):
     order: Optional[int] = None
 
 
+class ProgramExerciseResponseNumeric(BaseModel):
+    id: str
+    block_id: str
+    title: str
+    sets: int
+    reps: Optional[int] = None
+    duration: Optional[int] = None  # minutes
+    rest: Optional[int] = None  # seconds
+    weight: Optional[float] = None  # kg
+    order: int
+
+    class Config:
+        from_attributes = True
+
+
 @router.post("/", response_model=schemas.TrainingProgramResponse, status_code=status.HTTP_201_CREATED)
 async def create_program(
     program: schemas.TrainingProgramCreate,
@@ -363,19 +378,19 @@ def _float_to_string(value: Optional[float], unit: str) -> Optional[str]:
     return f"{value} {unit}"
 
 
-def _exercise_to_numeric_response(exercise: models.ProgramExercise) -> dict:
+def _exercise_to_numeric_response(exercise: models.ProgramExercise) -> ProgramExerciseResponseNumeric:
     """Convert exercise from DB format to numeric API response"""
-    return {
-        "id": exercise.id,
-        "block_id": exercise.block_id,
-        "title": exercise.title,
-        "sets": exercise.sets,
-        "reps": exercise.reps,
-        "duration": _string_to_number(exercise.duration, "мин"),
-        "rest": _string_to_number(exercise.rest, "сек"),
-        "weight": _string_to_float(exercise.weight, "кг"),
-        "order": exercise.order
-    }
+    return ProgramExerciseResponseNumeric(
+        id=exercise.id,
+        block_id=exercise.block_id,
+        title=exercise.title,
+        sets=exercise.sets,
+        reps=exercise.reps,
+        duration=_string_to_number(exercise.duration, "мин"),
+        rest=_string_to_number(exercise.rest, "сек"),
+        weight=_string_to_float(exercise.weight, "кг"),
+        order=exercise.order
+    )
 
 
 def _check_program_access(program: models.TrainingProgram, current_user: models.User, db: Session) -> bool:
@@ -455,6 +470,7 @@ async def update_program_day(
 @router.post(
     "/{program_id}/days/{day_id}/blocks/{block_id}/exercises",
     status_code=status.HTTP_201_CREATED,
+    response_model=ProgramExerciseResponseNumeric,
     summary="Добавить упражнение в блок",
     description="""
     Добавление упражнения в блок дня программы.
@@ -550,6 +566,7 @@ async def create_program_exercise(
 
 @router.put(
     "/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}",
+    response_model=ProgramExerciseResponseNumeric,
     summary="Обновить упражнение в блоке",
     description="""
     Обновление упражнения в блоке дня программы.

@@ -416,6 +416,12 @@ class ExerciseBase(BaseModel):
     muscle_groups: Optional[str] = None
     equipment: Optional[str] = None
     difficulty: Optional[str] = None
+    starting_position: Optional[str] = None
+    execution_instructions: Optional[str] = None
+    video_url: Optional[str] = None
+    notes: Optional[str] = None
+    visibility: Optional[str] = 'all'  # 'all', 'client', 'trainer'
+    client_id: Optional[str] = None
 
 
 class ExerciseCreate(ExerciseBase):
