@@ -5,9 +5,24 @@ from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_active_user
 from typing import List, Optional
+from pydantic import BaseModel
 import uuid
 
 router = APIRouter()
+
+
+class ExerciseUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    muscle_groups: Optional[str] = None
+    equipment: Optional[str] = None
+    difficulty: Optional[str] = None
+    starting_position: Optional[str] = None
+    execution_instructions: Optional[str] = None
+    video_url: Optional[str] = None
+    notes: Optional[str] = None
+    visibility: Optional[str] = None
+    client_id: Optional[str] = None
 
 
 @router.post("/", response_model=schemas.ExerciseResponse, status_code=status.HTTP_201_CREATED)
@@ -20,15 +35,44 @@ async def create_exercise(
     if current_user.role != models.UserRole.TRAINER:
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать упражнения")
     
+    # Validate visibility and client_id
+    exercise_data = exercise.model_dump()
+    visibility = exercise_data.get("visibility", "all")
+    client_id = exercise_data.get("client_id")
+    
+    if visibility == "client" and not client_id:
+        raise HTTPException(status_code=400, detail="client_id обязателен, если visibility='client'")
+    
+    if visibility != "client" and client_id:
+        raise HTTPException(status_code=400, detail="client_id должен быть NULL, если visibility!='client'")
+    
+    # If visibility is 'client', verify client belongs to trainer
+    if visibility == "client" and client_id:
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == client_id,
+                models.User.trainer_id == current_user.id,
+                models.User.role == models.UserRole.CLIENT
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден или не принадлежит тренеру")
+    
     exercise_id = str(uuid.uuid4())
     db_exercise = models.Exercise(
         id=exercise_id,
         trainer_id=current_user.id,
-        name=exercise.name,
-        description=exercise.description,
-        muscle_groups=exercise.muscle_groups,
-        equipment=exercise.equipment,
-        difficulty=exercise.difficulty
+        name=exercise_data["name"],
+        description=exercise_data.get("description"),
+        muscle_groups=exercise_data.get("muscle_groups"),
+        equipment=exercise_data.get("equipment"),
+        difficulty=exercise_data.get("difficulty"),
+        starting_position=exercise_data.get("starting_position"),
+        execution_instructions=exercise_data.get("execution_instructions"),
+        video_url=exercise_data.get("video_url"),
+        notes=exercise_data.get("notes"),
+        visibility=visibility,
+        client_id=client_id if visibility == "client" else None
     )
     db.add(db_exercise)
     db.commit()
@@ -44,13 +88,26 @@ async def get_exercises(
     db: Session = Depends(get_db)
 ):
     """Получить список упражнений"""
-    # Показываем общие упражнения (trainer_id is null) и упражнения текущего тренера
-    query = db.query(models.Exercise).filter(
-        or_(
-            models.Exercise.trainer_id.is_(None),
+    # For trainers: show all their exercises (including visibility='trainer')
+    # For clients: show only exercises with visibility='all' or visibility='client' with their client_id
+    if current_user.role == models.UserRole.TRAINER:
+        query = db.query(models.Exercise).filter(
             models.Exercise.trainer_id == current_user.id
         )
-    )
+    else:
+        # Client can see: visibility='all' OR (visibility='client' AND client_id=current_user.id)
+        query = db.query(models.Exercise).filter(
+            or_(
+                and_(
+                    models.Exercise.visibility == "all",
+                    models.Exercise.trainer_id == current_user.trainer_id
+                ),
+                and_(
+                    models.Exercise.visibility == "client",
+                    models.Exercise.client_id == current_user.id
+                )
+            )
+        )
     
     if search:
         query = query.filter(models.Exercise.name.ilike(f"%{search}%"))
@@ -70,15 +127,23 @@ async def get_exercise(
 ):
     """Получить упражнение по ID"""
     exercise = db.query(models.Exercise).filter(
-        or_(
-            models.Exercise.trainer_id.is_(None),
-            models.Exercise.trainer_id == current_user.id
-        ),
         models.Exercise.id == exercise_id
     ).first()
     
     if not exercise:
         raise HTTPException(status_code=404, detail="Упражнение не найдено")
+    
+    # Check access based on visibility
+    if current_user.role == models.UserRole.TRAINER:
+        if exercise.trainer_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому упражнению")
+    else:
+        # Client can access if visibility='all' or visibility='client' with their client_id
+        if not (
+            (exercise.visibility == "all" and exercise.trainer_id == current_user.trainer_id) or
+            (exercise.visibility == "client" and exercise.client_id == current_user.id)
+        ):
+            raise HTTPException(status_code=403, detail="Нет доступа к этому упражнению")
     
     return exercise
 
@@ -86,7 +151,7 @@ async def get_exercise(
 @router.put("/{exercise_id}", response_model=schemas.ExerciseResponse)
 async def update_exercise(
     exercise_id: str,
-    exercise_update: schemas.ExerciseCreate,
+    exercise_update: ExerciseUpdate,
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -104,11 +169,53 @@ async def update_exercise(
     if not exercise:
         raise HTTPException(status_code=404, detail="Упражнение не найдено")
     
-    exercise.name = exercise_update.name
-    exercise.description = exercise_update.description
-    exercise.muscle_groups = exercise_update.muscle_groups
-    exercise.equipment = exercise_update.equipment
-    exercise.difficulty = exercise_update.difficulty
+    update_data = exercise_update.model_dump(exclude_unset=True)
+    
+    # Validate visibility and client_id if provided
+    visibility = update_data.get("visibility")
+    client_id = update_data.get("client_id")
+    
+    if visibility is not None:
+        if visibility == "client" and not client_id:
+            raise HTTPException(status_code=400, detail="client_id обязателен, если visibility='client'")
+        if visibility != "client" and client_id:
+            raise HTTPException(status_code=400, detail="client_id должен быть NULL, если visibility!='client'")
+        
+        # If visibility is 'client', verify client belongs to trainer
+        if visibility == "client" and client_id:
+            client = db.query(models.User).filter(
+                and_(
+                    models.User.id == client_id,
+                    models.User.trainer_id == current_user.id,
+                    models.User.role == models.UserRole.CLIENT
+                )
+            ).first()
+            if not client:
+                raise HTTPException(status_code=404, detail="Клиент не найден или не принадлежит тренеру")
+    
+    # Update fields
+    if "name" in update_data:
+        exercise.name = update_data["name"]
+    if "description" in update_data:
+        exercise.description = update_data.get("description")
+    if "muscle_groups" in update_data:
+        exercise.muscle_groups = update_data.get("muscle_groups")
+    if "equipment" in update_data:
+        exercise.equipment = update_data.get("equipment")
+    if "difficulty" in update_data:
+        exercise.difficulty = update_data.get("difficulty")
+    if "starting_position" in update_data:
+        exercise.starting_position = update_data.get("starting_position")
+    if "execution_instructions" in update_data:
+        exercise.execution_instructions = update_data.get("execution_instructions")
+    if "video_url" in update_data:
+        exercise.video_url = update_data.get("video_url")
+    if "notes" in update_data:
+        exercise.notes = update_data.get("notes")
+    if "visibility" in update_data:
+        exercise.visibility = update_data["visibility"]
+    if "client_id" in update_data:
+        exercise.client_id = update_data.get("client_id") if update_data.get("visibility") == "client" else None
     
     db.commit()
     db.refresh(exercise)

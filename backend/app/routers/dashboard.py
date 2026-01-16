@@ -5,6 +5,7 @@ from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_active_user
 from datetime import datetime, timedelta
+from typing import Optional
 
 router = APIRouter()
 
@@ -59,11 +60,41 @@ async def get_dashboard_stats(
         )
     ).order_by(models.Workout.start.asc()).first()
     
+    # Получаем активную цель пользователя (ближайшую по дате)
+    goal = None
+    user_goal = db.query(models.UserGoal).filter(
+        models.UserGoal.user_id == current_user.id
+    ).order_by(models.UserGoal.target_date.asc()).first()
+    
+    if user_goal:
+        days_left = (user_goal.target_date.date() - datetime.now().date()).days
+        if days_left >= 0:  # Только если дедлайн еще не прошел
+            goal = schemas.GoalResponse(
+                headline=user_goal.headline,
+                description=user_goal.description,
+                milestone=user_goal.milestone,
+                days_left=days_left,
+                progress=user_goal.progress
+            )
+    
+    # Получаем последние 2-3 фото прогресса
+    progress_photos = db.query(models.ProgressPhoto).filter(
+        models.ProgressPhoto.user_id == current_user.id
+    ).order_by(models.ProgressPhoto.date.desc()).limit(3).all()
+    
     return {
         "total_workouts": total_workouts,
         "completed_workouts": completed_workouts,
         "attendance_rate": round(attendance_rate, 2),
         "today_workouts": today_workouts,
-        "next_workout": next_workout if next_workout else None
+        "next_workout": next_workout if next_workout else None,
+        "goal": goal,
+        "progress_photos": [
+            schemas.ProgressPhotoResponse(
+                id=photo.id,
+                date=photo.date,
+                url=photo.url
+            ) for photo in progress_photos
+        ]
     }
 

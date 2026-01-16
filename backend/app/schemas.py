@@ -27,6 +27,7 @@ class UserResponse(UserBase):
     avatar: Optional[str] = None
     trainer_connection_code: Optional[str] = None
     phone_verified: bool
+    timezone: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -458,9 +459,31 @@ class TrainerNoteResponse(TrainerNoteBase):
 
 
 # Dashboard schemas
+class GoalResponse(BaseModel):
+    headline: str
+    description: str
+    milestone: str
+    days_left: int
+    progress: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProgressPhotoResponse(BaseModel):
+    id: str
+    date: datetime
+    url: str
+
+    class Config:
+        from_attributes = True
+
+
 class DashboardStats(BaseModel):
     total_workouts: int
     completed_workouts: int
     attendance_rate: float
     today_workouts: int
     next_workout: Optional[WorkoutResponse] = None
+    goal: Optional[GoalResponse] = None
+    progress_photos: List[ProgressPhotoResponse] = []

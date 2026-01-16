@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.routers import (
     auth, onboarding, users, workouts, programs, metrics,
-    nutrition, finances, clients, exercises, notes, dashboard, settings
+    nutrition, finances, clients, exercises, notes, dashboard, settings, library
 )
 import logging
 
@@ -145,6 +145,7 @@ app.include_router(exercises.router, prefix="/api/exercises", tags=["exercises"]
 app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(settings.router, prefix="/api/users/me/settings", tags=["settings"])
+app.include_router(library.router, prefix="/api/library", tags=["library"])
 
 
 @app.get("/")

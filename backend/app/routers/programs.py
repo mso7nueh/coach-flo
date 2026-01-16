@@ -5,9 +5,34 @@ from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_active_user
 from typing import List, Optional
+from pydantic import BaseModel
 import uuid
 
 router = APIRouter()
+
+
+# Request schemas for program exercises (numeric format)
+class ProgramExerciseCreateNumeric(BaseModel):
+    title: str
+    sets: int = 1
+    reps: Optional[int] = None
+    duration: Optional[int] = None  # minutes
+    rest: Optional[int] = None  # seconds
+    weight: Optional[float] = None  # kg
+
+
+class ProgramExerciseUpdateNumeric(BaseModel):
+    title: Optional[str] = None
+    sets: Optional[int] = None
+    reps: Optional[int] = None
+    duration: Optional[int] = None  # minutes
+    rest: Optional[int] = None  # seconds
+    weight: Optional[float] = None  # kg
+
+
+class ProgramDayUpdate(BaseModel):
+    name: Optional[str] = None
+    order: Optional[int] = None
 
 
 @router.post("/", response_model=schemas.TrainingProgramResponse, status_code=status.HTTP_201_CREATED)
@@ -302,3 +327,271 @@ async def delete_program(
     db.commit()
     return None
 
+
+# Helper functions for converting between string and numeric formats
+def _string_to_number(value: Optional[str], unit: str) -> Optional[int]:
+    """Convert string like '90 сек' to integer 90"""
+    if not value:
+        return None
+    try:
+        return int(value.replace(f" {unit}", "").strip())
+    except (ValueError, AttributeError):
+        return None
+
+
+def _number_to_string(value: Optional[int], unit: str) -> Optional[str]:
+    """Convert integer 90 to string '90 сек'"""
+    if value is None:
+        return None
+    return f"{value} {unit}"
+
+
+def _string_to_float(value: Optional[str], unit: str) -> Optional[float]:
+    """Convert string like '70 кг' to float 70.0"""
+    if not value:
+        return None
+    try:
+        return float(value.replace(f" {unit}", "").strip())
+    except (ValueError, AttributeError):
+        return None
+
+
+def _float_to_string(value: Optional[float], unit: str) -> Optional[str]:
+    """Convert float 70.0 to string '70 кг'"""
+    if value is None:
+        return None
+    return f"{value} {unit}"
+
+
+def _exercise_to_numeric_response(exercise: models.ProgramExercise) -> dict:
+    """Convert exercise from DB format to numeric API response"""
+    return {
+        "id": exercise.id,
+        "block_id": exercise.block_id,
+        "title": exercise.title,
+        "sets": exercise.sets,
+        "reps": exercise.reps,
+        "duration": _string_to_number(exercise.duration, "мин"),
+        "rest": _string_to_number(exercise.rest, "сек"),
+        "weight": _string_to_float(exercise.weight, "кг"),
+        "order": exercise.order
+    }
+
+
+def _check_program_access(program: models.TrainingProgram, current_user: models.User, db: Session) -> bool:
+    """Check if user has access to program"""
+    if current_user.role == models.UserRole.TRAINER:
+        if program.user_id == current_user.id:
+            return True
+        # Check if client belongs to trainer
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == program.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        return client is not None
+    else:
+        return program.user_id == current_user.id
+
+
+@router.put("/{program_id}/days/{day_id}", response_model=schemas.ProgramDayResponse)
+async def update_program_day(
+    program_id: str,
+    day_id: str,
+    day_update: ProgramDayUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновить день программы (переименование)"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    if not _check_program_access(program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    update_data = day_update.model_dump(exclude_unset=True)
+    if "name" in update_data:
+        day.name = update_data["name"]
+    if "order" in update_data:
+        day.order = update_data["order"]
+    
+    db.commit()
+    db.refresh(day)
+    return day
+
+
+@router.post("/{program_id}/days/{day_id}/blocks/{block_id}/exercises", status_code=status.HTTP_201_CREATED)
+async def create_program_exercise(
+    program_id: str,
+    day_id: str,
+    block_id: str,
+    exercise_data: ProgramExerciseCreateNumeric,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Добавление упражнения в блок дня программы"""
+    # Check program access
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    if not _check_program_access(program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    # Check day
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    # Check block
+    block = db.query(models.ProgramBlock).filter(
+        and_(
+            models.ProgramBlock.id == block_id,
+            models.ProgramBlock.day_id == day_id
+        )
+    ).first()
+    
+    if not block:
+        raise HTTPException(status_code=404, detail="Блок не найден")
+    
+    # Get max order
+    max_order = db.query(models.ProgramExercise).filter(
+        models.ProgramExercise.block_id == block_id
+    ).order_by(models.ProgramExercise.order.desc()).first()
+    
+    order = (max_order.order + 1) if max_order else 0
+    
+    # Create exercise
+    exercise_id = str(uuid.uuid4())
+    exercise_dict = exercise_data.model_dump()
+    db_exercise = models.ProgramExercise(
+        id=exercise_id,
+        block_id=block_id,
+        title=exercise_dict["title"],
+        sets=exercise_dict["sets"],
+        reps=exercise_dict.get("reps"),
+        duration=_number_to_string(exercise_dict.get("duration"), "мин"),
+        rest=_number_to_string(exercise_dict.get("rest"), "сек"),
+        weight=_float_to_string(exercise_dict.get("weight"), "кг"),
+        order=order
+    )
+    db.add(db_exercise)
+    db.commit()
+    db.refresh(db_exercise)
+    
+    return _exercise_to_numeric_response(db_exercise)
+
+
+@router.put("/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}")
+async def update_program_exercise(
+    program_id: str,
+    day_id: str,
+    block_id: str,
+    exercise_id: str,
+    exercise_update: ProgramExerciseUpdateNumeric,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновление упражнения в блоке дня программы"""
+    # Check program access
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    if not _check_program_access(program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    # Check exercise
+    exercise = db.query(models.ProgramExercise).filter(
+        and_(
+            models.ProgramExercise.id == exercise_id,
+            models.ProgramExercise.block_id == block_id
+        )
+    ).first()
+    
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Упражнение не найдено")
+    
+    # Update fields
+    update_data = exercise_update.model_dump(exclude_unset=True)
+    if "title" in update_data:
+        exercise.title = update_data["title"]
+    if "sets" in update_data:
+        exercise.sets = update_data["sets"]
+    if "reps" in update_data:
+        exercise.reps = update_data.get("reps")
+    if "duration" in update_data:
+        exercise.duration = _number_to_string(update_data.get("duration"), "мин")
+    if "rest" in update_data:
+        exercise.rest = _number_to_string(update_data.get("rest"), "сек")
+    if "weight" in update_data:
+        exercise.weight = _float_to_string(update_data.get("weight"), "кг")
+    
+    db.commit()
+    db.refresh(exercise)
+    
+    return _exercise_to_numeric_response(exercise)
+
+
+@router.delete("/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_program_exercise(
+    program_id: str,
+    day_id: str,
+    block_id: str,
+    exercise_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Удаление упражнения из блока дня программы"""
+    # Check program access
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    if not _check_program_access(program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    # Check exercise
+    exercise = db.query(models.ProgramExercise).filter(
+        and_(
+            models.ProgramExercise.id == exercise_id,
+            models.ProgramExercise.block_id == block_id
+        )
+    ).first()
+    
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Упражнение не найдено")
+    
+    db.delete(exercise)
+    db.commit()
+    return None
