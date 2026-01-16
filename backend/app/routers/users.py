@@ -62,17 +62,30 @@ async def get_current_user(
     db: Session = Depends(get_db)
 ):
     """Получить информацию о текущем пользователе"""
-    user_response = schemas.UserResponse.model_validate(current_user)
+    # Перезагружаем пользователя из БД, чтобы получить актуальные данные (включая trainer_id)
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    
+    user_response = schemas.UserResponse.model_validate(user)
     
     # Если это клиент и у него есть тренер, загружаем информацию о тренере
     trainer_response = None
-    if current_user.role == models.UserRole.CLIENT and current_user.trainer_id:
+    if user.role == models.UserRole.CLIENT and user.trainer_id:
         # Загружаем тренера из базы данных
         trainer = db.query(models.User).filter(
-            models.User.id == current_user.trainer_id
+            models.User.id == user.trainer_id
         ).first()
         if trainer:
             trainer_response = schemas.UserResponse.model_validate(trainer)
+        else:
+            # Если тренер не найден, но trainer_id установлен - очищаем его
+            # Это может произойти, если тренер был удален
+            user.trainer_id = None
+            db.commit()
+            db.refresh(user)
+            # Обновляем user_response после очистки trainer_id
+            user_response = schemas.UserResponse.model_validate(user)
     
     return schemas.UserWithTrainer(
         **user_response.model_dump(),
@@ -122,7 +135,18 @@ async def update_current_user(
     return schemas.UserResponse.model_validate(current_user)
 
 
-@router.post("/link-trainer", response_model=schemas.UserResponse)
+@router.post(
+    "/link-trainer",
+    response_model=schemas.UserWithTrainer,
+    summary="Связать клиента с тренером",
+    description="""
+    Связать клиента с тренером по коду подключения (только для клиентов).
+    
+    После успешной привязки возвращается информация о пользователе с данными тренера.
+    
+    **Требуется аутентификация:** Да (JWT токен, только для клиентов)
+    """
+)
 async def link_trainer(
     request: LinkTrainerRequest,
     current_user: models.User = Depends(get_current_active_user),
@@ -132,8 +156,26 @@ async def link_trainer(
     if current_user.role != models.UserRole.CLIENT:
         raise HTTPException(status_code=403, detail="Только клиенты могут связываться с тренерами")
     
-    if current_user.trainer_id:
-        raise HTTPException(status_code=400, detail="Клиент уже связан с тренером")
+    # Перезагружаем пользователя из БД, чтобы получить актуальные данные
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    
+    if user.trainer_id:
+        # Проверяем, что тренер действительно существует
+        existing_trainer = db.query(models.User).filter(
+            models.User.id == user.trainer_id
+        ).first()
+        if existing_trainer:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Клиент уже связан с тренером: {existing_trainer.full_name} (ID: {user.trainer_id})"
+            )
+        else:
+            # Если тренер не найден, но trainer_id установлен - очищаем его
+            user.trainer_id = None
+            db.commit()
+            db.refresh(user)
     
     # Ищем тренера по коду
     trainer = db.query(models.User).filter(
@@ -146,10 +188,29 @@ async def link_trainer(
     if not trainer:
         raise HTTPException(status_code=404, detail="Тренер с таким кодом не найден")
     
-    current_user.trainer_id = trainer.id
+    # Привязываем тренера
+    user.trainer_id = trainer.id
     db.commit()
-    db.refresh(current_user)
-    return schemas.UserResponse.model_validate(current_user)
+    # Обновляем объект из БД, чтобы убедиться, что изменения сохранены
+    db.refresh(user)
+    
+    # Проверяем, что trainer_id действительно сохранен
+    # Перезагружаем пользователя из БД для уверенности
+    updated_user = db.query(models.User).filter(
+        models.User.id == user.id
+    ).first()
+    
+    if not updated_user or updated_user.trainer_id != trainer.id:
+        raise HTTPException(status_code=500, detail="Ошибка при сохранении связи с тренером")
+    
+    # Формируем ответ с информацией о тренере
+    user_response = schemas.UserResponse.model_validate(updated_user)
+    trainer_response = schemas.UserResponse.model_validate(trainer)
+    
+    return schemas.UserWithTrainer(
+        **user_response.model_dump(),
+        trainer=trainer_response
+    )
 
 
 @router.post("/unlink-trainer", response_model=schemas.UserResponse)

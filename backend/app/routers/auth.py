@@ -334,6 +334,29 @@ async def register_step2(
     # Формируем ответ
     user_response = schemas.UserResponse.model_validate(user)
     
+    # Если это клиент и у него есть тренер, загружаем информацию о тренере
+    trainer_response = None
+    if user.role == models.UserRole.CLIENT and user.trainer_id:
+        trainer = db.query(models.User).filter(
+            models.User.id == user.trainer_id
+        ).first()
+        if trainer:
+            trainer_response = schemas.UserResponse.model_validate(trainer)
+    
+    # Используем UserWithTrainer для ответа, если есть тренер
+    if trainer_response:
+        user_with_trainer = schemas.UserWithTrainer(
+            **user_response.model_dump(),
+            trainer=trainer_response
+        )
+        # Возвращаем UserResponse, но фронтенд может запросить /api/users/me для получения тренера
+        # Или можно изменить схему RegisterResponse, но это может сломать фронтенд
+        return schemas.RegisterResponse(
+            token=access_token,
+            user=user_response,  # Пока возвращаем без тренера для совместимости
+            requires_onboarding=not user.onboarding_seen
+        )
+    
     return schemas.RegisterResponse(
         token=access_token,
         user=user_response,
@@ -400,6 +423,10 @@ async def login(
     )
     
     user_response = schemas.UserResponse.model_validate(user)
+    
+    # Если это клиент и у него есть тренер, загружаем информацию о тренере
+    # Но возвращаем только UserResponse для совместимости
+    # Фронтенд может запросить /api/users/me для получения полной информации с тренером
     
     return schemas.LoginResponse(
         token=access_token,

@@ -26,6 +26,7 @@ class User(Base):
     trainer_id = Column(String, ForeignKey("users.id"), nullable=True)
     phone_verified = Column(Boolean, default=False)
     notification_settings = Column(Text, nullable=True)  # JSON строка с настройками уведомлений
+    timezone = Column(String, nullable=True)  # Часовой пояс пользователя (IANA Time Zone Database)
     # Поля для клиентов (управляются тренером)
     client_format = Column(String, nullable=True)  # 'online', 'offline', 'both'
     workouts_package = Column(Integer, nullable=True)  # Количество тренировок в пакете
@@ -48,9 +49,12 @@ class User(Base):
     nutrition_entries = relationship("NutritionEntry", back_populates="user", lazy="select")
     payments_as_trainer = relationship("Payment", back_populates="trainer", lazy="select", foreign_keys="[Payment.trainer_id]")
     payments_as_client = relationship("Payment", back_populates="client", lazy="select", foreign_keys="[Payment.client_id]")
-    exercises = relationship("Exercise", back_populates="trainer", lazy="select")
+    exercises = relationship("Exercise", back_populates="trainer", lazy="select", foreign_keys="[Exercise.trainer_id]")
+    client_exercises = relationship("Exercise", back_populates="client", lazy="select", foreign_keys="[Exercise.client_id]")
     trainer_notes = relationship("TrainerNote", back_populates="trainer", lazy="select", foreign_keys="[TrainerNote.trainer_id]")
     client_notes = relationship("TrainerNote", back_populates="client", lazy="select", foreign_keys="[TrainerNote.client_id]")
+    user_goals = relationship("UserGoal", back_populates="user", lazy="select")
+    progress_photos = relationship("ProgressPhoto", back_populates="user", lazy="select")
 
 
 class SMSVerification(Base):
@@ -328,10 +332,17 @@ class Exercise(Base):
     muscle_groups = Column(String, nullable=True)  # comma-separated
     equipment = Column(String, nullable=True)
     difficulty = Column(String, nullable=True)  # beginner, intermediate, advanced
+    starting_position = Column(Text, nullable=True)
+    execution_instructions = Column(Text, nullable=True)
+    video_url = Column(String(500), nullable=True)
+    notes = Column(Text, nullable=True)
+    visibility = Column(String(20), default='all', nullable=False)  # 'all', 'client', 'trainer'
+    client_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    trainer = relationship("User")
+    trainer = relationship("User", foreign_keys=[trainer_id], back_populates="exercises")
+    client = relationship("User", foreign_keys=[client_id], back_populates="client_exercises")
 
 
 # Trainer Notes models
@@ -348,4 +359,73 @@ class TrainerNote(Base):
 
     trainer = relationship("User", foreign_keys=[trainer_id])
     client = relationship("User", foreign_keys=[client_id])
+
+
+# User Goals models
+class UserGoal(Base):
+    __tablename__ = "user_goals"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    headline = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    milestone = Column(String, nullable=False)
+    target_date = Column(DateTime(timezone=True), nullable=False)
+    progress = Column(Integer, nullable=True)  # 0-100
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", back_populates="user_goals")
+
+
+# Progress Photos models
+class ProgressPhoto(Base):
+    __tablename__ = "progress_photos"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    date = Column(DateTime(timezone=True), nullable=False, index=True)
+    url = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="progress_photos")
+
+
+# Workout Template models
+class WorkoutTemplate(Base):
+    __tablename__ = "workout_templates"
+
+    id = Column(String, primary_key=True, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    duration = Column(Integer, nullable=True)
+    level = Column(String(20), nullable=True)  # beginner, intermediate, advanced
+    goal = Column(String(20), nullable=True)  # weight_loss, muscle_gain, endurance, flexibility, general
+    muscle_groups = Column(Text, nullable=True)  # JSON array
+    equipment = Column(Text, nullable=True)  # JSON array
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    trainer = relationship("User", foreign_keys=[trainer_id])
+    exercises = relationship("WorkoutTemplateExercise", back_populates="template", cascade="all, delete-orphan", order_by="WorkoutTemplateExercise.order_index")
+
+
+class WorkoutTemplateExercise(Base):
+    __tablename__ = "workout_template_exercises"
+
+    id = Column(String, primary_key=True, index=True)
+    template_id = Column(String, ForeignKey("workout_templates.id"), nullable=False, index=True)
+    exercise_id = Column(String, ForeignKey("exercises.id"), nullable=False, index=True)
+    block_type = Column(String(20), nullable=False)  # 'warmup', 'main', 'cooldown'
+    sets = Column(Integer, nullable=False)
+    reps = Column(Integer, nullable=True)
+    duration = Column(Integer, nullable=True)  # minutes
+    rest = Column(Integer, nullable=True)  # seconds
+    weight = Column(Float, nullable=True)  # kg
+    notes = Column(Text, nullable=True)
+    order_index = Column(Integer, nullable=False)
+
+    template = relationship("WorkoutTemplate", back_populates="exercises")
+    exercise = relationship("Exercise")
 

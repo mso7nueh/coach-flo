@@ -1,0 +1,48 @@
+#!/bin/bash
+# Скрипт для применения миграции на VPS сервере в Docker
+
+set -e
+
+echo "🚀 Применение миграции базы данных..."
+
+# Проверка переменных окружения
+if [ -z "$POSTGRES_USER" ]; then
+    POSTGRES_USER="coachfit"
+fi
+
+if [ -z "$POSTGRES_DB" ]; then
+    POSTGRES_DB="coachfit"
+fi
+
+if [ -z "$POSTGRES_HOST" ]; then
+    POSTGRES_HOST="db"
+fi
+
+# Путь к файлу миграции
+MIGRATION_FILE="migrations/add_new_tables_and_fields.sql"
+
+echo "📋 Параметры подключения:"
+echo "   Host: $POSTGRES_HOST"
+echo "   Database: $POSTGRES_DB"
+echo "   User: $POSTGRES_USER"
+echo "   Migration file: $MIGRATION_FILE"
+
+# Ожидание готовности базы данных
+echo "⏳ Ожидание готовности базы данных..."
+until pg_isready -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+    echo "   База данных не готова, ждем..."
+    sleep 2
+done
+
+echo "✅ База данных готова"
+
+# Применение миграции
+echo "📝 Применение миграции..."
+PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$MIGRATION_FILE"
+
+if [ $? -eq 0 ]; then
+    echo "✅ Миграция успешно применена!"
+else
+    echo "❌ Ошибка при применении миграции"
+    exit 1
+fi

@@ -27,6 +27,7 @@ class UserResponse(UserBase):
     avatar: Optional[str] = None
     trainer_connection_code: Optional[str] = None
     phone_verified: bool
+    timezone: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -201,77 +202,21 @@ class ProgramExerciseBase(BaseModel):
     title: str
     sets: int = 1
     reps: Optional[int] = None
-    duration: Optional[int] = None
-    rest: Optional[int] = None
-    weight: Optional[float] = None
+    duration: Optional[str] = None
+    rest: Optional[str] = None
+    weight: Optional[str] = None
 
 
 class ProgramExerciseCreate(ProgramExerciseBase):
     pass
 
 
-class ProgramExerciseUpdate(BaseModel):
-    title: Optional[str] = None
-    sets: Optional[int] = None
-    reps: Optional[int] = None
-    duration: Optional[int] = None
-    rest: Optional[int] = None
-    weight: Optional[float] = None
-
-
-class ProgramExerciseResponse(BaseModel):
+class ProgramExerciseResponse(ProgramExerciseBase):
     id: str
-    title: str
-    sets: int
-    reps: Optional[int] = None
-    duration: Optional[int] = None
-    rest: Optional[int] = None
-    weight: Optional[float] = None
     order: int
-
-    @classmethod
-    def from_orm(cls, obj):
-        """Преобразует строковые значения из БД в числа для ответа API"""
-        duration = None
-        rest = None
-        weight = None
-        
-        if obj.duration:
-            # Извлекаем число из строки типа "8 мин"
-            try:
-                duration = int(obj.duration.replace(' мин', '').strip())
-            except (ValueError, AttributeError):
-                duration = None
-        
-        if obj.rest:
-            # Извлекаем число из строки типа "90 сек"
-            try:
-                rest = int(obj.rest.replace(' сек', '').strip())
-            except (ValueError, AttributeError):
-                rest = None
-        
-        if obj.weight:
-            # Извлекаем число из строки типа "70 кг"
-            try:
-                weight = float(obj.weight.replace(' кг', '').strip())
-            except (ValueError, AttributeError):
-                weight = None
-        
-        return cls(
-            id=obj.id,
-            title=obj.title,
-            sets=obj.sets,
-            reps=obj.reps,
-            duration=duration,
-            rest=rest,
-            weight=weight,
-            order=obj.order
-        )
 
     class Config:
         from_attributes = True
-        # Используем кастомный метод from_orm для преобразования данных
-        orm_mode = True
 
 
 class ProgramBlockBase(BaseModel):
@@ -299,11 +244,6 @@ class ProgramDayBase(BaseModel):
 
 class ProgramDayCreate(ProgramDayBase):
     source_template_id: Optional[str] = None
-
-
-class ProgramDayUpdate(BaseModel):
-    name: Optional[str] = None
-    order: Optional[int] = None
 
 
 class ProgramDayResponse(BaseModel):
@@ -476,6 +416,12 @@ class ExerciseBase(BaseModel):
     muscle_groups: Optional[str] = None
     equipment: Optional[str] = None
     difficulty: Optional[str] = None
+    starting_position: Optional[str] = None
+    execution_instructions: Optional[str] = None
+    video_url: Optional[str] = None
+    notes: Optional[str] = None
+    visibility: Optional[str] = 'all'  # 'all', 'client', 'trainer'
+    client_id: Optional[str] = None
 
 
 class ExerciseCreate(ExerciseBase):
@@ -519,9 +465,31 @@ class TrainerNoteResponse(TrainerNoteBase):
 
 
 # Dashboard schemas
+class GoalResponse(BaseModel):
+    headline: str
+    description: str
+    milestone: str
+    days_left: int
+    progress: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProgressPhotoResponse(BaseModel):
+    id: str
+    date: datetime
+    url: str
+
+    class Config:
+        from_attributes = True
+
+
 class DashboardStats(BaseModel):
     total_workouts: int
     completed_workouts: int
     attendance_rate: float
     today_workouts: int
     next_workout: Optional[WorkoutResponse] = None
+    goal: Optional[GoalResponse] = None
+    progress_photos: List[ProgressPhotoResponse] = []
