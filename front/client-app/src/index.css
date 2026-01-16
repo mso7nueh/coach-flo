@@ -19,7 +19,9 @@ body {
 }
 
 /* Плавные переходы для всех интерактивных элементов */
-a, button, [role="button"] {
+a,
+button,
+[role="button"] {
   transition: all 0.2s ease-in-out;
 }
 
@@ -48,6 +50,7 @@ a, button, [role="button"] {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -56,4 +59,20 @@ a, button, [role="button"] {
 
 .fade-in {
   animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Фиксированное позиционирование для уведомлений Mantine */
+[data-mantine-notifications],
+.mantine-Notifications-root,
+.mantine-Notifications-container {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+}
+
+[data-mantine-notification],
+.mantine-Notification-root {
+  pointer-events: auto !important;
 }

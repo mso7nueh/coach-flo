@@ -17,10 +17,12 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
-import { addPayment, removePayment, setSelectedClient } from '@/app/store/slices/financesSlice'
+import { setSelectedClient, fetchPayments, createPaymentApi, deletePaymentApi } from '@/app/store/slices/financesSlice'
 import { useDisclosure } from '@mantine/hooks'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useForm } from '@mantine/form'
+import { useLocation } from 'react-router-dom'
+import { notifications } from '@mantine/notifications'
 import { IconPlus, IconTrash, IconCurrencyRubel, IconCalendar } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { DateInput } from '@mantine/dates'
@@ -53,9 +55,23 @@ interface AddPaymentForm {
 export const FinancesPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
-    const { payments, selectedClientId } = useAppSelector((state) => state.finances)
+    const location = useLocation()
+    const { payments, selectedClientId, loading } = useAppSelector((state) => state.finances)
     const { clients } = useAppSelector((state) => state.clients)
     const [addModalOpened, { open: openAddModal, close: closeAddModal }] = useDisclosure(false)
+
+    // Загружаем платежи при монтировании компонента
+    useEffect(() => {
+        dispatch(fetchPayments())
+    }, [dispatch])
+
+    // Обрабатываем clientId из навигации (если переходим со страницы клиентов)
+    useEffect(() => {
+        const state = location.state as { clientId?: string } | null
+        if (state?.clientId) {
+            dispatch(setSelectedClient(state.clientId))
+        }
+    }, [location.state, dispatch])
 
     const form = useForm<AddPaymentForm>({
         initialValues: {
@@ -74,6 +90,13 @@ export const FinancesPage = () => {
         },
     })
 
+    // Обновляем форму при изменении selectedClientId
+    useEffect(() => {
+        if (selectedClientId) {
+            form.setFieldValue('clientId', selectedClientId)
+        }
+    }, [selectedClientId])
+
     const filteredPayments = useMemo(() => {
         if (selectedClientId) {
             return payments.filter((p) => p.clientId === selectedClientId)
@@ -81,29 +104,51 @@ export const FinancesPage = () => {
         return payments
     }, [payments, selectedClientId])
 
-    const handleAddPayment = (values: AddPaymentForm) => {
-        const paymentData: Omit<typeof payments[0], 'id'> = {
-            clientId: values.clientId,
-            amount: values.amount,
-            date: dayjs(values.date).format('YYYY-MM-DD'),
-            type: values.type,
-            packageSize: values.type === 'package' ? values.packageSize : undefined,
-            remainingSessions: values.type === 'package' ? values.packageSize : undefined,
-            subscriptionDays: values.type === 'subscription' ? values.subscriptionDays : undefined,
-            nextPaymentDate:
-                values.type === 'subscription' && values.subscriptionDays
-                    ? dayjs(values.date).add(values.subscriptionDays, 'day').format('YYYY-MM-DD')
-                    : undefined,
-            notes: values.notes,
+    const handleAddPayment = async (values: AddPaymentForm) => {
+        try {
+            await dispatch(
+                createPaymentApi({
+                    client_id: values.clientId,
+                    amount: values.amount,
+                    date: dayjs(values.date).toISOString(),
+                    type: values.type,
+                    package_size: values.type === 'package' ? values.packageSize : undefined,
+                    subscription_days: values.type === 'subscription' ? values.subscriptionDays : undefined,
+                    notes: values.notes || undefined,
+                })
+            ).unwrap()
+            notifications.show({
+                title: t('common.success'),
+                message: t('trainer.finances.paymentCreated'),
+                color: 'green',
+            })
+            form.reset()
+            closeAddModal()
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error || t('trainer.finances.error.createPayment'),
+                color: 'red',
+            })
         }
-        dispatch(addPayment(paymentData))
-        form.reset()
-        closeAddModal()
     }
 
-    const handleDeletePayment = (id: string) => {
+    const handleDeletePayment = async (id: string) => {
         if (confirm(t('common.delete') + '?')) {
-            dispatch(removePayment(id))
+            try {
+                await dispatch(deletePaymentApi(id)).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.finances.paymentDeleted'),
+                    color: 'green',
+                })
+            } catch (error: any) {
+                notifications.show({
+                    title: t('common.error'),
+                    message: error || t('trainer.finances.error.deletePayment'),
+                    color: 'red',
+                })
+            }
         }
     }
 

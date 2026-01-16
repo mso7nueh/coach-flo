@@ -33,27 +33,29 @@ import {
   IconBooks,
 } from '@tabler/icons-react'
 import dayjs from 'dayjs'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
-  addProgramDay,
-  addProgram,
-  addExercise,
-  deleteProgramDay,
-  duplicateProgramDay,
-  removeExercise,
-  reorderDays,
-  renameProgramDay,
+  createProgram,
+  createProgramDay,
+  fetchPrograms,
+  fetchProgramDays,
+  updateProgramDay,
+  deleteProgramDayApi,
+  addExerciseToProgramDayApi,
+  updateExerciseInProgramDayApi,
+  removeExerciseFromProgramDayApi,
   selectProgram,
   selectProgramDay,
-  updateExercise,
+  reorderDays,
   type ProgramExercise,
   type ProgramBlockInput,
 } from '@/app/store/slices/programSlice'
-import { scheduleWorkout } from '@/app/store/slices/calendarSlice'
+import { createWorkout } from '@/app/store/slices/calendarSlice'
 import type { WorkoutTemplate, Exercise, WorkoutExercise } from '@/app/store/slices/librarySlice'
+import { notifications } from '@mantine/notifications'
 
 interface AssignForm {
   dayId: string
@@ -140,24 +142,51 @@ export const ProgramPage = () => {
   const canEditSelectedDay = Boolean(selectedDay && (role === 'trainer' || selectedDay.owner === 'client'))
   const canManageDay = (dayOwner: 'trainer' | 'client') => role === 'trainer' || dayOwner === 'client'
 
+  // Загружаем программы при открытии страницы
+  useEffect(() => {
+    dispatch(fetchPrograms())
+  }, [dispatch])
+
+  // Загружаем дни программы при выборе программы
+  useEffect(() => {
+    if (selectedProgramId) {
+      dispatch(fetchProgramDays(selectedProgramId))
+    }
+  }, [dispatch, selectedProgramId])
+
   const handleDayClick = (dayId: string) => {
     dispatch(selectProgramDay(dayId))
   }
 
   const resolveProgramId = () => selectedProgramId ?? programs[0]?.id ?? null
 
-  const handleAddProgram = () => {
+  const handleAddProgram = async () => {
     const owner = isTrainer ? 'trainer' : 'client'
     const ownerProgramsCount = programs.filter((program) => program.owner === owner).length + 1
     const defaultTitle =
       owner === 'trainer' ? `${t('program.newProgramTrainer')} ${ownerProgramsCount}` : t('program.newProgramClient', { count: ownerProgramsCount })
-    dispatch(addProgram({ title: defaultTitle, owner }))
+    try {
+      await dispatch(createProgram({ title: defaultTitle, owner })).unwrap()
+      // Перезагружаем список программ после создания
+      await dispatch(fetchPrograms())
+      notifications.show({
+        title: t('common.success'),
+        message: t('program.programCreated'),
+        color: 'green',
+      })
+    } catch (error: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: error || t('program.error.createProgram'),
+        color: 'red',
+      })
+    }
   }
 
-  const handleAddDay = () => {
+  const handleAddDay = async () => {
     let targetProgramId = resolveProgramId()
     if (!targetProgramId) {
-      handleAddProgram()
+      await handleAddProgram()
       targetProgramId = resolveProgramId()
       if (!targetProgramId) {
         return
@@ -165,18 +194,33 @@ export const ProgramPage = () => {
     }
     const trainingsCount = days.filter((day) => day.programId === targetProgramId).length + 1
     const defaultName = t('program.trainingName', { count: trainingsCount })
-    dispatch(
-      addProgramDay({
-        name: defaultName,
-        programId: targetProgramId,
-      }),
-    )
+    try {
+      await dispatch(
+        createProgramDay({
+          name: defaultName,
+          programId: targetProgramId,
+        })
+      ).unwrap()
+      // Перезагружаем дни программы после создания
+      await dispatch(fetchProgramDays(targetProgramId))
+      notifications.show({
+        title: t('common.success'),
+        message: t('program.dayCreated'),
+        color: 'green',
+      })
+    } catch (error: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: error || t('program.error.createDay'),
+        color: 'red',
+      })
+    }
   }
 
-  const handleAddDayFromTemplate = (template: WorkoutTemplate) => {
+  const handleAddDayFromTemplate = async (template: WorkoutTemplate) => {
     let targetProgramId = resolveProgramId()
     if (!targetProgramId) {
-      handleAddProgram()
+      await handleAddProgram()
       targetProgramId = resolveProgramId()
       if (!targetProgramId) {
         return
@@ -210,15 +254,23 @@ export const ProgramPage = () => {
         exercises: template.cooldown.map(toProgramExercise),
       },
     ]
-    dispatch(
-      addProgramDay({
-        name: template.name,
-        programId: targetProgramId,
-        blocks,
-        sourceTemplateId: template.id,
-      }),
-    )
-    closeTemplatePicker()
+    try {
+      await dispatch(
+        createProgramDay({
+          name: template.name,
+          programId: targetProgramId,
+          blocks,
+          sourceTemplateId: template.id,
+        })
+      ).unwrap()
+      closeTemplatePicker()
+    } catch (error: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: error || t('program.error.createDay'),
+        color: 'red',
+      })
+    }
   }
 
   const handleOpenExerciseLibrary = (blockId: string) => {
@@ -232,26 +284,42 @@ export const ProgramPage = () => {
     openExerciseLibrary()
   }
 
-  const handleSelectExerciseFromLibrary = (exercise: Exercise) => {
+  const handleSelectExerciseFromLibrary = async (exercise: Exercise) => {
     if (!selectedDay || !exerciseLibraryTargetBlock) {
       return
     }
-    dispatch(
-      addExercise({
-        dayId: selectedDay.id,
-        blockId: exerciseLibraryTargetBlock,
-        exercise: {
-          title: exercise.name,
-          sets: 3,
-          reps: 10,
-          duration: undefined,
-          rest: undefined,
-          weight: undefined,
-        },
-      }),
-    )
-    setExerciseLibraryTargetBlock(null)
-    closeExerciseLibrary()
+    try {
+      await dispatch(
+        addExerciseToProgramDayApi({
+          programId: selectedDay.programId,
+          dayId: selectedDay.id,
+          blockId: exerciseLibraryTargetBlock,
+          exercise: {
+            title: exercise.name,
+            sets: 3,
+            reps: 10,
+            duration: undefined,
+            rest: undefined,
+            weight: undefined,
+          },
+        })
+      ).unwrap()
+      // Перезагружаем дни программы после добавления упражнения
+      await dispatch(fetchProgramDays(selectedDay.programId))
+      setExerciseLibraryTargetBlock(null)
+      closeExerciseLibrary()
+      notifications.show({
+        title: t('common.success'),
+        message: t('program.exerciseAdded'),
+        color: 'green',
+      })
+    } catch (error: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: error || t('program.error.addExercise'),
+        color: 'red',
+      })
+    }
   }
 
   const handleCloseExerciseLibrary = () => {
@@ -259,10 +327,31 @@ export const ProgramPage = () => {
     closeExerciseLibrary()
   }
 
-  const handleRename = () => {
-    if (selectedDay) {
-      dispatch(renameProgramDay({ id: selectedDay.id, name: renameDraft }))
-      closeRename()
+  const handleRename = async () => {
+    if (selectedDay && renameDraft.trim()) {
+      try {
+        await dispatch(
+          updateProgramDay({
+            programId: selectedDay.programId,
+            dayId: selectedDay.id,
+            data: { name: renameDraft },
+          })
+        ).unwrap()
+        // Перезагружаем дни программы после переименования
+        await dispatch(fetchProgramDays(selectedDay.programId))
+        closeRename()
+        notifications.show({
+          title: t('common.success'),
+          message: t('program.dayRenamed'),
+          color: 'green',
+        })
+      } catch (error: any) {
+        notifications.show({
+          title: t('common.error'),
+          message: error || t('program.error.renameDay'),
+          color: 'red',
+        })
+      }
     }
   }
 
@@ -275,14 +364,12 @@ export const ProgramPage = () => {
         .hour(Number(assignForm.endTime.split(':')[0]))
         .minute(Number(assignForm.endTime.split(':')[1]))
       dispatch(
-        scheduleWorkout({
+        createWorkout({
           title: selectedDay.name,
           start: start.toISOString(),
           end: end.toISOString(),
-          attendance: 'scheduled',
           programDayId: selectedDay.id,
           location: t('calendar.defaultLocation'),
-          withTrainer: Boolean(trainerInfo),
           trainerId: trainerInfo?.id,
           format: trainerInfo ? 'offline' : 'online',
         }),
@@ -291,8 +378,8 @@ export const ProgramPage = () => {
     }
   }
 
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) {
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination || !selectedProgramId) {
       return
     }
     const sourceDay = programTrainings[result.source.index]
@@ -300,7 +387,38 @@ export const ProgramPage = () => {
     if (!sourceDay || !destinationDay) {
       return
     }
+    // Обновляем порядок локально для быстрого отклика
     dispatch(reorderDays({ from: result.source.index, to: result.destination.index }))
+    
+    // Обновляем порядок через API для каждого дня программы
+    const reorderedDays = [...programTrainings]
+    const [moved] = reorderedDays.splice(result.source.index, 1)
+    reorderedDays.splice(result.destination.index, 0, moved)
+    
+    // Обновляем порядок каждого дня через API
+    try {
+      await Promise.all(
+        reorderedDays.map((day, index) =>
+          dispatch(
+            updateProgramDay({
+              programId: selectedProgramId,
+              dayId: day.id,
+              data: { order: index },
+            })
+          ).unwrap()
+        )
+      )
+      // Перезагружаем дни программы после изменения порядка
+      await dispatch(fetchProgramDays(selectedProgramId))
+    } catch (error: any) {
+      // В случае ошибки перезагружаем дни программы
+      dispatch(fetchProgramDays(selectedProgramId))
+      notifications.show({
+        title: t('common.error'),
+        message: error || t('program.error.reorderDays'),
+        color: 'red',
+      })
+    }
   }
 
   const handleEditExercise = (exercise: ProgramExercise, blockId: string) => {
@@ -335,50 +453,97 @@ export const ProgramPage = () => {
     openExerciseModal()
   }
 
-  const handleDeleteExercise = (exerciseId: string, blockId: string) => {
+  const handleDeleteExercise = async (exerciseId: string, blockId: string) => {
     if (!selectedDay) {
       return
     }
     if (!(role === 'trainer' || selectedDay.owner === 'client')) {
       return
     }
-    dispatch(removeExercise({ dayId: selectedDay.id, blockId, exerciseId }))
+    try {
+      await dispatch(
+        removeExerciseFromProgramDayApi({
+          programId: selectedDay.programId,
+          dayId: selectedDay.id,
+          blockId,
+          exerciseId,
+        })
+      ).unwrap()
+      // Перезагружаем дни программы после удаления упражнения
+      await dispatch(fetchProgramDays(selectedDay.programId))
+      notifications.show({
+        title: t('common.success'),
+        message: t('program.exerciseDeleted'),
+        color: 'green',
+      })
+    } catch (error: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: error || t('program.error.deleteExercise'),
+        color: 'red',
+      })
+    }
   }
 
-  const handleSaveExercise = () => {
+  const handleSaveExercise = async () => {
     if (selectedDay && editingExercise && exerciseForm.title.trim()) {
       if (!(role === 'trainer' || selectedDay.owner === 'client')) {
         return
       }
-      if (editingExercise.exercise) {
-        // Обновляем существующее упражнение
-        dispatch(
-          updateExercise({
-            dayId: selectedDay.id,
-            blockId: editingExercise.blockId,
-            exercise: { ...editingExercise.exercise, ...exerciseForm },
-          }),
-        )
-      } else {
-        // Добавляем новое упражнение
-        dispatch(
-          addExercise({
-            dayId: selectedDay.id,
-            blockId: editingExercise.blockId,
-            exercise: exerciseForm,
-          }),
-        )
+      try {
+        if (editingExercise.exercise) {
+          // Обновляем существующее упражнение
+          await dispatch(
+            updateExerciseInProgramDayApi({
+              programId: selectedDay.programId,
+              dayId: selectedDay.id,
+              blockId: editingExercise.blockId,
+              exerciseId: editingExercise.exercise.id,
+              exercise: { ...editingExercise.exercise, ...exerciseForm },
+            })
+          ).unwrap()
+          // Перезагружаем дни программы после обновления упражнения
+          await dispatch(fetchProgramDays(selectedDay.programId))
+          notifications.show({
+            title: t('common.success'),
+            message: t('program.exerciseUpdated'),
+            color: 'green',
+          })
+        } else {
+          // Добавляем новое упражнение
+          await dispatch(
+            addExerciseToProgramDayApi({
+              programId: selectedDay.programId,
+              dayId: selectedDay.id,
+              blockId: editingExercise.blockId,
+              exercise: exerciseForm,
+            })
+          ).unwrap()
+          // Перезагружаем дни программы после добавления упражнения
+          await dispatch(fetchProgramDays(selectedDay.programId))
+          notifications.show({
+            title: t('common.success'),
+            message: t('program.exerciseAdded'),
+            color: 'green',
+          })
+        }
+        closeExerciseModal()
+        setEditingExercise(null)
+        setExerciseForm({
+          title: '',
+          sets: 3,
+          reps: undefined,
+          duration: undefined,
+          rest: undefined,
+          weight: undefined,
+        })
+      } catch (error: any) {
+        notifications.show({
+          title: t('common.error'),
+          message: error || t('program.error.saveExercise'),
+          color: 'red',
+        })
       }
-      closeExerciseModal()
-      setEditingExercise(null)
-      setExerciseForm({
-        title: '',
-        sets: 3,
-        reps: undefined,
-        duration: undefined,
-        rest: undefined,
-        weight: undefined,
-      })
     }
   }
 
@@ -404,9 +569,44 @@ export const ProgramPage = () => {
     }
   }
 
-  const handleCopyDay = () => {
+  const handleCopyDay = async () => {
     if (selectedDay && (role === 'trainer' || selectedDay.owner === 'client')) {
-      dispatch(duplicateProgramDay(selectedDay.id))
+      try {
+        // Создаем новый день с теми же блоками и упражнениями
+        const blocks: ProgramBlockInput[] = selectedDay.blocks.map(block => ({
+          type: block.type,
+          title: block.title,
+          exercises: block.exercises.map(ex => ({
+            title: ex.title,
+            sets: ex.sets,
+            reps: ex.reps,
+            duration: ex.duration,
+            rest: ex.rest,
+            weight: ex.weight,
+          })),
+        }))
+        await dispatch(
+          createProgramDay({
+            name: `${selectedDay.name} (копия)`,
+            programId: selectedDay.programId,
+            blocks,
+            sourceTemplateId: selectedDay.sourceTemplateId,
+          })
+        ).unwrap()
+        // Перезагружаем дни программы после копирования
+        await dispatch(fetchProgramDays(selectedDay.programId))
+        notifications.show({
+          title: t('common.success'),
+          message: t('program.dayDuplicated'),
+          color: 'green',
+        })
+      } catch (error: any) {
+        notifications.show({
+          title: t('common.error'),
+          message: error || t('program.error.duplicateDay'),
+          color: 'red',
+        })
+      }
     }
   }
 
@@ -601,11 +801,45 @@ export const ProgramPage = () => {
                                   <Menu.Item
                                     leftSection={<IconCopy size={16} />}
                                     disabled={!canEditThisDay}
-                                    onClick={() => {
+                                    onClick={async () => {
                                       if (!canEditThisDay) {
                                         return
                                       }
-                                      dispatch(duplicateProgramDay(day.id))
+                                      try {
+                                        const blocks: ProgramBlockInput[] = day.blocks.map(block => ({
+                                          type: block.type,
+                                          title: block.title,
+                                          exercises: block.exercises.map(ex => ({
+                                            title: ex.title,
+                                            sets: ex.sets,
+                                            reps: ex.reps,
+                                            duration: ex.duration,
+                                            rest: ex.rest,
+                                            weight: ex.weight,
+                                          })),
+                                        }))
+                                        await dispatch(
+                                          createProgramDay({
+                                            name: `${day.name} (копия)`,
+                                            programId: day.programId,
+                                            blocks,
+                                            sourceTemplateId: day.sourceTemplateId,
+                                          })
+                                        ).unwrap()
+                                        // Перезагружаем дни программы после копирования
+                                        await dispatch(fetchProgramDays(day.programId))
+                                        notifications.show({
+                                          title: t('common.success'),
+                                          message: t('program.dayDuplicated'),
+                                          color: 'green',
+                                        })
+                                      } catch (error: any) {
+                                        notifications.show({
+                                          title: t('common.error'),
+                                          message: error || t('program.error.duplicateDay'),
+                                          color: 'red',
+                                        })
+                                      }
                                     }}
                                   >
                                     {t('common.duplicate')}
@@ -614,11 +848,33 @@ export const ProgramPage = () => {
                                     leftSection={<IconTrash size={16} />}
                                     color="red"
                                     disabled={!canEditThisDay}
-                                    onClick={() => {
+                                    onClick={async () => {
                                       if (!canEditThisDay) {
                                         return
                                       }
-                                      dispatch(deleteProgramDay(day.id))
+                                      if (confirm(t('common.delete') + '?')) {
+                                        try {
+                                          await dispatch(
+                                            deleteProgramDayApi({
+                                              programId: day.programId,
+                                              dayId: day.id,
+                                            })
+                                          ).unwrap()
+                                          // Перезагружаем дни программы после удаления
+                                          await dispatch(fetchProgramDays(day.programId))
+                                          notifications.show({
+                                            title: t('common.success'),
+                                            message: t('program.dayDeleted'),
+                                            color: 'green',
+                                          })
+                                        } catch (error: any) {
+                                          notifications.show({
+                                            title: t('common.error'),
+                                            message: error || t('program.error.deleteDay'),
+                                            color: 'red',
+                                          })
+                                        }
+                                      }
                                     }}
                                   >
                                     {t('common.delete')}
@@ -803,7 +1059,7 @@ export const ProgramPage = () => {
                                     <Group gap={4}>
                                       <IconClock size={14} color="var(--mantine-color-gray-6)" />
                                       <Text size="xs" c="dimmed">
-                                        {t('program.rest')}: {exercise.rest}
+                                        {exercise.rest}
                                       </Text>
                                     </Group>
                                   )}
@@ -1032,7 +1288,7 @@ export const ProgramPage = () => {
             <NumberInput
               label={t('program.reps')}
               value={exerciseForm.reps || undefined}
-              onChange={(value) => setExerciseForm((state) => ({ ...state, reps: value ? Number(value) : undefined, duration: undefined }))}
+              onChange={(value) => setExerciseForm((state) => ({ ...state, reps: value ? Number(value) : undefined }))}
               min={1}
               placeholder={t('program.repsPlaceholder')}
             />
@@ -1043,19 +1299,20 @@ export const ProgramPage = () => {
               placeholder={t('program.durationPlaceholder')}
               value={exerciseForm.duration || ''}
               onChange={(event) => {
-                const value = event.currentTarget.value
-                setExerciseForm((state) => ({
-                  ...state,
-                  duration: value || undefined,
-                  reps: value ? undefined : state.reps,
-                }))
+                if (event && event.currentTarget) {
+                  const value = event.currentTarget.value
+                  setExerciseForm((state) => ({
+                    ...state,
+                    duration: value || undefined,
+                  }))
+                }
               }}
             />
             <NumberInput
               label={t('program.rest')}
               placeholder={t('program.restPlaceholder')}
-              value={exerciseForm.rest ? Number(exerciseForm.rest) : undefined}
-              onChange={(value) => setExerciseForm((state) => ({ ...state, rest: value ? String(value) : undefined }))}
+              value={exerciseForm.rest ? Number(exerciseForm.rest.replace(/\s*сек\s*/g, '')) || undefined : undefined}
+              onChange={(value) => setExerciseForm((state) => ({ ...state, rest: value ? `${value} ${t('program.secondsShort')}` : undefined }))}
               min={0}
               rightSection={<Text size="xs">сек</Text>}
             />
@@ -1064,7 +1321,12 @@ export const ProgramPage = () => {
             label={t('program.weight')}
             placeholder={t('program.weightPlaceholder')}
             value={exerciseForm.weight || ''}
-            onChange={(event) => setExerciseForm((state) => ({ ...state, weight: event.currentTarget.value || undefined }))}
+            onChange={(event) => {
+              if (event && event.currentTarget) {
+                const value = event.currentTarget.value
+                setExerciseForm((state) => ({ ...state, weight: value || undefined }))
+              }
+            }}
           />
           <Group justify="flex-end">
             <Button variant="default" onClick={handleCloseExerciseModal}>

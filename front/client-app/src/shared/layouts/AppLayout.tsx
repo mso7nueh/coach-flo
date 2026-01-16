@@ -1,4 +1,4 @@
-import { AppShell, Avatar, Burger, Divider, Group, Menu, SegmentedControl, Stack, Text, UnstyledButton } from '@mantine/core'
+import { AppShell, Avatar, Burger, Divider, Group, Menu, SegmentedControl, Stack, Text, UnstyledButton, Box } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -76,7 +76,7 @@ export const AppLayout = () => {
                     ? { width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }
                     : { width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }
             }
-            padding={{ base: 'md', sm: 'lg' }}
+            padding={0}
         >
             <AppShell.Header>
                 <Group justify="space-between" px="md" h="100%">
@@ -303,11 +303,17 @@ export const AppLayout = () => {
             </AppShell.Navbar>
             <AppShell.Main
                 style={{
-                    paddingTop: `${headerHeight + 16}px`,
-                    minHeight: `calc(100vh - ${headerHeight + 16}px)`,
+                    paddingTop: location.pathname === '/onboarding' ? `${headerHeight}px` : `${headerHeight}px`,
+                    minHeight: location.pathname === '/onboarding' ? '100vh' : `calc(100vh - ${headerHeight}px)`,
                 }}
             >
-                <Outlet />
+                {location.pathname === '/onboarding' ? (
+                    <Outlet />
+                ) : (
+                    <Box p="lg" style={{ height: '100%' }}>
+                        <Outlet />
+                    </Box>
+                )}
             </AppShell.Main>
         </AppShell>
     )

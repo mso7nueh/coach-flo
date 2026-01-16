@@ -2,7 +2,7 @@ import { Avatar, Badge, Button, Card, Group, Stack, Text, Title, TextInput, Aler
 import { useTranslation } from 'react-i18next'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { linkTrainer, unlinkTrainer } from '@/app/store/slices/userSlice'
+import { linkTrainerApi, unlinkTrainerApi } from '@/app/store/slices/userSlice'
 import { IconMail, IconPhone, IconUserEdit, IconCopy, IconCheck } from '@tabler/icons-react'
 import { NavLink } from 'react-router-dom'
 import { useState } from 'react'
@@ -161,9 +161,13 @@ export const ProfilePage = () => {
                                 variant="outline"
                                 color="red"
                                 size="xs"
-                                onClick={() => {
-                                    dispatch(unlinkTrainer())
-                                    setTrainerMessage(t('profile.trainerRemoved'))
+                                onClick={async () => {
+                                    try {
+                                        await dispatch(unlinkTrainerApi()).unwrap()
+                                        setTrainerMessage(t('profile.trainerRemoved'))
+                                    } catch (error) {
+                                        setTrainerMessage(error instanceof Error ? error.message : t('profile.error'))
+                                    }
                                 }}
                             >
                                 {t('profile.removeTrainer')}
@@ -194,11 +198,16 @@ export const ProfilePage = () => {
                                 style={{ flex: 1 }}
                             />
                             <Button
-                                onClick={() => {
+                                onClick={async () => {
                                     const code = trainerCode.trim()
                                     if (!code) return
-                                    dispatch(linkTrainer({ connectionCode: code }))
-                                    setTrainerMessage(t('profile.trainerConnected'))
+                                    try {
+                                        await dispatch(linkTrainerApi(code)).unwrap()
+                                        setTrainerMessage(t('profile.trainerConnected'))
+                                        setTrainerCode('') // Очищаем поле после успешного связывания
+                                    } catch (error) {
+                                        setTrainerMessage(error instanceof Error ? error.message : t('profile.error'))
+                                    }
                                 }}
                             >
                                 {t('profile.addTrainer')}

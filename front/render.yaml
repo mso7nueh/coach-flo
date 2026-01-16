@@ -4,4 +4,7 @@ services:
     buildCommand: cd client-app && npm install && npm run build
     staticPublishPath: ./client-app/dist
     pullRequestPreviewsEnabled: false
+    envVars:
+      - key: VITE_API_URL
+        value: http://147.45.143.221:8000
 

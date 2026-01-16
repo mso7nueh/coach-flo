@@ -1,4 +1,6 @@
-import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, nanoid, type PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
+import { apiClient } from '@/shared/api/client'
+import type { TrainingProgram as ApiTrainingProgram, ProgramDay as ApiProgramDay } from '@/shared/api/client'
 
 export type ProgramBlockType = 'warmup' | 'main' | 'cooldown'
 
@@ -42,6 +44,8 @@ interface ProgramState {
   days: ProgramDay[]
   selectedProgramId: string | null
   selectedDayId: string | null
+  loading: boolean
+  error: string | null
 }
 
 export interface ProgramBlockInput {
@@ -50,201 +54,272 @@ export interface ProgramBlockInput {
   exercises: Array<Omit<ProgramExercise, 'id'>>
 }
 
-const warmupBlock: ProgramBlock = {
-  id: nanoid(),
-  type: 'warmup',
-  title: 'Разминка',
-  exercises: [
-    {
-      id: nanoid(),
-      title: 'Беговая дорожка',
-      duration: '8 мин',
-      sets: 1,
-    },
-    {
-      id: nanoid(),
-      title: 'Мобилизация плеч',
-      duration: '5 мин',
-      sets: 1,
-    },
-  ],
-}
-
-const mainBlock: ProgramBlock = {
-  id: nanoid(),
-  type: 'main',
-  title: 'Основная часть',
-  exercises: [
-    {
-      id: nanoid(),
-      title: 'Приседания со штангой',
-      sets: 4,
-      reps: 8,
-      rest: '90 сек',
-      weight: '70 кг',
-    },
-    {
-      id: nanoid(),
-      title: 'Жим лёжа',
-      sets: 4,
-      reps: 6,
-      rest: '120 сек',
-      weight: '80 кг',
-    },
-    {
-      id: nanoid(),
-      title: 'Тяга верхнего блока',
-      sets: 3,
-      reps: 10,
-      rest: '75 сек',
-      weight: '55 кг',
-    },
-  ],
-}
-
-const cooldownBlock: ProgramBlock = {
-  id: nanoid(),
-  type: 'cooldown',
-  title: 'Заминка',
-  exercises: [
-    {
-      id: nanoid(),
-      title: 'Растяжка ног',
-      duration: '5 мин',
-      sets: 1,
-    },
-    {
-      id: nanoid(),
-      title: 'Дыхательные упражнения',
-      duration: '3 мин',
-      sets: 1,
-    },
-  ],
-}
-
-const samplePrograms: TrainingProgram[] = [
-  {
-    id: 'program-1',
-    title: 'Сила и выносливость',
-    owner: 'trainer',
-  },
-  {
-    id: 'program-2',
-    title: 'Моя программа',
-    owner: 'client',
-  },
-]
-
-const sampleDays: ProgramDay[] = [
-  {
-    id: 'day-1',
-    name: 'День 1. Ноги и грудь',
-    order: 0,
-    blocks: [warmupBlock, mainBlock, cooldownBlock],
-    owner: 'trainer',
-    programId: 'program-1',
-  },
-  {
-    id: 'day-2',
-    name: 'День 2. Спина и плечи',
-    order: 1,
-    blocks: [
-      {
-        ...warmupBlock,
-        id: nanoid(),
-        exercises: warmupBlock.exercises.map((exercise) => ({ ...exercise, id: nanoid() })),
-      },
-      {
-        ...mainBlock,
-        id: nanoid(),
-        exercises: [
-          {
-            id: nanoid(),
-            title: 'Тяга в наклоне',
-            sets: 4,
-            reps: 8,
-            rest: '90 сек',
-            weight: '65 кг',
-          },
-          {
-            id: nanoid(),
-            title: 'Жим стоя',
-            sets: 4,
-            reps: 6,
-            rest: '120 сек',
-            weight: '45 кг',
-          },
-          {
-            id: nanoid(),
-            title: 'Подтягивания',
-            sets: 3,
-            reps: 8,
-            rest: '90 сек',
-            weight: 'с весом',
-          },
-        ],
-      },
-      {
-        ...cooldownBlock,
-        id: nanoid(),
-        exercises: cooldownBlock.exercises.map((exercise) => ({ ...exercise, id: nanoid() })),
-      },
-    ],
-    owner: 'trainer',
-    programId: 'program-1',
-  },
-  {
-    id: 'day-3',
-    name: 'День 3. Кардио и стабилизация',
-    order: 0,
-    blocks: [
-      {
-        ...warmupBlock,
-        id: nanoid(),
-        exercises: warmupBlock.exercises.map((exercise) => ({ ...exercise, id: nanoid() })),
-      },
-      {
-        id: nanoid(),
-        type: 'main',
-        title: 'Основная часть',
-        exercises: [
-          {
-            id: nanoid(),
-            title: 'Интервальный бег',
-            duration: '20 мин',
-            sets: 1,
-          },
-          {
-            id: nanoid(),
-            title: 'Планка',
-            duration: '3x60 сек',
-            sets: 3,
-          },
-          {
-            id: nanoid(),
-            title: 'Русские скручивания',
-            sets: 3,
-            reps: 16,
-          },
-        ],
-      },
-      {
-        ...cooldownBlock,
-        id: nanoid(),
-        exercises: cooldownBlock.exercises.map((exercise) => ({ ...exercise, id: nanoid() })),
-      },
-    ],
-    owner: 'trainer',
-    programId: 'program-2',
-  },
-]
-
 const initialState: ProgramState = {
-  programs: samplePrograms,
-  days: sampleDays,
-  selectedProgramId: samplePrograms[0]?.id ?? null,
-  selectedDayId: sampleDays[0]?.id ?? null,
+  programs: [],
+  days: [],
+  selectedProgramId: null,
+  selectedDayId: null,
+  loading: false,
+  error: null,
 }
+
+// Маппинг API ProgramDay в локальный формат
+const mapApiProgramDayToState = (apiDay: ApiProgramDay, programId: string): ProgramDay => {
+  return {
+    id: apiDay.id,
+    name: apiDay.name,
+    order: apiDay.order ?? 0,
+    blocks: (apiDay.blocks || []).map((block) => ({
+      id: block.id || nanoid(),
+      type: block.type as ProgramBlockType,
+      title: block.title,
+      exercises: (block.exercises || []).map((ex) => ({
+        id: ex.id || nanoid(),
+        title: ex.title,
+        sets: ex.sets || 0,
+        reps: ex.reps || undefined,
+        duration: ex.duration || undefined,
+        rest: ex.rest || undefined,
+        weight: ex.weight || undefined,
+      })),
+    })),
+    notes: apiDay.notes || undefined,
+    owner: (apiDay.owner || 'trainer') as 'trainer' | 'client',
+    sourceTemplateId: apiDay.source_template_id || undefined,
+    programId,
+  }
+}
+
+// Маппинг API TrainingProgram в локальный формат
+const mapApiProgramToState = (apiProgram: ApiTrainingProgram): TrainingProgram => {
+  return {
+    id: apiProgram.id,
+    title: apiProgram.title,
+    description: apiProgram.description || undefined,
+    owner: (apiProgram.owner || 'trainer') as 'trainer' | 'client',
+  }
+}
+
+export const createProgram = createAsyncThunk(
+  'program/createProgram',
+  async (data: { title: string; description?: string; owner: 'trainer' | 'client' }, { rejectWithValue }) => {
+    try {
+      const program = await apiClient.createProgram({ title: data.title, description: data.description })
+      // Добавляем owner из данных, так как API не возвращает owner напрямую
+      return { ...mapApiProgramToState(program), owner: data.owner }
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка создания программы')
+    }
+  }
+)
+
+export const fetchPrograms = createAsyncThunk(
+  'program/fetchPrograms',
+  async (user_id: string | undefined, { rejectWithValue }) => {
+    try {
+      const programs = await apiClient.getPrograms(user_id)
+      return programs.map(mapApiProgramToState)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка загрузки программ')
+    }
+  }
+)
+
+export const fetchProgramDays = createAsyncThunk(
+  'program/fetchProgramDays',
+  async (programId: string, { rejectWithValue }) => {
+    try {
+      const days = await apiClient.getProgramDays(programId)
+      return days.map(day => mapApiProgramDayToState(day, programId))
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка загрузки дней программы')
+    }
+  }
+)
+
+export const updateProgram = createAsyncThunk(
+  'program/updateProgram',
+  async (
+    { id, data }: { id: string; data: { title?: string; description?: string } },
+    { rejectWithValue }
+  ) => {
+    try {
+      const program = await apiClient.updateProgram(id, data)
+      return mapApiProgramToState(program)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка обновления программы')
+    }
+  }
+)
+
+export const deleteProgram = createAsyncThunk(
+  'program/deleteProgram',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await apiClient.deleteProgram(id)
+      return id
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка удаления программы')
+    }
+  }
+)
+
+export const createProgramDay = createAsyncThunk(
+  'program/createProgramDay',
+  async (
+    data: {
+      programId: string
+      name: string
+      notes?: string
+      blocks?: ProgramBlockInput[]
+      sourceTemplateId?: string
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const apiBlocks = data.blocks?.map(block => ({
+        type: block.type,
+        title: block.title,
+        exercises: block.exercises.map(ex => ({
+          title: ex.title,
+          sets: ex.sets || null,
+          reps: ex.reps || null,
+          weight: ex.weight || null,
+          duration: ex.duration || null,
+          rest: ex.rest || null,
+        })),
+      })) || [
+        { type: 'warmup' as const, title: 'Разминка', exercises: [] },
+        { type: 'main' as const, title: 'Основная часть', exercises: [] },
+        { type: 'cooldown' as const, title: 'Заминка', exercises: [] },
+      ]
+
+      const day = await apiClient.createProgramDay(data.programId, {
+        name: data.name,
+        notes: data.notes,
+        blocks: apiBlocks,
+        source_template_id: data.sourceTemplateId,
+      })
+      return { day: mapApiProgramDayToState(day, data.programId), programId: data.programId }
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка создания дня программы')
+    }
+  }
+)
+
+export const updateProgramDay = createAsyncThunk(
+  'program/updateProgramDay',
+  async (
+    { programId, dayId, data }: { programId: string; dayId: string; data: { name?: string; order?: number } },
+    { rejectWithValue }
+  ) => {
+    try {
+      const day = await apiClient.updateProgramDay(programId, dayId, data)
+      return mapApiProgramDayToState(day, programId)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка обновления дня программы')
+    }
+  }
+)
+
+export const deleteProgramDayApi = createAsyncThunk(
+  'program/deleteProgramDayApi',
+  async ({ programId, dayId }: { programId: string; dayId: string }, { rejectWithValue }) => {
+    try {
+      await apiClient.deleteProgramDay(programId, dayId)
+      return dayId
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка удаления дня программы')
+    }
+  }
+)
+
+export const addExerciseToProgramDayApi = createAsyncThunk(
+  'program/addExerciseToProgramDayApi',
+  async (
+    {
+      programId,
+      dayId,
+      blockId,
+      exercise,
+    }: {
+      programId: string
+      dayId: string
+      blockId: string
+      exercise: Omit<ProgramExercise, 'id'>
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      await apiClient.addExerciseToProgramDay(programId, dayId, blockId, {
+        title: exercise.title,
+        sets: exercise.sets,
+        reps: exercise.reps ? parseInt(String(exercise.reps)) : undefined,
+        weight: exercise.weight ? parseFloat(String(exercise.weight)) : undefined,
+        duration: exercise.duration ? parseInt(String(exercise.duration).replace(/\s*мин\s*/g, '')) || undefined : undefined,
+        rest: exercise.rest ? parseInt(String(exercise.rest).replace(/\s*сек\s*/g, '')) || undefined : undefined,
+      })
+      // После добавления упражнения нужно перезагрузить день программы
+      const day = await apiClient.getProgramDay(programId, dayId)
+      return mapApiProgramDayToState(day, programId)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка добавления упражнения')
+    }
+  }
+)
+
+export const updateExerciseInProgramDayApi = createAsyncThunk(
+  'program/updateExerciseInProgramDayApi',
+  async (
+    {
+      programId,
+      dayId,
+      blockId,
+      exerciseId,
+      exercise,
+    }: {
+      programId: string
+      dayId: string
+      blockId: string
+      exerciseId: string
+      exercise: ProgramExercise
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      await apiClient.updateExerciseInProgramDay(programId, dayId, blockId, exerciseId, {
+        title: exercise.title,
+        sets: exercise.sets,
+        reps: exercise.reps ? parseInt(String(exercise.reps)) : undefined,
+        weight: exercise.weight ? parseFloat(String(exercise.weight)) : undefined,
+        duration: exercise.duration ? parseInt(String(exercise.duration).replace(/\s*мин\s*/g, '')) || undefined : undefined,
+        rest: exercise.rest ? parseInt(String(exercise.rest).replace(/\s*сек\s*/g, '')) || undefined : undefined,
+      })
+      // После обновления упражнения нужно перезагрузить день программы
+      const day = await apiClient.getProgramDay(programId, dayId)
+      return mapApiProgramDayToState(day, programId)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка обновления упражнения')
+    }
+  }
+)
+
+export const removeExerciseFromProgramDayApi = createAsyncThunk(
+  'program/removeExerciseFromProgramDayApi',
+  async (
+    { programId, dayId, blockId, exerciseId }: { programId: string; dayId: string; blockId: string; exerciseId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      await apiClient.removeExerciseFromProgramDay(programId, dayId, blockId, exerciseId)
+      // После удаления упражнения нужно перезагрузить день программы
+      const day = await apiClient.getProgramDay(programId, dayId)
+      return mapApiProgramDayToState(day, programId)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка удаления упражнения')
+    }
+  }
+)
 
 const programSlice = createSlice({
   name: 'program',
@@ -410,6 +485,197 @@ const programSlice = createSlice({
         }
       })
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchPrograms.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(fetchPrograms.fulfilled, (state, action) => {
+        state.loading = false
+        state.programs = action.payload
+        // Автоматически выбираем первую программу, если нет выбранной
+        if (!state.selectedProgramId && action.payload.length > 0) {
+          state.selectedProgramId = action.payload[0].id
+        }
+      })
+      .addCase(fetchPrograms.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(fetchProgramDays.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(fetchProgramDays.fulfilled, (state, action) => {
+        state.loading = false
+        // Обновляем дни для программы, удаляя старые и добавляя новые
+        state.days = state.days.filter(d => d.programId !== action.meta.arg)
+        state.days.push(...action.payload)
+        // Автоматически выбираем первый день, если нет выбранного
+        if (!state.selectedDayId && action.payload.length > 0) {
+          state.selectedDayId = action.payload[0].id
+        }
+      })
+      .addCase(fetchProgramDays.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(createProgram.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(createProgram.fulfilled, (state, action) => {
+        state.loading = false
+        state.programs.push(action.payload)
+        state.selectedProgramId = action.payload.id
+        state.selectedDayId = null
+      })
+      .addCase(createProgram.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(updateProgram.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(updateProgram.fulfilled, (state, action) => {
+        state.loading = false
+        const index = state.programs.findIndex(p => p.id === action.payload.id)
+        if (index >= 0) {
+          state.programs[index] = action.payload
+        }
+      })
+      .addCase(updateProgram.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(deleteProgram.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(deleteProgram.fulfilled, (state, action) => {
+        state.loading = false
+        state.programs = state.programs.filter(p => p.id !== action.payload)
+        state.days = state.days.filter(d => d.programId !== action.payload)
+        // Если удалили выбранную программу, выбираем первую доступную
+        if (state.selectedProgramId === action.payload) {
+          state.selectedProgramId = state.programs.length > 0 ? state.programs[0].id : null
+          state.selectedDayId = null
+        }
+      })
+      .addCase(deleteProgram.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(createProgramDay.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(createProgramDay.fulfilled, (state, action) => {
+        state.loading = false
+        const existingIndex = state.days.findIndex(d => d.id === action.payload.day.id)
+        if (existingIndex >= 0) {
+          state.days[existingIndex] = action.payload.day
+        } else {
+          state.days.push(action.payload.day)
+        }
+        state.selectedDayId = action.payload.day.id
+        state.selectedProgramId = action.payload.programId
+      })
+      .addCase(createProgramDay.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(updateProgramDay.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(updateProgramDay.fulfilled, (state, action) => {
+        state.loading = false
+        const index = state.days.findIndex(d => d.id === action.payload.id)
+        if (index >= 0) {
+          state.days[index] = action.payload
+        }
+      })
+      .addCase(updateProgramDay.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(deleteProgramDayApi.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(deleteProgramDayApi.fulfilled, (state, action) => {
+        state.loading = false
+        const target = state.days.find((item) => item.id === action.payload)
+        if (target) {
+          state.days = state.days.filter((item) => item.id !== action.payload)
+          const reordered = state.days
+            .filter((day) => day.programId === target.programId)
+            .sort((a, b) => a.order - b.order)
+            .map((day, index) => ({ ...day, order: index }))
+          state.days = [
+            ...state.days.filter((day) => day.programId !== target.programId),
+            ...reordered,
+          ]
+          if (state.selectedDayId === action.payload) {
+            const nextDay = reordered[0]
+            state.selectedDayId = nextDay?.id ?? null
+            state.selectedProgramId = nextDay?.programId ?? state.programs[0]?.id ?? null
+          }
+        }
+      })
+      .addCase(deleteProgramDayApi.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(addExerciseToProgramDayApi.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(addExerciseToProgramDayApi.fulfilled, (state, action) => {
+        state.loading = false
+        const index = state.days.findIndex(d => d.id === action.payload.id)
+        if (index >= 0) {
+          state.days[index] = action.payload
+        }
+      })
+      .addCase(addExerciseToProgramDayApi.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(updateExerciseInProgramDayApi.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(updateExerciseInProgramDayApi.fulfilled, (state, action) => {
+        state.loading = false
+        const index = state.days.findIndex(d => d.id === action.payload.id)
+        if (index >= 0) {
+          state.days[index] = action.payload
+        }
+      })
+      .addCase(updateExerciseInProgramDayApi.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(removeExerciseFromProgramDayApi.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(removeExerciseFromProgramDayApi.fulfilled, (state, action) => {
+        state.loading = false
+        const index = state.days.findIndex(d => d.id === action.payload.id)
+        if (index >= 0) {
+          state.days[index] = action.payload
+        }
+      })
+      .addCase(removeExerciseFromProgramDayApi.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
   },
 })
 

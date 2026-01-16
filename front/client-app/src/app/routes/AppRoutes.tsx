@@ -1,8 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/shared/layouts/AppLayout'
 import { ProtectedRoute } from '@/shared/components/ProtectedRoute'
+import { OnboardingRouteGuard } from '@/shared/components/OnboardingRouteGuard'
+import { OnboardingGuard } from '@/shared/components/OnboardingGuard'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
+import { OnboardingPage } from '@/pages/client/onboarding/OnboardingPage'
 import { DashboardPage } from '@/pages/client/dashboard/DashboardPage'
 import { CalendarPage } from '@/pages/client/calendar/CalendarPage'
 import { ProgramPage } from '@/pages/client/program/ProgramPage'
@@ -11,8 +14,6 @@ import { NutritionPage } from '@/pages/client/nutrition/NutritionPage'
 import { ProfilePage } from '@/pages/client/profile/ProfilePage'
 import { EditProfilePage } from '@/pages/client/profile/EditProfilePage'
 import { SettingsPage } from '@/pages/client/settings/SettingsPage'
-import { OnboardingPage } from '@/pages/client/onboarding/OnboardingPage'
-import { OnboardingGuard } from '@/shared/components/OnboardingGuard'
 import { ClientsPage } from '@/pages/trainer/clients/ClientsPage'
 import { ClientDashboardPage } from '@/pages/trainer/clients/ClientDashboardPage'
 import { ClientMetricsPage } from '@/pages/trainer/clients/ClientMetricsPage'
@@ -40,7 +41,14 @@ export const AppRoutes = () => (
             }
         >
             <Route index element={<DefaultRedirect />} />
-            <Route path="onboarding" element={<OnboardingPage />} />
+            <Route
+                path="onboarding"
+                element={
+                    <OnboardingRouteGuard>
+                        <OnboardingPage />
+                    </OnboardingRouteGuard>
+                }
+            />
             <Route
                 path="dashboard"
                 element={

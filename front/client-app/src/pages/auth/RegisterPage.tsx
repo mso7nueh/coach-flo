@@ -3,16 +3,16 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { register, type RegisterData } from '@/app/store/slices/userSlice'
-import { nanoid } from '@reduxjs/toolkit'
+import { registerUserStep1, registerUserStep2, sendSMS, type RegisterData } from '@/app/store/slices/userSlice'
 import { useState, useEffect } from 'react'
 import { IconPhone, IconCheck, IconRefresh, IconInfoCircle } from '@tabler/icons-react'
+import { notifications } from '@mantine/notifications'
 import type { UserRole } from '@/app/store/slices/userSlice'
 
 const formatPhoneNumber = (value: string): string => {
     const cleaned = value.replace(/\D/g, '')
     if (cleaned.length === 0) return ''
-    
+
     let digits = cleaned
     if (digits.startsWith('7')) {
         digits = digits.slice(1)
@@ -41,9 +41,9 @@ export const RegisterPage = () => {
     const trainerCodeFromUrl = searchParams.get('code')
     const [phoneVerificationStep, setPhoneVerificationStep] = useState<'input' | 'verify'>('input')
     const [smsCode, setSmsCode] = useState('')
-    const [generatedCode, setGeneratedCode] = useState('')
     const [canResend, setCanResend] = useState(false)
     const [resendTimer, setResendTimer] = useState(60)
+    const [loading, setLoading] = useState(false)
 
     const form = useForm<RegisterData>({
         initialValues: {
@@ -82,81 +82,106 @@ export const RegisterPage = () => {
         form.setFieldValue('phone', formatted)
     }
 
-    const handleSendCode = () => {
+    const handleSendCode = async () => {
         if (!form.values.phone || !validatePhoneNumber(form.values.phone)) {
             form.setFieldError('phone', t('auth.phoneInvalid'))
             return
         }
-        const code = Math.floor(1000 + Math.random() * 9000).toString()
-        setGeneratedCode(code)
-        console.log('SMS Code:', code)
-        setPhoneVerificationStep('verify')
-        setCanResend(false)
-        setResendTimer(60)
+
+        setLoading(true)
+        try {
+            await dispatch(registerUserStep1({
+                full_name: form.values.fullName,
+                email: form.values.email,
+                password: form.values.password,
+                phone: form.values.phone!,
+                role: form.values.role || 'client',
+                trainer_code: form.values.trainerCode,
+            })).unwrap()
+
+            setPhoneVerificationStep('verify')
+            setCanResend(false)
+            setResendTimer(60)
+            notifications.show({
+                title: t('auth.codeSent'),
+                message: t('auth.codeSentTo') + ' ' + form.values.phone,
+                color: 'blue',
+            })
+        } catch (error) {
+            notifications.show({
+                title: t('auth.error'),
+                message: error instanceof Error ? error.message : t('auth.errorGeneric'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const handleResendCode = () => {
-        handleSendCode()
+    const handleResendCode = async () => {
+        if (!form.values.phone || !validatePhoneNumber(form.values.phone)) {
+            return
+        }
+
+        setLoading(true)
+        try {
+            await dispatch(sendSMS(form.values.phone!)).unwrap()
+
+            setCanResend(false)
+            setResendTimer(60)
+            notifications.show({
+                title: t('auth.codeSent'),
+                message: t('auth.codeSentTo') + ' ' + form.values.phone,
+                color: 'blue',
+            })
+        } catch (error) {
+            notifications.show({
+                title: t('auth.error'),
+                message: error instanceof Error ? error.message : t('auth.errorGeneric'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const handleVerifyCode = () => {
+    const handleVerifyCode = async () => {
         if (smsCode.length !== 4) {
             return
         }
-        if (smsCode !== generatedCode) {
-            return
+
+        setLoading(true)
+        try {
+            const result = await dispatch(registerUserStep2({
+                phone: form.values.phone!,
+                code: smsCode,
+            })).unwrap()
+
+            const selectedRole = form.values.role || 'client'
+            if (selectedRole === 'trainer') {
+                navigate('/trainer/clients')
+            } else {
+                if (result.requiresOnboarding) {
+                    navigate('/onboarding')
+                } else {
+                    navigate('/dashboard')
+                }
+            }
+        } catch (error) {
+            notifications.show({
+                title: t('auth.codeInvalid'),
+                message: error instanceof Error ? error.message : t('auth.codeInvalidGeneric'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
         }
-        setPhoneVerificationStep('input')
-        handleSubmit(form.values)
     }
 
-    const handleSubmit = (values: RegisterData) => {
+    const handleSubmit = async () => {
         if (phoneVerificationStep === 'input') {
-            handleSendCode()
+            await handleSendCode()
             return
-        }
-
-        if (phoneVerificationStep === 'verify' && smsCode !== generatedCode) {
-            return
-        }
-
-        const mockToken = `token-${nanoid()}`
-        const selectedRole = values.role || 'client'
-        const trainerCode = values.trainerCode?.trim() || trainerCodeFromUrl || ''
-        
-        if (trainerCode && selectedRole === 'client') {
-            console.log('Отправка кода тренера на бэкенд:', {
-                trainerCode,
-                clientEmail: values.email,
-                clientName: values.fullName,
-            })
-        }
-        
-        dispatch(
-            register({
-                user: {
-                    id: `${selectedRole}-${nanoid()}`,
-                    fullName: values.fullName,
-                    email: values.email,
-                    phone: values.phone,
-                    role: selectedRole,
-                    onboardingSeen: selectedRole === 'trainer',
-                    locale: 'ru',
-                    trainerConnectionCode: selectedRole === 'trainer' ? `TRAINER${Math.random().toString(36).substring(2, 8).toUpperCase()}` : undefined,
-                    trainer: trainerCode && selectedRole === 'client' ? {
-                        id: `trainer-${trainerCode}`,
-                        fullName: 'Тренер',
-                        connectionCode: trainerCode,
-                    } : undefined,
-                },
-                token: mockToken,
-            }),
-        )
-        
-        if (selectedRole === 'trainer') {
-            navigate('/trainer/clients')
-        } else {
-            navigate('/onboarding')
         }
     }
 
@@ -249,7 +274,7 @@ export const RegisterPage = () => {
                                         disabled={!!trainerCodeFromUrl}
                                     />
                                 )}
-                                <Button type="submit" fullWidth disabled={!form.values.phone || !validatePhoneNumber(form.values.phone)}>
+                                <Button type="submit" fullWidth disabled={!form.values.phone || !validatePhoneNumber(form.values.phone)} loading={loading}>
                                     {t('auth.sendCode')}
                                 </Button>
                                 <Text size="sm" c="dimmed" ta="center">
@@ -287,11 +312,6 @@ export const RegisterPage = () => {
                                     oneTimeCode
                                     style={{ justifyContent: 'center' }}
                                 />
-                                {smsCode.length === 4 && smsCode !== generatedCode && (
-                                    <Text size="xs" c="red" ta="center">
-                                        {t('auth.codeInvalid')}
-                                    </Text>
-                                )}
                             </Stack>
                             <Group gap="xs" justify="center">
                                 <Text size="xs" c="dimmed">
@@ -315,7 +335,8 @@ export const RegisterPage = () => {
                             <Button
                                 fullWidth
                                 onClick={handleVerifyCode}
-                                disabled={smsCode.length !== 4 || smsCode !== generatedCode}
+                                disabled={smsCode.length !== 4}
+                                loading={loading}
                             >
                                 {t('auth.verifyCode')}
                             </Button>

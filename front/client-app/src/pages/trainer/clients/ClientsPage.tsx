@@ -14,17 +14,19 @@ import {
     Title,
     NumberInput,
     Radio,
+    PasswordInput,
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
+    setClients,
     addClient,
     removeClient,
     setSearchQuery,
     setSelectedClient,
-    updateClient,
+    updateClient as updateClientLocal,
     checkAndDeactivateExpiredClients,
     type Client,
 } from '@/app/store/slices/clientsSlice'
@@ -38,13 +40,18 @@ import {
     IconTrash,
     IconCalendar,
     IconCurrencyRubel,
+    IconCopy,
+    IconCheck,
 } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
+import { apiClient } from '@/shared/api/client'
+import { notifications } from '@mantine/notifications'
 
 interface AddClientForm {
     fullName: string
-    email?: string
+    email: string
+    password: string
     format: 'online' | 'offline' | 'both'
     workoutsPackage?: number
     packageExpiryDate?: Date | null
@@ -68,12 +75,18 @@ export const ClientsPage = () => {
     const trainerName = useAppSelector((state) => state.user.fullName)
     const [addModalOpened, { open: openAddModal, close: closeAddModal }] = useDisclosure(false)
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false)
+    const [invitationModalOpened, { open: openInvitationModal, close: closeInvitationModal }] = useDisclosure(false)
     const [editingClient, setEditingClient] = useState<Client | null>(null)
+    const [invitationLink, setInvitationLink] = useState('')
+    const [copiedLink, setCopiedLink] = useState(false)
+    const [copiedCode, setCopiedCode] = useState(false)
+    const [loading, setLoading] = useState(false)
 
     const form = useForm<AddClientForm>({
         initialValues: {
             fullName: '',
             email: '',
+            password: '',
             format: 'both',
             workoutsPackage: undefined,
             packageExpiryDate: null,
@@ -89,6 +102,7 @@ export const ClientsPage = () => {
                 }
                 return null
             },
+            password: (value) => (value.length < 6 ? t('auth.passwordTooShort') : null),
         },
     })
 
@@ -105,38 +119,135 @@ export const ClientsPage = () => {
 
     useEffect(() => {
         dispatch(checkAndDeactivateExpiredClients())
+        // Загружаем клиентов с бэкенда при монтировании компонента
+        const loadClients = async () => {
+            try {
+                const clientsData = await apiClient.getClients()
+                // Преобразуем данные из API в формат локального состояния
+                const mappedClients: Client[] = clientsData.map((client: any) => ({
+                    id: client.id,
+                    fullName: client.full_name,
+                    email: client.email,
+                    phone: client.phone,
+                    avatar: client.avatar,
+                    format: (client.client_format || 'both') as 'online' | 'offline' | 'both',
+                    workoutsPackage: client.workouts_package,
+                    packageExpiryDate: client.package_expiry_date,
+                    isActive: client.is_active ?? true,
+                    attendanceRate: 0, // Эти данные можно получить из статистики клиента
+                    totalWorkouts: 0,
+                    completedWorkouts: 0,
+                    joinedDate: client.created_at || new Date().toISOString(),
+                }))
+                dispatch(setClients(mappedClients))
+            } catch (error) {
+                console.error('Error loading clients:', error)
+            }
+        }
+        loadClients()
     }, [dispatch])
 
     const filteredClients = clients.filter((client) =>
         client.fullName.toLowerCase().includes(searchQuery.toLowerCase()),
     )
 
-    const handleAddClient = (values: AddClientForm) => {
-        dispatch(addClient({
-            fullName: values.fullName,
-            email: values.email,
-            format: values.format,
-            workoutsPackage: values.workoutsPackage,
-            packageExpiryDate: values.packageExpiryDate?.toISOString(),
-            isActive: true,
-        }))
-        
-        if (values.email && trainerConnectionCode) {
-            const invitationLink = `${window.location.origin}/register?code=${trainerConnectionCode}`
-            
-            console.log('Отправка приглашения:', {
-                to: values.email,
-                subject: t('trainer.clients.invitationEmailSubject'),
-                body: t('trainer.clients.invitationEmailBody', {
-                    trainerName: trainerName || 'Тренер',
-                    invitationLink,
-                }),
-                invitationLink,
+    const handleAddClient = async (values: AddClientForm) => {
+        setLoading(true)
+        try {
+            // Создаем клиента через API
+            const createdClient = await apiClient.createClient({
+                full_name: values.fullName,
+                email: values.email!,
+                password: values.password,
+                role: 'client',
+            })
+
+            // Обновляем локальное состояние
+            dispatch(addClient({
+                id: createdClient.id,
+                fullName: createdClient.full_name,
+                email: createdClient.email,
+                phone: createdClient.phone,
+                avatar: createdClient.avatar,
+                format: values.format,
+                workoutsPackage: values.workoutsPackage,
+                packageExpiryDate: values.packageExpiryDate?.toISOString(),
+                isActive: true,
+            }))
+
+            // Если нужно обновить дополнительные поля (format, workoutsPackage и т.д.), делаем это через updateClient
+            if (values.format !== 'both' || values.workoutsPackage || values.packageExpiryDate) {
+                await apiClient.updateClient(createdClient.id, {
+                    client_format: values.format,
+                    workouts_package: values.workoutsPackage,
+                    package_expiry_date: values.packageExpiryDate?.toISOString(),
+                })
+            }
+
+            // Генерируем ссылку приглашения
+            if (trainerConnectionCode) {
+                const link = `${window.location.origin}/register?code=${trainerConnectionCode}`
+                setInvitationLink(link)
+                form.reset()
+                closeAddModal()
+                openInvitationModal()
+            } else {
+                form.reset()
+                closeAddModal()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.clients.clientCreated'),
+                    color: 'green',
+                })
+            }
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.response?.data?.detail || error?.message || t('trainer.clients.error.createClient'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleCopyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(invitationLink)
+            setCopiedLink(true)
+            setTimeout(() => setCopiedLink(false), 2000)
+            notifications.show({
+                title: t('common.success'),
+                message: t('trainer.clients.invitationLinkCopied'),
+                color: 'green',
+            })
+        } catch (error) {
+            notifications.show({
+                title: t('common.error'),
+                message: t('trainer.clients.error.copyLink'),
+                color: 'red',
             })
         }
-        
-        form.reset()
-        closeAddModal()
+    }
+
+    const handleCopyCode = async () => {
+        if (!trainerConnectionCode) return
+        try {
+            await navigator.clipboard.writeText(trainerConnectionCode)
+            setCopiedCode(true)
+            setTimeout(() => setCopiedCode(false), 2000)
+            notifications.show({
+                title: t('common.success'),
+                message: t('trainer.clients.invitationCodeCopied'),
+                color: 'green',
+            })
+        } catch (error) {
+            notifications.show({
+                title: t('common.error'),
+                message: t('trainer.clients.error.copyCode'),
+                color: 'red',
+            })
+        }
     }
 
     const handleOpenEditClient = (client: Client) => {
@@ -152,28 +263,70 @@ export const ClientsPage = () => {
         openEditModal()
     }
 
-    const handleSaveClient = (values: EditClientForm) => {
+    const handleSaveClient = async (values: EditClientForm) => {
         if (!editingClient) return
-        dispatch(
-            updateClient({
-                id: editingClient.id,
-                updates: {
-                    weight: values.weight,
-                    height: values.height,
-                    age: values.age,
-                    activityLevel: values.activityLevel,
-                    goals: values.goals,
-                    restrictions: values.restrictions,
-                },
-            }),
-        )
-        closeEditModal()
-        setEditingClient(null)
+        setLoading(true)
+        try {
+            await apiClient.updateClient(editingClient.id, {
+                weight: values.weight,
+                height: values.height,
+                age: values.age,
+                activity_level: values.activityLevel,
+                goals: values.goals,
+                restrictions: values.restrictions,
+            })
+
+            dispatch(
+                updateClientLocal({
+                    id: editingClient.id,
+                    updates: {
+                        weight: values.weight,
+                        height: values.height,
+                        age: values.age,
+                        activityLevel: values.activityLevel,
+                        goals: values.goals,
+                        restrictions: values.restrictions,
+                    },
+                }),
+            )
+
+            closeEditModal()
+            setEditingClient(null)
+            notifications.show({
+                title: t('common.success'),
+                message: t('trainer.clients.clientUpdated'),
+                color: 'green',
+            })
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.response?.data?.detail || error?.message || t('trainer.clients.error.updateClient'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const handleDeleteClient = (id: string) => {
-        if (confirm(t('common.delete') + '?')) {
+    const handleDeleteClient = async (id: string) => {
+        if (!confirm(t('common.delete') + '?')) return
+        setLoading(true)
+        try {
+            await apiClient.deleteClient(id)
             dispatch(removeClient(id))
+            notifications.show({
+                title: t('common.success'),
+                message: t('trainer.clients.clientDeleted'),
+                color: 'green',
+            })
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.response?.data?.detail || error?.message || t('trainer.clients.error.deleteClient'),
+                color: 'red',
+            })
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -342,6 +495,12 @@ export const ClientsPage = () => {
                             required
                             {...form.getInputProps('email')}
                         />
+                        <PasswordInput
+                            label={t('auth.password')}
+                            placeholder={t('auth.passwordPlaceholder')}
+                            required
+                            {...form.getInputProps('password')}
+                        />
                         <Radio.Group
                             label={t('trainer.clients.format')}
                             {...form.getInputProps('format')}
@@ -368,7 +527,7 @@ export const ClientsPage = () => {
                             <Button variant="subtle" onClick={closeAddModal}>
                                 {t('common.cancel')}
                             </Button>
-                            <Button type="submit">{t('common.add')}</Button>
+                            <Button type="submit" loading={loading}>{t('common.add')}</Button>
                         </Group>
                     </Stack>
                 </form>
@@ -452,10 +611,69 @@ export const ClientsPage = () => {
                             <Button variant="subtle" onClick={closeEditModal}>
                                 {t('common.cancel')}
                             </Button>
-                            <Button type="submit">{t('common.save')}</Button>
+                            <Button type="submit" loading={loading}>{t('common.save')}</Button>
                         </Group>
                     </Stack>
                 </form>
+            </Modal>
+
+            <Modal
+                opened={invitationModalOpened}
+                onClose={closeInvitationModal}
+                title={t('trainer.clients.invitationModal.title')}
+                size="md"
+            >
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        {t('trainer.clients.invitationModal.description')}
+                    </Text>
+                    
+                    <div>
+                        <Text size="sm" fw={500} mb="xs">
+                            {t('trainer.clients.invitationModal.linkLabel')}
+                        </Text>
+                        <Group gap="xs">
+                            <TextInput
+                                value={invitationLink}
+                                readOnly
+                                style={{ flex: 1 }}
+                            />
+                            <ActionIcon
+                                variant="light"
+                                color={copiedLink ? 'green' : 'gray'}
+                                onClick={handleCopyLink}
+                            >
+                                {copiedLink ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                            </ActionIcon>
+                        </Group>
+                    </div>
+
+                    <div>
+                        <Text size="sm" fw={500} mb="xs">
+                            {t('trainer.clients.invitationModal.codeLabel')}
+                        </Text>
+                        <Group gap="xs">
+                            <TextInput
+                                value={trainerConnectionCode || ''}
+                                readOnly
+                                style={{ flex: 1 }}
+                            />
+                            <ActionIcon
+                                variant="light"
+                                color={copiedCode ? 'green' : 'gray'}
+                                onClick={handleCopyCode}
+                            >
+                                {copiedCode ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                            </ActionIcon>
+                        </Group>
+                    </div>
+
+                    <Group justify="flex-end" mt="md">
+                        <Button onClick={closeInvitationModal}>
+                            {t('common.close')}
+                        </Button>
+                    </Group>
+                </Stack>
             </Modal>
         </Stack>
     )

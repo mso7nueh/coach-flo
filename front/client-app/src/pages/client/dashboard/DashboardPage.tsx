@@ -41,8 +41,12 @@ import {
     setMetricGoal,
     toggleTile,
     updateTrainerNote,
+    fetchDashboardStats,
+    fetchTrainerNotes,
 } from '@/app/store/slices/dashboardSlice'
-import { useMemo, useState } from 'react'
+import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
+import { fetchBodyMetrics, fetchBodyMetricEntries } from '@/app/store/slices/metricsSlice'
+import { useMemo, useState, useEffect } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import dayjs from 'dayjs'
 import { updateWorkoutAttendance } from '@/app/store/slices/calendarSlice'
@@ -68,9 +72,10 @@ const buildChartSeries = (base: number, amplitude: number) => {
 export const DashboardPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
-    const { tiles, availableTiles, period, trainerNotes, configurationOpened, metricGoals } = useAppSelector(
+    const { tiles, availableTiles, period, trainerNotes, configurationOpened, metricGoals, stats } = useAppSelector(
         (state) => state.dashboard,
     )
+    const { bodyMetrics, bodyMetricEntries } = useAppSelector((state) => state.metrics)
     const user = useAppSelector((state) => state.user)
     const workouts = useAppSelector((state) => state.calendar.workouts)
     const role = user.role
@@ -79,6 +84,19 @@ export const DashboardPage = () => {
     const [goalModalOpened, { open: openGoalModal, close: closeGoalModal }] = useDisclosure(false)
     const [goalMetricId, setGoalMetricId] = useState<string | null>(null)
     const [goalValue, setGoalValue] = useState<number>(0)
+
+    useEffect(() => {
+        dispatch(fetchDashboardStats(period))
+        dispatch(fetchTrainerNotes())
+        // Загружаем тренировки за последние 30 дней для дашборда
+        const endDate = dayjs().toISOString()
+        const startDate = dayjs().subtract(30, 'days').toISOString()
+        dispatch(fetchWorkouts({ start_date: startDate, end_date: endDate }))
+        // Загружаем метрики тела для графиков
+        dispatch(fetchBodyMetrics())
+        const metricsStartDate = dayjs().subtract(parseInt(period.replace('d', '')), 'days').toISOString()
+        dispatch(fetchBodyMetricEntries({ start_date: metricsStartDate, end_date: endDate }))
+    }, [dispatch, period])
 
     const upcoming = useMemo(
         () =>
@@ -128,29 +146,119 @@ export const DashboardPage = () => {
         }
     }
 
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    // Используем часовой пояс из профиля пользователя, если он есть, иначе определяем из браузера
+    // @ts-ignore - timezone может быть в API User, но не в UserState
+    const timezone = user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
 
+    // Используем данные цели из API, если они есть, иначе используем переводы как fallback
     const goalInfo = useMemo(
-        () => ({
-            headline: t('dashboard.goal.generalGoal'),
-            description: t('dashboard.goal.description'),
-            milestone: 'City2Surf 10km Challenge',
-            daysLeft: 35,
-            progress: 65,
-        }),
-        [t],
+        () => {
+            if (stats?.goal) {
+                return {
+                    headline: stats.goal.headline,
+                    description: stats.goal.description,
+                    milestone: stats.goal.milestone,
+                    daysLeft: stats.goal.days_left,
+                    progress: stats.goal.progress || 0,
+                }
+            }
+            // Fallback на переводы, если данных нет в API
+            return {
+                headline: t('dashboard.goal.generalGoal'),
+                description: t('dashboard.goal.description'),
+                milestone: '',
+                daysLeft: 0,
+                progress: 0,
+            }
+        },
+        [stats?.goal, t],
     )
 
-    const primaryChartData = useMemo(
-        () => ({
-            weight: buildChartSeries(74.4, 0.7),
-            sleep: buildChartSeries(6.8, 0.4),
-            heartRate: buildChartSeries(66, 3),
-            steps: buildChartSeries(7500, 500),
-        }),
-        [],
-    )
+    // Получаем метрики для отображения
+    const weightMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('вес') || m.label.toLowerCase().includes('weight')), [bodyMetrics])
+    const sleepMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('сон') || m.label.toLowerCase().includes('sleep')), [bodyMetrics])
+    const heartRateMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('пульс') || m.label.toLowerCase().includes('heart')), [bodyMetrics])
+    const stepsMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('шаг') || m.label.toLowerCase().includes('step')), [bodyMetrics])
 
+    // Получаем последние значения метрик
+    const getLatestMetricValue = (metricId: string | undefined) => {
+        if (!metricId) return null
+        const entries = bodyMetricEntries
+            .filter(e => e.metricId === metricId)
+            .sort((a, b) => dayjs(b.recordedAt).diff(dayjs(a.recordedAt)))
+        return entries[0] || null
+    }
+
+    const getTodayMetricValue = (metricId: string | undefined) => {
+        if (!metricId) return null
+        const today = dayjs().startOf('day')
+        const entry = bodyMetricEntries
+            .find(e => e.metricId === metricId && dayjs(e.recordedAt).isSame(today, 'day'))
+        return entry || null
+    }
+
+    const getMetricChange = (metricId: string | undefined, periodDays: number) => {
+        if (!metricId) return null
+        const entries = bodyMetricEntries
+            .filter(e => e.metricId === metricId)
+            .sort((a, b) => dayjs(b.recordedAt).diff(dayjs(a.recordedAt)))
+        if (entries.length < 2) return null
+        const latest = entries[0]
+        const periodStart = dayjs().subtract(periodDays, 'days')
+        const periodEntry = entries.find(e => dayjs(e.recordedAt).isBefore(periodStart) || dayjs(e.recordedAt).isSame(periodStart, 'day'))
+        if (!periodEntry) return null
+        const change = latest.value - periodEntry.value
+        const changePercent = periodEntry.value > 0 ? ((change / periodEntry.value) * 100) : 0
+        return { change, changePercent, isPositive: change >= 0 }
+    }
+
+    const weightValue = getLatestMetricValue(weightMetric?.id)
+    const sleepValue = getLatestMetricValue(sleepMetric?.id)
+    const heartRateValue = getLatestMetricValue(heartRateMetric?.id)
+    const stepsValue = getLatestMetricValue(stepsMetric?.id)
+
+    const sleepToday = getTodayMetricValue(sleepMetric?.id)
+    const heartRateToday = getTodayMetricValue(heartRateMetric?.id)
+    const stepsToday = getTodayMetricValue(stepsMetric?.id)
+
+    const periodDays = parseInt(period.replace('d', ''))
+    const weightChange = getMetricChange(weightMetric?.id, periodDays)
+    const sleepChange = getMetricChange(sleepMetric?.id, periodDays)
+    const heartRateChange = getMetricChange(heartRateMetric?.id, periodDays)
+    const stepsChange = getMetricChange(stepsMetric?.id, periodDays)
+
+    // Формируем данные для графиков из реальных метрик
+    const primaryChartData = useMemo(() => {
+        const formatChartData = (metricId: string | undefined) => {
+            if (!metricId) return []
+            const entries = bodyMetricEntries
+                .filter(e => e.metricId === metricId)
+                .sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
+                .slice(-12) // Последние 12 записей
+            return entries.map(entry => ({
+                label: dayjs(entry.recordedAt).format('DD MMM'),
+                value: entry.value,
+            }))
+        }
+
+        return {
+            weight: formatChartData(weightMetric?.id).length > 0 
+                ? formatChartData(weightMetric?.id) 
+                : buildChartSeries(74.4, 0.7),
+            sleep: formatChartData(sleepMetric?.id).length > 0 
+                ? formatChartData(sleepMetric?.id) 
+                : buildChartSeries(6.8, 0.4),
+            heartRate: formatChartData(heartRateMetric?.id).length > 0 
+                ? formatChartData(heartRateMetric?.id) 
+                : buildChartSeries(66, 3),
+            steps: formatChartData(stepsMetric?.id).length > 0 
+                ? formatChartData(stepsMetric?.id) 
+                : buildChartSeries(7500, 500),
+        }
+    }, [bodyMetrics, bodyMetricEntries, weightMetric, sleepMetric, heartRateMetric, stepsMetric])
+
+    // Используем ограничения из onboarding данных пользователя
+    // Если данных нет, не показываем моковые данные
     const clientOnboarding = user.onboardingMetrics
     const limitationItems = useMemo(() => {
         const items: { id: string; title: string; date?: string }[] = []
@@ -159,20 +267,26 @@ export const DashboardPage = () => {
             clientOnboarding.restrictions.forEach((text, index) => {
                 items.push({ id: `lim-${index}`, title: text })
             })
-        } else {
-            items.push({ id: 'lim-1', title: t('dashboard.limitations.items.leg') })
-            items.push({ id: 'lim-2', title: t('dashboard.limitations.items.physio') })
         }
+        // Убрали моковые данные - если ограничений нет, массив будет пустым
 
         return items
-    }, [clientOnboarding?.restrictions, t])
+    }, [clientOnboarding?.restrictions])
 
+    // Используем данные фото прогресса из API
     const progressPhotos = useMemo(
-        () => [
-            { id: 'photo-1', label: '10/22', accent: '#7c3aed' },
-            { id: 'photo-2', label: '06/22', accent: '#f97316' },
-        ],
-        [],
+        () => {
+            if (stats?.progress_photos && stats.progress_photos.length > 0) {
+                return stats.progress_photos.map((photo, index) => ({
+                    id: photo.id,
+                    label: dayjs(photo.date).format('MM/YY'),
+                    accent: index === 0 ? '#7c3aed' : '#f97316',
+                    url: photo.url,
+                }))
+            }
+            return []
+        },
+        [stats?.progress_photos],
     )
 
     const notesPreview = trainerNotes.slice(0, 3)
@@ -191,10 +305,10 @@ export const DashboardPage = () => {
         return [...workoutUpdates, ...noteUpdates].slice(0, 5)
     }, [recent, trainerNotes, t])
 
-    const totalWorkouts = workouts.length
-    const completedWorkouts = workouts.filter((w) => w.attendance === 'completed').length
-    const attendanceRate = totalWorkouts > 0 ? Math.round((completedWorkouts / totalWorkouts) * 100) : 0
-    const todayWorkouts = workouts.filter((w) => dayjs(w.start).isSame(dayjs(), 'day')).length
+    const totalWorkouts = stats?.total_workouts ?? workouts.length
+    const completedWorkouts = stats?.completed_workouts ?? workouts.filter((w) => w.attendance === 'completed').length
+    const attendanceRate = stats?.attendance_rate ?? (totalWorkouts > 0 ? Math.round((completedWorkouts / totalWorkouts) * 100) : 0)
+    const todayWorkouts = stats?.today_workouts ?? workouts.filter((w) => dayjs(w.start).isSame(dayjs(), 'day')).length
 
     return (
         <Stack gap="lg">
@@ -281,7 +395,16 @@ export const DashboardPage = () => {
                             <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                                 {t('dashboard.stats.nextWorkout')}
                             </Text>
-                            {upcoming.length > 0 ? (
+                            {stats?.next_workout ? (
+                                <>
+                                    <Text fw={600} size="lg" c="gray.9">
+                                        {dayjs(stats.next_workout.start).format('D MMM, HH:mm')}
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        {stats.next_workout.title}
+                                    </Text>
+                                </>
+                            ) : upcoming.length > 0 ? (
                                 <>
                                     <Text fw={600} size="lg" c="gray.9">
                                         {dayjs(upcoming[0].start).format('D MMM, HH:mm')}
@@ -383,26 +506,28 @@ export const DashboardPage = () => {
             </SimpleGrid>
 
             <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
-                <Card withBorder padding="md">
-                    <Stack gap="md">
-                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                            {t('dashboard.goal.cardTitle')}
-                        </Text>
-                        <Stack gap="xs">
-                            <Text fw={600} size="sm">{goalInfo.headline}</Text>
-                            <Text size="xs" c="dimmed">{goalInfo.description}</Text>
-                        </Stack>
-                        <Group justify="space-between" align="center" mt="xs">
-                            <Group gap="xs">
-                                <IconCalendarTime size={16} />
-                                <Text size="xs" fw={500}>{goalInfo.milestone}</Text>
+                {goalInfo.milestone && goalInfo.daysLeft > 0 && (
+                    <Card withBorder padding="md">
+                        <Stack gap="md">
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                                {t('dashboard.goal.cardTitle')}
+                            </Text>
+                            <Stack gap="xs">
+                                <Text fw={600} size="sm">{goalInfo.headline}</Text>
+                                <Text size="xs" c="dimmed">{goalInfo.description}</Text>
+                            </Stack>
+                            <Group justify="space-between" align="center" mt="xs">
+                                <Group gap="xs">
+                                    <IconCalendarTime size={16} />
+                                    <Text size="xs" fw={500}>{goalInfo.milestone}</Text>
+                                </Group>
+                                <Badge variant="light" size="lg">
+                                    {goalInfo.daysLeft} {t('dashboard.goal.daysLeft', { count: goalInfo.daysLeft })}
+                                </Badge>
                             </Group>
-                            <Badge variant="light" size="lg">
-                                {goalInfo.daysLeft} {t('dashboard.goal.daysLeft', { count: goalInfo.daysLeft })}
-                            </Badge>
-                        </Group>
-                    </Stack>
-                </Card>
+                        </Stack>
+                    </Card>
+                )}
 
                 <Card withBorder padding="md">
                     <Stack gap="md">
@@ -490,16 +615,22 @@ export const DashboardPage = () => {
                                     <Stack gap={2}>
                                         <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.weight')}</Text>
                                         <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">74.4</Text>
-                                            <Text size="sm" c="dimmed">{t('dashboard.bodyOverview.weightUnit')}</Text>
-                                            <Badge size="xs" color="red" variant="light">↓ 0.8%</Badge>
+                                            <Text fw={700} size="lg">{weightValue ? weightValue.value.toFixed(1) : '—'}</Text>
+                                            <Text size="sm" c="dimmed">{weightMetric?.unit || t('dashboard.bodyOverview.weightUnit')}</Text>
+                                            {weightChange && (
+                                                <Badge size="xs" color={weightChange.isPositive ? 'green' : 'red'} variant="light">
+                                                    {weightChange.isPositive ? '↑' : '↓'} {Math.abs(weightChange.changePercent).toFixed(1)}%
+                                                </Badge>
+                                            )}
                                         </Group>
                                         <Text size="xs" c="dimmed">
                                             {t('dashboard.bodyOverview.currentValue')}
                                         </Text>
-                                        <Text size="xs" c="dimmed">
-                                            {t('dashboard.bodyOverview.changeLabel')}: ↓ 0.8%
-                                        </Text>
+                                        {weightChange && (
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.changeLabel')}: {weightChange.isPositive ? '↑' : '↓'} {Math.abs(weightChange.changePercent).toFixed(1)}%
+                                            </Text>
+                                        )}
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('weight')}>
                                         <IconEdit size={14} />
@@ -527,21 +658,33 @@ export const DashboardPage = () => {
                                     <Stack gap={2}>
                                         <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.sleep')}</Text>
                                         <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">6 h 46 m</Text>
-                                            <Badge size="xs" color="green" variant="light">+0.3h</Badge>
+                                            <Text fw={700} size="lg">
+                                                {sleepValue ? `${Math.floor(sleepValue.value)} h ${Math.round((sleepValue.value % 1) * 60)} m` : '—'}
+                                            </Text>
+                                            {sleepChange && (
+                                                <Badge size="xs" color={sleepChange.isPositive ? 'green' : 'red'} variant="light">
+                                                    {sleepChange.isPositive ? '+' : ''}{sleepChange.change.toFixed(1)}h
+                                                </Badge>
+                                            )}
                                         </Group>
                                         <Group gap="xs">
+                                            {sleepToday && (
+                                                <>
+                                                    <Text size="xs" c="dimmed">
+                                                        {t('dashboard.bodyOverview.todayValue')}: {Math.floor(sleepToday.value)} h {Math.round((sleepToday.value % 1) * 60)} m
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">•</Text>
+                                                </>
+                                            )}
                                             <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.todayValue')}: 6 h 30 m
-                                            </Text>
-                                            <Text size="xs" c="dimmed">•</Text>
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.currentValue')}: 6 h 46 m
+                                                {t('dashboard.bodyOverview.currentValue')}: {sleepValue ? `${Math.floor(sleepValue.value)} h ${Math.round((sleepValue.value % 1) * 60)} m` : '—'}
                                             </Text>
                                         </Group>
-                                        <Text size="xs" c="dimmed">
-                                            {t('dashboard.bodyOverview.changeLabel')}: +0.3 ч
-                                        </Text>
+                                        {sleepChange && (
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.changeLabel')}: {sleepChange.isPositive ? '+' : ''}{sleepChange.change.toFixed(1)} ч
+                                            </Text>
+                                        )}
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('sleep')}>
                                         <IconEdit size={14} />
@@ -569,22 +712,32 @@ export const DashboardPage = () => {
                                     <Stack gap={2}>
                                         <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.heartRate')}</Text>
                                         <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">66</Text>
-                                            <Text size="sm" c="dimmed">{t('dashboard.bodyOverview.heartRateUnit')}</Text>
-                                            <Badge size="xs" color="green" variant="light">↓ 5.7%</Badge>
+                                            <Text fw={700} size="lg">{heartRateValue ? Math.round(heartRateValue.value) : '—'}</Text>
+                                            <Text size="sm" c="dimmed">{heartRateMetric?.unit || t('dashboard.bodyOverview.heartRateUnit')}</Text>
+                                            {heartRateChange && (
+                                                <Badge size="xs" color={heartRateChange.isPositive ? 'red' : 'green'} variant="light">
+                                                    {heartRateChange.isPositive ? '↑' : '↓'} {Math.abs(heartRateChange.changePercent).toFixed(1)}%
+                                                </Badge>
+                                            )}
                                         </Group>
                                         <Group gap="xs">
+                                            {heartRateToday && (
+                                                <>
+                                                    <Text size="xs" c="dimmed">
+                                                        {t('dashboard.bodyOverview.todayValue')}: {Math.round(heartRateToday.value)} {heartRateMetric?.unit || t('dashboard.bodyOverview.heartRateUnit')}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">•</Text>
+                                                </>
+                                            )}
                                             <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.todayValue')}: 68 {t('dashboard.bodyOverview.heartRateUnit')}
-                                            </Text>
-                                            <Text size="xs" c="dimmed">•</Text>
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.currentValue')}: 66 {t('dashboard.bodyOverview.heartRateUnit')}
+                                                {t('dashboard.bodyOverview.currentValue')}: {heartRateValue ? Math.round(heartRateValue.value) : '—'} {heartRateMetric?.unit || t('dashboard.bodyOverview.heartRateUnit')}
                                             </Text>
                                         </Group>
-                                        <Text size="xs" c="dimmed">
-                                            {t('dashboard.bodyOverview.changeLabel')}: ↓ 5.7%
-                                        </Text>
+                                        {heartRateChange && (
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.changeLabel')}: {heartRateChange.isPositive ? '↑' : '↓'} {Math.abs(heartRateChange.changePercent).toFixed(1)}%
+                                            </Text>
+                                        )}
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('heartRate')}>
                                         <IconEdit size={14} />
@@ -612,21 +765,31 @@ export const DashboardPage = () => {
                                     <Stack gap={2}>
                                         <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.steps')}</Text>
                                         <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">7 503</Text>
-                                            <Badge size="xs" color="green" variant="light">+4.2%</Badge>
+                                            <Text fw={700} size="lg">{stepsValue ? Math.round(stepsValue.value).toLocaleString('ru-RU') : '—'}</Text>
+                                            {stepsChange && (
+                                                <Badge size="xs" color={stepsChange.isPositive ? 'green' : 'red'} variant="light">
+                                                    {stepsChange.isPositive ? '+' : ''}{Math.abs(stepsChange.changePercent).toFixed(1)}%
+                                                </Badge>
+                                            )}
                                         </Group>
                                         <Group gap="xs">
+                                            {stepsToday && (
+                                                <>
+                                                    <Text size="xs" c="dimmed">
+                                                        {t('dashboard.bodyOverview.todayValue')}: {Math.round(stepsToday.value).toLocaleString('ru-RU')}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">•</Text>
+                                                </>
+                                            )}
                                             <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.todayValue')}: 8 200
-                                            </Text>
-                                            <Text size="xs" c="dimmed">•</Text>
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.currentValue')}: 7 503
+                                                {t('dashboard.bodyOverview.currentValue')}: {stepsValue ? Math.round(stepsValue.value).toLocaleString('ru-RU') : '—'}
                                             </Text>
                                         </Group>
-                                        <Text size="xs" c="dimmed">
-                                            {t('dashboard.bodyOverview.changeLabel')}: +4.2%
-                                        </Text>
+                                        {stepsChange && (
+                                            <Text size="xs" c="dimmed">
+                                                {t('dashboard.bodyOverview.changeLabel')}: {stepsChange.isPositive ? '+' : ''}{Math.abs(stepsChange.changePercent).toFixed(1)}%
+                                            </Text>
+                                        )}
                                     </Stack>
                                     <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('steps')}>
                                         <IconEdit size={14} />

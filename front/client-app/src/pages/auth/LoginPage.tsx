@@ -3,16 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { login, type LoginCredentials } from '@/app/store/slices/userSlice'
-import { nanoid } from '@reduxjs/toolkit'
+import { loginUser, type LoginCredentials } from '@/app/store/slices/userSlice'
 import { useState } from 'react'
 import type { UserRole } from '@/app/store/slices/userSlice'
+import { notifications } from '@mantine/notifications'
 
 export const LoginPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
     const [role, setRole] = useState<UserRole>('client')
+    const [loading, setLoading] = useState(false)
 
     const form = useForm<LoginCredentials>({
         initialValues: {
@@ -25,53 +26,59 @@ export const LoginPage = () => {
         },
     })
 
-    const handleSubmit = (values: LoginCredentials) => {
-        const mockToken = `token-${nanoid()}`
-        const onboardingSeen = localStorage.getItem('coach-flo-onboarding-seen') === 'true'
+    const handleSubmit = async (values: LoginCredentials) => {
+        setLoading(true)
+        try {
+            const result = await dispatch(loginUser({
+                email: values.email,
+                password: values.password,
+            })).unwrap()
 
-        if (role === 'trainer') {
-            dispatch(
-                login({
-                    user: {
-                        id: 'trainer-001',
-                        fullName: 'Иван Сидоров',
-                        email: values.email,
-                        phone: '+7 (999) 765-43-21',
-                        role: 'trainer',
-                        onboardingSeen: true,
-                        locale: 'ru',
-                        trainerConnectionCode: 'TRAINER123',
-                    },
-                    token: mockToken,
-                }),
-            )
-            navigate('/trainer/clients')
-        } else {
-            dispatch(
-                login({
-                    user: {
-                        id: 'client-001',
-                        fullName: 'Алексей Петров',
-                        email: values.email,
-                        phone: '+7 (999) 123-45-67',
-                        role: 'client',
-                        onboardingSeen,
-                        locale: 'ru',
-                        trainer: {
-                            id: 'trainer-001',
-                            fullName: 'Иван Сидоров',
-                            email: 'ivan.sidorov@coachfit.com',
-                            phone: '+7 (999) 765-43-21',
-                        },
-                    },
-                    token: mockToken,
-                }),
-            )
-            if (onboardingSeen) {
-                navigate('/dashboard')
+            if (result.user.role === 'trainer') {
+                navigate('/trainer/clients')
             } else {
-                navigate('/onboarding')
+                if (result.user.onboardingSeen) {
+                    navigate('/dashboard')
+                } else {
+                    navigate('/onboarding')
+                }
             }
+        } catch (error: unknown) {
+            let errorMessage = t('auth.loginError')
+
+            if (error instanceof Error) {
+                const errorWithData = error as Error & { data?: { detail?: string } }
+                if (errorWithData.data?.detail) {
+                    errorMessage = errorWithData.data.detail
+                } else {
+                    errorMessage = error.message || errorMessage
+                }
+            } else if (typeof error === 'string') {
+                errorMessage = error
+            } else if (error && typeof error === 'object') {
+                if ('detail' in error && typeof error.detail === 'string') {
+                    errorMessage = error.detail
+                } else if ('message' in error && typeof error.message === 'string') {
+                    errorMessage = error.message
+                } else if ('error' in error && typeof error.error === 'string') {
+                    errorMessage = error.error
+                } else if ('data' in error && error.data && typeof error.data === 'object' && 'detail' in error.data) {
+                    errorMessage = String(error.data.detail)
+                }
+            }
+
+            console.error('Login error:', error)
+
+            notifications.show({
+                id: 'login-error',
+                title: t('auth.error'),
+                message: errorMessage,
+                color: 'red',
+                autoClose: 5000,
+                withCloseButton: true,
+            })
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -121,7 +128,7 @@ export const LoginPage = () => {
                                 required
                                 {...form.getInputProps('password')}
                             />
-                            <Button type="submit" fullWidth>
+                            <Button type="submit" fullWidth loading={loading}>
                                 {t('auth.login')}
                             </Button>
                             <Text size="sm" c="dimmed" ta="center">
@@ -137,4 +144,3 @@ export const LoginPage = () => {
         </div>
     )
 }
-
