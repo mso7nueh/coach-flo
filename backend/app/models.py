@@ -49,7 +49,8 @@ class User(Base):
     nutrition_entries = relationship("NutritionEntry", back_populates="user", lazy="select")
     payments_as_trainer = relationship("Payment", back_populates="trainer", lazy="select", foreign_keys="[Payment.trainer_id]")
     payments_as_client = relationship("Payment", back_populates="client", lazy="select", foreign_keys="[Payment.client_id]")
-    exercises = relationship("Exercise", back_populates="trainer", lazy="select")
+    exercises = relationship("Exercise", back_populates="trainer", lazy="select", foreign_keys="[Exercise.trainer_id]")
+    client_exercises = relationship("Exercise", back_populates="client", lazy="select", foreign_keys="[Exercise.client_id]")
     trainer_notes = relationship("TrainerNote", back_populates="trainer", lazy="select", foreign_keys="[TrainerNote.trainer_id]")
     client_notes = relationship("TrainerNote", back_populates="client", lazy="select", foreign_keys="[TrainerNote.client_id]")
     user_goals = relationship("UserGoal", back_populates="user", lazy="select")
@@ -340,8 +341,8 @@ class Exercise(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    trainer = relationship("User", foreign_keys=[trainer_id])
-    client = relationship("User", foreign_keys=[client_id])
+    trainer = relationship("User", foreign_keys=[trainer_id], back_populates="exercises")
+    client = relationship("User", foreign_keys=[client_id], back_populates="client_exercises")
 
 
 # Trainer Notes models
