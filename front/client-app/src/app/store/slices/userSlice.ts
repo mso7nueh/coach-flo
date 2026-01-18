@@ -153,13 +153,21 @@ export const registerUserStep2 = createAsyncThunk(
 
 export const fetchCurrentUser = createAsyncThunk(
     'user/fetchCurrent',
-    async (_, { rejectWithValue, dispatch }) => {
+    async (_, { rejectWithValue, dispatch, getState }) => {
         try {
             const user = await apiClient.getCurrentUser()
             const mappedUser = mapApiUserToState(user)
             
-            // Загружаем онбординг, если пользователь прошел его
-            if (mappedUser.onboardingSeen) {
+            // Загружаем онбординг только если пользователь прошел его И данные онбординга еще не загружены
+            // Это предотвращает ненужные запросы при каждой загрузке страницы
+            const currentState = getState() as { user: UserState }
+            const hasOnboardingMetrics = currentState.user.onboardingMetrics && (
+                currentState.user.onboardingMetrics.weight !== undefined ||
+                currentState.user.onboardingMetrics.height !== undefined ||
+                currentState.user.onboardingMetrics.age !== undefined
+            )
+            
+            if (mappedUser.onboardingSeen && !hasOnboardingMetrics) {
                 try {
                     const onboarding = await apiClient.getOnboarding()
                     mappedUser.onboardingMetrics = {
@@ -174,6 +182,9 @@ export const fetchCurrentUser = createAsyncThunk(
                     // Онбординг может отсутствовать - это нормально
                     console.log('Onboarding not found, skipping...')
                 }
+            } else if (mappedUser.onboardingSeen && hasOnboardingMetrics) {
+                // Сохраняем существующие данные онбординга, чтобы не потерять их
+                mappedUser.onboardingMetrics = currentState.user.onboardingMetrics
             }
             
             // Загружаем настройки

@@ -36,6 +36,7 @@ import {
     deleteExerciseApi,
     createWorkoutApi,
     updateWorkoutApi,
+    deleteWorkoutTemplateApi,
 } from '@/app/store/slices/librarySlice'
 import {
     createProgram,
@@ -1106,9 +1107,24 @@ export const LibraryPage = () => {
                                                     <Menu.Item
                                                         color="red"
                                                         leftSection={<IconTrash size={16} />}
-                                                        onClick={(e) => {
+                                                        onClick={async (e) => {
                                                             e.stopPropagation()
-                                                            dispatch(removeWorkout(workout.id))
+                                                            if (confirm(t('common.delete') + '?')) {
+                                                                try {
+                                                                    await dispatch(deleteWorkoutTemplateApi(workout.id)).unwrap()
+                                                                    notifications.show({
+                                                                        title: t('common.success'),
+                                                                        message: t('trainer.library.workoutDeleted'),
+                                                                        color: 'green',
+                                                                    })
+                                                                } catch (error: any) {
+                                                                    notifications.show({
+                                                                        title: t('common.error'),
+                                                                        message: error || t('trainer.library.error.deleteWorkout'),
+                                                                        color: 'red',
+                                                                    })
+                                                                }
+                                                            }
                                                         }}
                                                     >
                                                         {t('trainer.library.delete')}

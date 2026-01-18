@@ -205,7 +205,7 @@ const api: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
   // Настраиваем максимальное количество редиректов
-  maxRedirects: 5,
+  maxRedirects: 5, // Разрешаем редиректы, но обрабатываем их в interceptor для сохранения токена
 })
 
 // Interceptor для автоматической передачи Bearer токена в каждом запросе
@@ -233,6 +233,22 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Обработка 307 Temporary Redirect - исправляем URL и повторяем запрос
+    if (error.response?.status === 307 || error.response?.status === 308) {
+      const redirectUrl = error.response?.headers?.location
+      if (redirectUrl) {
+        // Повторяем запрос на новый URL с теми же параметрами
+        const config = error.config
+        config.url = redirectUrl
+        // Убеждаемся, что токен передается
+        const token = localStorage.getItem('auth_token')
+        if (token && config.headers) {
+          config.headers['Authorization'] = `Bearer ${token}`
+        }
+        return api.request(config)
+      }
+    }
+
     // Обработка 401 Unauthorized
     if (error.response?.status === 401) {
       const token = localStorage.getItem('auth_token')
@@ -347,7 +363,7 @@ export const linkTrainer = async (connection_code: string): Promise<void> => {
 }
 
 export const unlinkTrainer = async (): Promise<void> => {
-  await api.post<void>('/api/users/unlink-trainer')
+  await api.post<void>('/api/users/unlink-trainer', {})
 }
 
 export const getSettings = async (): Promise<UserSettings> => {

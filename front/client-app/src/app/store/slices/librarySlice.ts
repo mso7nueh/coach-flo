@@ -564,6 +564,20 @@ export const deleteExerciseApi = createAsyncThunk(
     }
 )
 
+export const deleteWorkoutTemplateApi = createAsyncThunk(
+    'library/deleteWorkoutTemplateApi',
+    async (workoutId: string, { rejectWithValue, dispatch }) => {
+        try {
+            await apiClient.deleteWorkoutTemplate(workoutId)
+            // После удаления перезагружаем список шаблонов тренировок
+            await dispatch(fetchWorkoutTemplates())
+            return workoutId
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка удаления шаблона тренировки')
+        }
+    }
+)
+
 const librarySlice = createSlice({
     name: 'library',
     initialState,
@@ -701,6 +715,13 @@ const librarySlice = createSlice({
                 const index = state.workouts.findIndex(w => w.id === action.payload.id)
                 if (index !== -1) {
                     state.workouts[index] = action.payload
+                }
+            })
+            .addCase(deleteWorkoutTemplateApi.fulfilled, (state, action) => {
+                // Удаляем тренировку из локального состояния
+                state.workouts = state.workouts.filter(w => w.id !== action.payload)
+                if (state.selectedWorkoutId === action.payload) {
+                    state.selectedWorkoutId = null
                 }
             })
     },

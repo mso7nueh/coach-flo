@@ -56,6 +56,41 @@ async def create_workout(
             raise HTTPException(status_code=403, detail="Вы не связаны с этим тренером")
         trainer_id = workout.trainer_id
     
+    # Проверяем, что program_day_id существует в таблице program_days (если указан)
+    program_day_id = None
+    if workout.program_day_id:
+        program_day = db.query(models.ProgramDay).filter(
+            models.ProgramDay.id == workout.program_day_id
+        ).first()
+        if not program_day:
+            # Если program_day_id не найден, это может быть ID шаблона тренировки
+            # В таком случае, не привязываем тренировку к несуществующему дню программы
+            raise HTTPException(
+                status_code=400, 
+                detail=f"День программы с ID {workout.program_day_id} не найден. Возможно, был передан ID шаблона тренировки вместо ID дня программы."
+            )
+        # Проверяем права доступа к программе
+        program = db.query(models.TrainingProgram).filter(
+            models.TrainingProgram.id == program_day.program_id
+        ).first()
+        if program:
+            if current_user.role == models.UserRole.TRAINER:
+                if program.user_id != current_user.id:
+                    # Проверяем, что это программа клиента тренера
+                    client = db.query(models.User).filter(
+                        and_(
+                            models.User.id == program.user_id,
+                            models.User.trainer_id == current_user.id
+                        )
+                    ).first()
+                    if not client:
+                        raise HTTPException(status_code=403, detail="Нет доступа к этому дню программы")
+            else:
+                # Клиент может использовать только свои программы
+                if program.user_id != current_user.id:
+                    raise HTTPException(status_code=403, detail="Нет доступа к этому дню программы")
+        program_day_id = workout.program_day_id
+    
     # Создаем основную тренировку
     db_workout = models.Workout(
         id=workout_id,
@@ -65,7 +100,7 @@ async def create_workout(
         end=workout.end,
         location=workout.location,
         format=workout.format,
-        program_day_id=workout.program_day_id,
+        program_day_id=program_day_id,
         trainer_id=trainer_id,
         recurrence_series_id=series_id if workout.recurrence_frequency else None
     )
@@ -120,7 +155,7 @@ async def create_workout(
                 end=current_date + timedelta(minutes=duration),
                 location=workout.location,
                 format=workout.format,
-                program_day_id=workout.program_day_id,
+                program_day_id=program_day_id,
                 trainer_id=trainer_id,
                 recurrence_series_id=series_id
             )

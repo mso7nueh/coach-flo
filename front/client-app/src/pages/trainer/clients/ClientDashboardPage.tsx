@@ -17,7 +17,12 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { IconArrowLeft, IconCalendar, IconChartBar, IconBarbell, IconEdit, IconAlertTriangle, IconTarget } from '@tabler/icons-react'
 import { SimpleGrid } from '@mantine/core'
 import dayjs from 'dayjs'
-import { updateClient } from '@/app/store/slices/clientsSlice'
+import { updateClient, setClients } from '@/app/store/slices/clientsSlice'
+import { fetchPayments } from '@/app/store/slices/financesSlice'
+import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
+import { fetchTrainerNotes } from '@/app/store/slices/dashboardSlice'
+import { useEffect, useState } from 'react'
+import { apiClient } from '@/shared/api/client'
 
 export const ClientDashboardPage = () => {
     const { t } = useTranslation()
@@ -29,10 +34,56 @@ export const ClientDashboardPage = () => {
     const { trainerNotes } = useAppSelector((state) => state.dashboard)
     const { bodyMetrics, exerciseMetrics } = useAppSelector((state) => state.metrics)
     const { payments } = useAppSelector((state) => state.finances)
+    const [isLoadingClients, setIsLoadingClients] = useState(false)
+
+    // Загружаем клиентов при монтировании, если клиент не найден
+    useEffect(() => {
+        const client = clients.find((c) => c.id === clientId)
+        if (!client && !isLoadingClients && clientId) {
+            setIsLoadingClients(true)
+            const loadClients = async () => {
+                try {
+                    const clientsData = await apiClient.getClients()
+                    const mappedClients = clientsData.map((client: any) => ({
+                        id: client.id,
+                        fullName: client.full_name,
+                        email: client.email,
+                        phone: client.phone,
+                        avatar: client.avatar,
+                        format: (client.client_format || 'both') as 'online' | 'offline' | 'both',
+                        workoutsPackage: client.workouts_package,
+                        packageExpiryDate: client.package_expiry_date,
+                        isActive: client.is_active ?? true,
+                        attendanceRate: 0,
+                        totalWorkouts: 0,
+                        completedWorkouts: 0,
+                        joinedDate: client.created_at || new Date().toISOString(),
+                    }))
+                    dispatch(setClients(mappedClients))
+                } catch (error) {
+                    console.error('Error loading clients:', error)
+                } finally {
+                    setIsLoadingClients(false)
+                }
+            }
+            loadClients()
+        }
+    }, [dispatch, clientId, clients, isLoadingClients])
+
+    // Загружаем платежи, тренировки и заметки при монтировании компонента
+    useEffect(() => {
+        dispatch(fetchPayments())
+        // Загружаем тренировки за последние 90 дней для отображения
+        const endDate = dayjs().toISOString()
+        const startDate = dayjs().subtract(90, 'days').toISOString()
+        dispatch(fetchWorkouts({ start_date: startDate, end_date: endDate, client_id: clientId }))
+        dispatch(fetchTrainerNotes())
+    }, [dispatch, clientId])
 
     const client = clients.find((c) => c.id === clientId)
 
-    if (!client) {
+    // Показываем "клиент не найден" только после попытки загрузки
+    if (!client && !isLoadingClients) {
         return (
             <Stack gap="md">
                 <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
@@ -41,6 +92,11 @@ export const ClientDashboardPage = () => {
                 <Text>{t('trainer.clients.clientNotFound')}</Text>
             </Stack>
         )
+    }
+
+    // Пока загружаем, показываем заглушку или ничего
+    if (!client && isLoadingClients) {
+        return null // или можно показать Loader
     }
 
     const clientWorkouts = workouts

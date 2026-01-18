@@ -51,6 +51,9 @@ import {
     type TrainerCalendarView,
     type TrainerWorkout,
 } from '@/app/store/slices/trainerCalendarSlice'
+import { fetchWorkoutTemplates } from '@/app/store/slices/librarySlice'
+import { setClients } from '@/app/store/slices/clientsSlice'
+import { apiClient } from '@/shared/api/client'
 import { useMemo, useState, useEffect, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { useSearchParams } from 'react-router-dom'
@@ -106,6 +109,42 @@ export const TrainerCalendarPage = () => {
     const [formState, setFormState] = useState<WorkoutFormState>(() => buildFormState(clientIdFromUrl || undefined))
     const [activeDragWorkout, setActiveDragWorkout] = useState<TrainerWorkout | null>(null)
     const [dragOverDay, setDragOverDay] = useState<string | null>(null)
+
+    // Загружаем клиентов и шаблоны тренировок при монтировании компонента
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                // Загружаем клиентов, если их еще нет
+                if (clients.length === 0) {
+                    const clientsData = await apiClient.getClients()
+                    const mappedClients = clientsData.map((client: any) => ({
+                        id: client.id,
+                        fullName: client.full_name,
+                        email: client.email,
+                        phone: client.phone,
+                        avatar: client.avatar,
+                        format: (client.client_format || 'both') as 'online' | 'offline' | 'both',
+                        workoutsPackage: client.workouts_package,
+                        packageExpiryDate: client.package_expiry_date,
+                        isActive: client.is_active ?? true,
+                        attendanceRate: 0,
+                        totalWorkouts: 0,
+                        completedWorkouts: 0,
+                        joinedDate: client.created_at || new Date().toISOString(),
+                    }))
+                    dispatch(setClients(mappedClients))
+                }
+                
+                // Загружаем шаблоны тренировок, если их еще нет
+                if (libraryWorkouts.length === 0) {
+                    await dispatch(fetchWorkoutTemplates())
+                }
+            } catch (error) {
+                console.error('Error loading initial data:', error)
+            }
+        }
+        loadData()
+    }, [dispatch, clients.length, libraryWorkouts.length])
 
     // Загружаем тренировки при открытии календаря и при изменении периода
     useEffect(() => {
@@ -183,7 +222,8 @@ export const TrainerCalendarPage = () => {
             end: endDateTime.toISOString(),
             location: formState.location,
             format: formState.format,
-            programDayId: formState.templateId,
+            // templateId не должен передаваться как programDayId - это разные сущности
+            // programDayId должен быть только для дней программ, а не для шаблонов тренировок
         }
 
         try {
@@ -548,6 +588,7 @@ export const TrainerCalendarPage = () => {
                         placeholder={t('trainer.calendar.selectClient')}
                         data={clients.map((c) => ({ value: c.id, label: c.fullName }))}
                         required
+                        searchable
                         value={formState.clientId}
                         onChange={(value) => setFormState({ ...formState, clientId: value || '' })}
                     />
@@ -602,6 +643,7 @@ export const TrainerCalendarPage = () => {
                         placeholder={t('trainer.calendar.noTemplate')}
                         data={libraryWorkouts.map((w) => ({ value: w.id, label: w.name }))}
                         clearable
+                        searchable
                         value={formState.templateId}
                         onChange={(value) => {
                             const template = libraryWorkouts.find((w) => w.id === value)

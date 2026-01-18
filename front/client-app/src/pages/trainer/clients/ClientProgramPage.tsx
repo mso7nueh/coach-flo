@@ -16,9 +16,11 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { IconArrowLeft } from '@tabler/icons-react'
 import { fetchPrograms, fetchProgramDays, selectProgram } from '@/app/store/slices/programSlice'
+import { setClients } from '@/app/store/slices/clientsSlice'
+import { apiClient } from '@/shared/api/client'
 
 export const ClientProgramPage = () => {
     const { t } = useTranslation()
@@ -27,6 +29,41 @@ export const ClientProgramPage = () => {
     const dispatch = useAppDispatch()
     const { clients } = useAppSelector((state) => state.clients)
     const { days, selectedProgramId, selectedDayId } = useAppSelector((state) => state.program)
+    const [isLoadingClients, setIsLoadingClients] = useState(false)
+    
+    // Загружаем клиентов при монтировании, если клиент не найден
+    useEffect(() => {
+        const client = clients.find((c) => c.id === clientId)
+        if (!client && !isLoadingClients && clientId) {
+            setIsLoadingClients(true)
+            const loadClients = async () => {
+                try {
+                    const clientsData = await apiClient.getClients()
+                    const mappedClients = clientsData.map((client: any) => ({
+                        id: client.id,
+                        fullName: client.full_name,
+                        email: client.email,
+                        phone: client.phone,
+                        avatar: client.avatar,
+                        format: (client.client_format || 'both') as 'online' | 'offline' | 'both',
+                        workoutsPackage: client.workouts_package,
+                        packageExpiryDate: client.package_expiry_date,
+                        isActive: client.is_active ?? true,
+                        attendanceRate: 0,
+                        totalWorkouts: 0,
+                        completedWorkouts: 0,
+                        joinedDate: client.created_at || new Date().toISOString(),
+                    }))
+                    dispatch(setClients(mappedClients))
+                } catch (error) {
+                    console.error('Error loading clients:', error)
+                } finally {
+                    setIsLoadingClients(false)
+                }
+            }
+            loadClients()
+        }
+    }, [dispatch, clientId, clients, isLoadingClients])
     
     // Загружаем программы клиента при открытии страницы
     useEffect(() => {
@@ -50,7 +87,8 @@ export const ClientProgramPage = () => {
 
     const client = clients.find((c) => c.id === clientId)
 
-    if (!client) {
+    // Показываем "клиент не найден" только после попытки загрузки
+    if (!client && !isLoadingClients) {
         return (
             <Stack gap="md">
                 <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
@@ -59,6 +97,11 @@ export const ClientProgramPage = () => {
                 <Text>{t('trainer.clients.clientNotFound')}</Text>
             </Stack>
         )
+    }
+
+    // Пока загружаем, показываем заглушку или ничего
+    if (!client && isLoadingClients) {
+        return null // или можно показать Loader
     }
 
     const selectedDay = days.find((d) => d.id === selectedDayId) || days[0]

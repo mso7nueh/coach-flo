@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { IconArrowLeft, IconChartBar } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import dayjs from 'dayjs'
 import {
     AreaChart,
@@ -33,6 +33,8 @@ import {
 } from 'recharts'
 import { setMetricsPeriod } from '@/app/store/slices/metricsSlice'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
+import { setClients } from '@/app/store/slices/clientsSlice'
+import { apiClient } from '@/shared/api/client'
 
 const periodSegments = [
     { label: '1w', value: '1w' },
@@ -49,10 +51,46 @@ export const ClientMetricsPage = () => {
     const { clients } = useAppSelector((state) => state.clients)
     const { bodyMetrics, bodyMetricEntries, exerciseMetrics, exerciseMetricEntries, period, bodyMetricGoals, exerciseMetricGoals, bodyMetricStartValues } =
         useAppSelector((state) => state.metrics)
+    const [isLoadingClients, setIsLoadingClients] = useState(false)
+
+    // Загружаем клиентов при монтировании, если клиент не найден
+    useEffect(() => {
+        const client = clients.find((c) => c.id === clientId)
+        if (!client && !isLoadingClients && clientId) {
+            setIsLoadingClients(true)
+            const loadClients = async () => {
+                try {
+                    const clientsData = await apiClient.getClients()
+                    const mappedClients = clientsData.map((client: any) => ({
+                        id: client.id,
+                        fullName: client.full_name,
+                        email: client.email,
+                        phone: client.phone,
+                        avatar: client.avatar,
+                        format: (client.client_format || 'both') as 'online' | 'offline' | 'both',
+                        workoutsPackage: client.workouts_package,
+                        packageExpiryDate: client.package_expiry_date,
+                        isActive: client.is_active ?? true,
+                        attendanceRate: 0,
+                        totalWorkouts: 0,
+                        completedWorkouts: 0,
+                        joinedDate: client.created_at || new Date().toISOString(),
+                    }))
+                    dispatch(setClients(mappedClients))
+                } catch (error) {
+                    console.error('Error loading clients:', error)
+                } finally {
+                    setIsLoadingClients(false)
+                }
+            }
+            loadClients()
+        }
+    }, [dispatch, clientId, clients, isLoadingClients])
 
     const client = clients.find((c) => c.id === clientId)
 
-    if (!client) {
+    // Показываем "клиент не найден" только после попытки загрузки
+    if (!client && !isLoadingClients) {
         return (
             <Stack gap="md">
                 <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
@@ -61,6 +99,11 @@ export const ClientMetricsPage = () => {
                 <Text>{t('trainer.clients.clientNotFound')}</Text>
             </Stack>
         )
+    }
+
+    // Пока загружаем, показываем заглушку или ничего
+    if (!client && isLoadingClients) {
+        return null // или можно показать Loader
     }
 
     const [selectedMetricId, setSelectedMetricId] = useState<string | null>(bodyMetrics[0]?.id ?? null)
