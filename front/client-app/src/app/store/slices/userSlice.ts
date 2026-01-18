@@ -129,7 +129,7 @@ export const registerUserStep1 = createAsyncThunk(
 
 export const registerUserStep2 = createAsyncThunk(
     'user/registerStep2',
-    async (data: { phone: string; code: string }, { dispatch }) => {
+    async (data: { phone: string; code: string }) => {
         const response = await apiClient.registerStep2(data.phone, data.code)
         // Устанавливаем токен перед вызовом getCurrentUser
         apiClient.setToken(response.token)
@@ -153,10 +153,41 @@ export const registerUserStep2 = createAsyncThunk(
 
 export const fetchCurrentUser = createAsyncThunk(
     'user/fetchCurrent',
-    async (_, { rejectWithValue }) => {
+    async (_, { rejectWithValue, dispatch }) => {
         try {
             const user = await apiClient.getCurrentUser()
-            return mapApiUserToState(user)
+            const mappedUser = mapApiUserToState(user)
+            
+            // Загружаем онбординг, если пользователь прошел его
+            if (mappedUser.onboardingSeen) {
+                try {
+                    const onboarding = await apiClient.getOnboarding()
+                    mappedUser.onboardingMetrics = {
+                        weight: onboarding.weight,
+                        height: onboarding.height,
+                        age: onboarding.age,
+                        goals: onboarding.goals,
+                        restrictions: onboarding.restrictions,
+                        activityLevel: onboarding.activity_level as 'low' | 'medium' | 'high' | undefined,
+                    }
+                } catch (error) {
+                    // Онбординг может отсутствовать - это нормально
+                    console.log('Onboarding not found, skipping...')
+                }
+            }
+            
+            // Загружаем настройки
+            try {
+                const settings = await apiClient.getSettings()
+                mappedUser.locale = settings.locale
+                // Настройки уведомлений загружаются в notificationsSlice, если нужно
+                dispatch(getSettingsApi())
+            } catch (error) {
+                // Настройки могут отсутствовать - используем дефолтные
+                console.log('Settings not found, using defaults...')
+            }
+            
+            return mappedUser
         } catch (error: any) {
             // Передаем статус ошибки для правильной обработки
             return rejectWithValue({
@@ -169,7 +200,7 @@ export const fetchCurrentUser = createAsyncThunk(
 
 export const linkTrainerApi = createAsyncThunk(
     'user/linkTrainer',
-    async (connectionCode: string, { rejectWithValue, dispatch }) => {
+    async (connectionCode: string, { rejectWithValue }) => {
         try {
             await apiClient.linkTrainer(connectionCode)
             // После успешного связывания обновляем данные пользователя
@@ -183,7 +214,7 @@ export const linkTrainerApi = createAsyncThunk(
 
 export const unlinkTrainerApi = createAsyncThunk(
     'user/unlinkTrainer',
-    async (_, { rejectWithValue, dispatch }) => {
+    async (_, { rejectWithValue }) => {
         try {
             await apiClient.unlinkTrainer()
             // После успешного отвязывания обновляем данные пользователя
@@ -214,6 +245,58 @@ export const completeOnboardingApi = createAsyncThunk(
             activity_level: metrics.activityLevel,
         })
         return metrics
+    }
+)
+
+export const getOnboardingApi = createAsyncThunk(
+    'user/getOnboardingApi',
+    async () => {
+        const onboarding = await apiClient.getOnboarding()
+        return {
+            weight: onboarding.weight,
+            height: onboarding.height,
+            age: onboarding.age,
+            goals: onboarding.goals,
+            restrictions: onboarding.restrictions,
+            activityLevel: onboarding.activity_level as 'low' | 'medium' | 'high' | undefined,
+        }
+    }
+)
+
+export const updateOnboardingApi = createAsyncThunk(
+    'user/updateOnboardingApi',
+    async (metrics: Partial<OnboardingMetrics>) => {
+        await apiClient.updateOnboarding({
+            weight: metrics.weight,
+            height: metrics.height,
+            age: metrics.age,
+            goals: metrics.goals,
+            restrictions: metrics.restrictions,
+            activity_level: metrics.activityLevel,
+        })
+        return metrics
+    }
+)
+
+export const updateUserApi = createAsyncThunk(
+    'user/updateUserApi',
+    async (data: { full_name?: string; email?: string; phone?: string; avatar?: string; locale?: string }) => {
+        const user = await apiClient.updateUser(data)
+        return mapApiUserToState(user)
+    }
+)
+
+export const getSettingsApi = createAsyncThunk(
+    'user/getSettingsApi',
+    async () => {
+        return await apiClient.getSettings()
+    }
+)
+
+export const updateSettingsApi = createAsyncThunk(
+    'user/updateSettingsApi',
+    async (data: { locale: string; notificationSettings: any }) => {
+        return await apiClient.updateSettings(data)
     }
 )
 
@@ -364,6 +447,23 @@ const userSlice = createSlice({
             })
             .addCase(unlinkTrainerApi.fulfilled, (state, action) => {
                 Object.assign(state, action.payload)
+            })
+            .addCase(getOnboardingApi.fulfilled, (state, action) => {
+                state.onboardingMetrics = action.payload
+            })
+            .addCase(updateOnboardingApi.fulfilled, (state, action) => {
+                if (state.onboardingMetrics) {
+                    state.onboardingMetrics = { ...state.onboardingMetrics, ...action.payload }
+                }
+            })
+            .addCase(updateUserApi.fulfilled, (state, action) => {
+                Object.assign(state, action.payload)
+            })
+            .addCase(getSettingsApi.fulfilled, (state, action) => {
+                state.locale = action.payload.locale
+            })
+            .addCase(updateSettingsApi.fulfilled, (state, action) => {
+                state.locale = action.payload.locale
             })
     },
 })

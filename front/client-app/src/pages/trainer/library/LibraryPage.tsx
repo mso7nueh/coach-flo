@@ -26,7 +26,6 @@ import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
     addWorkout,
     removeWorkout,
-    removeExercise,
     cloneExercise,
     setWorkoutFilters,
     setExerciseFilters,

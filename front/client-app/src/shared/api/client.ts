@@ -4,7 +4,7 @@ import axios, { type AxiosInstance } from 'axios'
 // В продакшне используем полный URL
 const API_BASE_URL = import.meta.env.DEV
   ? '' // Используем прокси в dev режиме
-  : (import.meta.env.VITE_API_URL || 'http://147.45.143.221:8000')
+  : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
 
 export interface User {
   id: string
@@ -327,7 +327,7 @@ export const logout = () => {
 
 // User API
 export const getCurrentUser = async (): Promise<User> => {
-  const { data } = await api.get<User>('/api/auth/me')
+  const { data } = await api.get<User>('/api/users/me')
   return data
 }
 
@@ -419,6 +419,8 @@ export const createWorkout = async (data: {
 export const getWorkouts = async (params?: {
   start_date?: string
   end_date?: string
+  client_id?: string
+  trainer_view?: boolean
 }): Promise<Workout[]> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
   const { data } = await api.get<Workout[]>('/api/workouts/', { params })
@@ -462,9 +464,8 @@ export const createProgram = async (data: {
 
 export const getPrograms = async (user_id?: string): Promise<TrainingProgram[]> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
-  const { data } = await api.get<TrainingProgram[]>('/api/programs/', {
-    params: user_id ? { user_id } : undefined,
-  })
+  const params = user_id ? { user_id } : undefined
+  const { data } = await api.get<TrainingProgram[]>('/api/programs/', { params })
   return data
 }
 
@@ -584,8 +585,8 @@ export const createBodyMetric = async (data: {
   return response
 }
 
-export const getBodyMetrics = async (): Promise<BodyMetric[]> => {
-  const { data } = await api.get<BodyMetric[]>('/api/metrics/body')
+export const getBodyMetrics = async (user_id?: string): Promise<BodyMetric[]> => {
+  const { data } = await api.get<BodyMetric[]>('/api/metrics/body', { params: user_id ? { user_id } : undefined })
   return data
 }
 
@@ -600,6 +601,7 @@ export const addBodyMetricEntry = async (data: {
 
 export const getBodyMetricEntries = async (params?: {
   metric_id?: string
+  user_id?: string
   start_date?: string
   end_date?: string
 }): Promise<BodyMetricEntry[]> => {
@@ -615,8 +617,8 @@ export const createExerciseMetric = async (data: {
   return response
 }
 
-export const getExerciseMetrics = async (): Promise<ExerciseMetric[]> => {
-  const { data } = await api.get<ExerciseMetric[]>('/api/metrics/exercise')
+export const getExerciseMetrics = async (user_id?: string): Promise<ExerciseMetric[]> => {
+  const { data } = await api.get<ExerciseMetric[]>('/api/metrics/exercise', { params: user_id ? { user_id } : undefined })
   return data
 }
 
@@ -633,6 +635,7 @@ export const addExerciseMetricEntry = async (data: {
 
 export const getExerciseMetricEntries = async (params?: {
   exercise_metric_id?: string
+  user_id?: string
   start_date?: string
   end_date?: string
 }): Promise<ExerciseMetricEntry[]> => {
@@ -692,9 +695,9 @@ export const getDashboardStats = async (period?: '7d' | '14d' | '30d'): Promise<
 }
 
 // Notes API
-export const getNotes = async (): Promise<Note[]> => {
+export const getNotes = async (client_id?: string): Promise<Note[]> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
-  const { data } = await api.get<Note[]>('/api/notes/')
+  const { data } = await api.get<Note[]>('/api/notes/', { params: client_id ? { client_id } : undefined })
   return data
 }
 
@@ -703,10 +706,36 @@ export const getNote = async (note_id: string): Promise<Note> => {
   return data
 }
 
-// Trainer API
-export const getClients = async (): Promise<any[]> => {
+export const createNote = async (data: {
+  client_id: string
+  title: string
+  content?: string
+}): Promise<Note> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
-  const { data } = await api.get<any[]>('/api/clients/')
+  const { data: response } = await api.post<Note>('/api/notes/', data)
+  return response
+}
+
+export const updateNote = async (
+  note_id: string,
+  data: {
+    title?: string
+    content?: string
+  }
+): Promise<Note> => {
+  const { data: response } = await api.put<Note>(`/api/notes/${note_id}`, data)
+  return response
+}
+
+export const deleteNote = async (note_id: string): Promise<void> => {
+  await api.delete<void>(`/api/notes/${note_id}`)
+}
+
+// Trainer API
+export const getClients = async (search?: string): Promise<any[]> => {
+  // Добавляем слэш в конце, чтобы избежать редиректа
+  const params = search ? { search } : undefined
+  const { data } = await api.get<any[]>('/api/clients/', { params })
   return data
 }
 
@@ -753,19 +782,36 @@ export const getClient = async (client_id: string): Promise<any> => {
   return data
 }
 
-export const getClientDashboard = async (client_id: string, period?: '7d' | '14d' | '30d'): Promise<any> => {
-  const { data } = await api.get<any>(`/api/trainer/clients/${client_id}/dashboard`, { params: { period } })
+export const getClientStats = async (client_id: string): Promise<any> => {
+  const { data } = await api.get<any>(`/api/clients/${client_id}/stats`)
   return data
+}
+
+export const getClientOnboarding = async (client_id: string): Promise<OnboardingResponse> => {
+  const { data } = await api.get<OnboardingResponse>(`/api/clients/${client_id}/onboarding`)
+  return data
+}
+
+export const getClientDashboard = async (client_id: string, period?: '7d' | '14d' | '30d'): Promise<any> => {
+  // Используем статистику клиента вместо отдельного эндпоинта dashboard
+  const stats = await getClientStats(client_id)
+  // Можно добавить дополнительную логику для дашборда здесь
+  return stats
 }
 
 export const getClientMetrics = async (client_id: string, period?: '7d' | '14d' | '30d'): Promise<any> => {
-  const { data } = await api.get<any>(`/api/trainer/clients/${client_id}/metrics`, { params: { period } })
-  return data
+  // Используем метрики с user_id параметром
+  const [bodyMetrics, exerciseMetrics] = await Promise.all([
+    getBodyMetrics(client_id),
+    getExerciseMetrics(client_id)
+  ])
+  return { bodyMetrics, exerciseMetrics }
 }
 
 export const getClientProgram = async (client_id: string): Promise<any> => {
-  const { data } = await api.get<any>(`/api/trainer/clients/${client_id}/program`)
-  return data
+  // Используем программы с user_id параметром
+  const programs = await getPrograms(client_id)
+  return programs
 }
 
 export const getTrainerWorkouts = async (params?: {
@@ -784,7 +830,17 @@ export const getTrainerWorkouts = async (params?: {
 }
 
 export const getTrainerAvailability = async (trainer_id: string, date: string): Promise<any[]> => {
-  const { data } = await api.get<any[]>(`/api/trainer/${trainer_id}/availability`, { params: { date } })
+  // Используем workouts эндпоинт для получения доступности тренера
+  // Возвращаем тренировки на указанную дату
+  const startOfDay = new Date(date).toISOString().split('T')[0] + 'T00:00:00'
+  const endOfDay = new Date(date).toISOString().split('T')[0] + 'T23:59:59'
+  const { data } = await api.get<any[]>('/api/workouts/', {
+    params: {
+      start_date: startOfDay,
+      end_date: endOfDay,
+      trainer_view: true,
+    }
+  })
   return data
 }
 
@@ -822,7 +878,8 @@ export const getFinanceStats = async (): Promise<any> => {
 }
 
 export const getTrainerFinanceStats = async (period?: '7d' | '14d' | '30d'): Promise<any> => {
-  const { data } = await api.get<any>('/api/trainer/finances/stats', { params: { period } })
+  // Используем стандартный эндпоинт stats (period не поддерживается на бэкенде, но можно добавить логику на фронтенде)
+  const { data } = await api.get<any>('/api/finances/stats')
   return data
 }
 
@@ -833,7 +890,14 @@ export const getTrainerClientWorkouts = async (
     end_date?: string
   }
 ): Promise<any[]> => {
-  const { data } = await api.get<any[]>(`/api/trainer/clients/${client_id}/workouts`, { params })
+  // Используем workouts с client_id параметром через trainer_view
+  const { data } = await api.get<any[]>('/api/workouts/', {
+    params: {
+      ...params,
+      client_id,
+      trainer_view: true,
+    }
+  })
   return data
 }
 
@@ -844,13 +908,18 @@ export const getTrainerClientMetrics = async (
     end_date?: string
   }
 ): Promise<any[]> => {
-  const { data } = await api.get<any[]>(`/api/trainer/clients/${client_id}/metrics/entries`, { params })
-  return data
+  // Используем метрики с user_id параметром
+  const [bodyEntries, exerciseEntries] = await Promise.all([
+    getBodyMetricEntries({ ...params, user_id: client_id }),
+    getExerciseMetricEntries({ ...params, user_id: client_id })
+  ])
+  return [...bodyEntries, ...exerciseEntries]
 }
 
 export const getTrainerClientNotes = async (client_id: string): Promise<any[]> => {
-  const { data } = await api.get<any[]>(`/api/trainer/clients/${client_id}/notes`)
-  return data
+  // Используем notes с client_id параметром
+  const notes = await getNotes(client_id)
+  return notes
 }
 
 export const createTrainerClientNote = async (
@@ -860,9 +929,9 @@ export const createTrainerClientNote = async (
     content?: string
   }
 ): Promise<any> => {
-  // Добавляем слэш в конце, чтобы избежать редиректа
-  const { data: response } = await api.post<any>(`/api/trainer/clients/${client_id}/notes/`, data)
-  return response
+  // Используем createNote с client_id в данных
+  const note = await createNote({ ...data, client_id })
+  return note
 }
 
 export const updateTrainerClientNote = async (
@@ -873,30 +942,50 @@ export const updateTrainerClientNote = async (
     content?: string
   }
 ): Promise<any> => {
-  const { data: response } = await api.put<any>(`/api/trainer/clients/${client_id}/notes/${note_id}`, data)
-  return response
+  // Используем updateNote с note_id
+  const note = await updateNote(note_id, data)
+  return note
 }
 
 export const deleteTrainerClientNote = async (client_id: string, note_id: string): Promise<void> => {
-  await api.delete<void>(`/api/trainer/clients/${client_id}/notes/${note_id}`)
+  // Используем deleteNote с note_id
+  await deleteNote(note_id)
 }
 
 // Library API
-export const getWorkoutTemplates = async (): Promise<any[]> => {
-  const { data } = await api.get<any[]>('/api/library/workout-templates')
+export const getWorkoutTemplates = async (params?: {
+  search?: string
+  level?: string
+  goal?: string
+  muscle_group?: string
+  equipment?: string
+}): Promise<any[]> => {
+  const { data } = await api.get<any[]>('/api/library/workout-templates', { params })
+  return data
+}
+
+export const getWorkoutTemplate = async (template_id: string): Promise<any> => {
+  const { data } = await api.get<any>(`/api/library/workout-templates/${template_id}`)
   return data
 }
 
 export const createWorkoutTemplate = async (data: {
   title: string
   description?: string
+  duration?: number
+  level?: string
+  goal?: string
+  muscle_groups?: string[]
+  equipment?: string[]
   exercises: {
     exercise_id: string
+    block_type: 'warmup' | 'main' | 'cooldown'
     sets: number
     reps?: number
     duration?: number
     rest?: number
     weight?: number
+    notes?: string
   }[]
 }): Promise<any> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
@@ -909,13 +998,20 @@ export const updateWorkoutTemplate = async (
   data: {
     title?: string
     description?: string
+    duration?: number
+    level?: string
+    goal?: string
+    muscle_groups?: string[]
+    equipment?: string[]
     exercises?: {
       exercise_id: string
+      block_type: 'warmup' | 'main' | 'cooldown'
       sets: number
       reps?: number
       duration?: number
       rest?: number
       weight?: number
+      notes?: string
     }[]
   }
 ): Promise<any> => {
@@ -933,6 +1029,11 @@ export const getExercises = async (params?: {
 }): Promise<any[]> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
   const { data } = await api.get<any[]>('/api/exercises/', { params })
+  return data
+}
+
+export const getExercise = async (exercise_id: string): Promise<any> => {
+  const { data } = await api.get<any>(`/api/exercises/${exercise_id}`)
   return data
 }
 
@@ -1060,11 +1161,16 @@ export const apiClient = {
   getDashboardStats,
   getNotes,
   getNote,
+  createNote,
+  updateNote,
+  deleteNote,
   getClients,
   createClient,
   updateClient,
   deleteClient,
   getClient,
+  getClientStats,
+  getClientOnboarding,
   getClientDashboard,
   getClientMetrics,
   getClientProgram,
@@ -1082,10 +1188,12 @@ export const apiClient = {
   updateTrainerClientNote,
   deleteTrainerClientNote,
   getWorkoutTemplates,
+  getWorkoutTemplate,
   createWorkoutTemplate,
   updateWorkoutTemplate,
   deleteWorkoutTemplate,
   getExercises,
+  getExercise,
   createExercise,
   updateExercise,
   deleteExercise,

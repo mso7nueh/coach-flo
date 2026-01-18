@@ -43,14 +43,17 @@ import {
     updateTrainerNote,
     fetchDashboardStats,
     fetchTrainerNotes,
+    createNoteApi,
+    updateNoteApi,
 } from '@/app/store/slices/dashboardSlice'
 import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
 import { fetchBodyMetrics, fetchBodyMetricEntries } from '@/app/store/slices/metricsSlice'
 import { useMemo, useState, useEffect } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import dayjs from 'dayjs'
-import { updateWorkoutAttendance } from '@/app/store/slices/calendarSlice'
+import { updateWorkoutAttendance, updateWorkoutApi } from '@/app/store/slices/calendarSlice'
 import type { TrainerNote } from '@/app/store/slices/dashboardSlice'
+import { notifications } from '@mantine/notifications'
 
 const periods: { label: string; value: '7d' | '14d' | '30d' }[] = [
     { label: '7', value: '7d' },
@@ -123,11 +126,34 @@ export const DashboardPage = () => {
         dispatch(reorderTiles({ from: result.source.index, to: result.destination.index }))
     }
 
-    const handleSaveNote = () => {
+    const handleSaveNote = async () => {
         if (noteDraft) {
-            dispatch(updateTrainerNote({ ...noteDraft, updatedAt: new Date().toISOString() }))
-            closeNoteModal()
-            setNoteDraft(null)
+            try {
+                if (noteDraft.id && noteDraft.id !== crypto.randomUUID()) {
+                    // Обновляем существующую заметку
+                    await dispatch(updateNoteApi({
+                        note_id: noteDraft.id,
+                        title: noteDraft.title,
+                        content: noteDraft.content,
+                    })).unwrap()
+                } else {
+                    // Создаем новую заметку (для тренеров нужен client_id, для клиентов он не нужен)
+                    await dispatch(createNoteApi({
+                        title: noteDraft.title,
+                        content: noteDraft.content,
+                    })).unwrap()
+                }
+                closeNoteModal()
+                setNoteDraft(null)
+                // Перезагружаем заметки после сохранения
+                dispatch(fetchTrainerNotes())
+            } catch (error: any) {
+                notifications.show({
+                    title: t('common.error'),
+                    message: error?.message || t('dashboard.error.saveNote'),
+                    color: 'red',
+                })
+            }
         }
     }
 
@@ -954,9 +980,18 @@ export const DashboardPage = () => {
                                             <Button
                                                 size="xs"
                                                 variant={workout.attendance === 'completed' ? 'filled' : 'light'}
-                                                onClick={() =>
+                                                onClick={async () => {
                                                     dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: 'completed' }))
-                                                }
+                                                    try {
+                                                        await dispatch(updateWorkoutApi({
+                                                            workoutId: workout.id,
+                                                            updates: { attendance: 'completed' }
+                                                        })).unwrap()
+                                                    } catch (error) {
+                                                        // Откатываем локальное изменение при ошибке
+                                                        dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: workout.attendance }))
+                                                    }
+                                                }}
                                             >
                                                 {t('calendar.attendance.markPresent')}
                                             </Button>
@@ -964,9 +999,18 @@ export const DashboardPage = () => {
                                                 size="xs"
                                                 variant={workout.attendance === 'missed' ? 'filled' : 'light'}
                                                 color="red"
-                                                onClick={() =>
+                                                onClick={async () => {
                                                     dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: 'missed' }))
-                                                }
+                                                    try {
+                                                        await dispatch(updateWorkoutApi({
+                                                            workoutId: workout.id,
+                                                            updates: { attendance: 'missed' }
+                                                        })).unwrap()
+                                                    } catch (error) {
+                                                        // Откатываем локальное изменение при ошибке
+                                                        dispatch(updateWorkoutAttendance({ workoutId: workout.id, attendance: workout.attendance }))
+                                                    }
+                                                }}
                                             >
                                                 {t('calendar.attendance.markMissed')}
                                             </Button>

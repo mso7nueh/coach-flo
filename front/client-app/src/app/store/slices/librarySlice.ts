@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit'
-import { apiClient } from '@/shared/api/client'
+import { apiClient, type ProgramDayBlock } from '@/shared/api/client'
 
 export type WorkoutLevel = 'beginner' | 'intermediate' | 'advanced'
 export type WorkoutGoal = 'weight_loss' | 'muscle_gain' | 'endurance' | 'flexibility' | 'general'
@@ -151,39 +151,6 @@ const mapApiExerciseToState = (apiExercise: any): Exercise => {
     }
 }
 
-// Маппинг данных тренировки из API в формат фронтенда
-const mapApiWorkoutTemplateToState = (apiWorkout: any): WorkoutTemplate => {
-    // Преобразуем exercises из API в warmup/main/cooldown
-    // Пока что API возвращает плоский список exercises, нужно будет добавить логику разделения
-    // Для начала создаем пустые массивы, так как структура API может отличаться
-    const warmup: WorkoutExercise[] = []
-    const main: WorkoutExercise[] = []
-    const cooldown: WorkoutExercise[] = []
-    
-    // Если в API есть структура с блоками, используем её
-    // Иначе распределяем упражнения по блокам (можно добавить поле block_type в API)
-    
-    // Преобразуем muscleGroups и equipment из строк в массивы
-    const muscleGroups: MuscleGroup[] = []
-    const equipment: Equipment[] = []
-    
-    return {
-        id: apiWorkout.id,
-        name: apiWorkout.title || apiWorkout.name,
-        duration: apiWorkout.duration || 60,
-        level: (apiWorkout.level || 'beginner') as WorkoutLevel,
-        goal: (apiWorkout.goal || 'general') as WorkoutGoal,
-        description: apiWorkout.description || undefined,
-        warmup,
-        main,
-        cooldown,
-        muscleGroups,
-        equipment,
-        isCustom: true,
-        clientId: apiWorkout.client_id || undefined,
-    }
-}
-
 export const fetchExercises = createAsyncThunk(
     'library/fetchExercises',
     async (params: { search?: string; muscle_group?: string } | undefined, { rejectWithValue }) => {
@@ -198,9 +165,9 @@ export const fetchExercises = createAsyncThunk(
 
 export const createWorkoutApi = createAsyncThunk(
     'library/createWorkoutApi',
-    async (
+        async (
         workoutData: Omit<WorkoutTemplate, 'id'> & { programId?: string },
-        { rejectWithValue, dispatch, getState }
+        { rejectWithValue, getState }
     ) => {
         try {
             // Используем существующий эндпоинт POST /api/programs/{program_id}/days/
@@ -222,7 +189,7 @@ export const createWorkoutApi = createAsyncThunk(
             const exercisesList: Exercise[] = state.library?.exercises || []
             
             // Преобразуем данные из формата WorkoutTemplate в формат ProgramDay
-            const blocks: Array<{ type: string; title: string; exercises: Array<any> }> = []
+            const blocks: ProgramDayBlock[] = []
             
             // Добавляем блок warmup
             if (workoutData.warmup.length > 0) {
@@ -235,9 +202,9 @@ export const createWorkoutApi = createAsyncThunk(
                             title: exercise?.name || ex.exerciseId || 'Упражнение',
                             sets: ex.sets || 1,
                             reps: ex.reps || null,
-                            duration: ex.duration ? parseInt(String(ex.duration)) : null,
-                            rest: ex.rest ? parseInt(String(ex.rest)) : null,
-                            weight: ex.weight ? parseFloat(String(ex.weight)) : null,
+                            duration: ex.duration ? String(ex.duration) : null,
+                            rest: ex.rest ? String(ex.rest) : null,
+                            weight: ex.weight ? String(ex.weight) : null,
                         }
                     }),
                 })
@@ -254,9 +221,9 @@ export const createWorkoutApi = createAsyncThunk(
                             title: exercise?.name || ex.exerciseId || 'Упражнение',
                             sets: ex.sets || 1,
                             reps: ex.reps || null,
-                            duration: ex.duration ? parseInt(String(ex.duration)) : null,
-                            rest: ex.rest ? parseInt(String(ex.rest)) : null,
-                            weight: ex.weight ? parseFloat(String(ex.weight)) : null,
+                            duration: ex.duration ? String(ex.duration) : null,
+                            rest: ex.rest ? String(ex.rest) : null,
+                            weight: ex.weight ? String(ex.weight) : null,
                         }
                     }),
                 })
@@ -273,9 +240,9 @@ export const createWorkoutApi = createAsyncThunk(
                             title: exercise?.name || ex.exerciseId || 'Упражнение',
                             sets: ex.sets || 1,
                             reps: ex.reps || null,
-                            duration: ex.duration ? parseInt(String(ex.duration)) : null,
-                            rest: ex.rest ? parseInt(String(ex.rest)) : null,
-                            weight: ex.weight ? parseFloat(String(ex.weight)) : null,
+                            duration: ex.duration ? String(ex.duration) : null,
+                            rest: ex.rest ? String(ex.rest) : null,
+                            weight: ex.weight ? String(ex.weight) : null,
                         }
                     }),
                 })
@@ -311,33 +278,33 @@ export const createWorkoutApi = createAsyncThunk(
                     const exercise = exercisesList.find(e => e.name === ex.title)
                     return {
                         exerciseId: exercise?.id || '',
-                        sets: ex.sets,
+                        sets: ex.sets ?? undefined,
                         reps: ex.reps || undefined,
-                        duration: ex.duration || undefined,
-                        rest: ex.rest || undefined,
-                        weight: ex.weight || undefined,
+                        duration: ex.duration ? parseFloat(ex.duration) : undefined,
+                        rest: ex.rest ? parseFloat(ex.rest) : undefined,
+                        weight: ex.weight ? parseFloat(ex.weight) : undefined,
                     }
                 }),
                 main: (day.blocks?.find(b => b.type === 'main')?.exercises || []).map(ex => {
                     const exercise = exercisesList.find(e => e.name === ex.title)
                     return {
                         exerciseId: exercise?.id || '',
-                        sets: ex.sets,
+                        sets: ex.sets ?? undefined,
                         reps: ex.reps || undefined,
-                        duration: ex.duration || undefined,
-                        rest: ex.rest || undefined,
-                        weight: ex.weight || undefined,
+                        duration: ex.duration ? parseFloat(ex.duration) : undefined,
+                        rest: ex.rest ? parseFloat(ex.rest) : undefined,
+                        weight: ex.weight ? parseFloat(ex.weight) : undefined,
                     }
                 }),
                 cooldown: (day.blocks?.find(b => b.type === 'cooldown')?.exercises || []).map(ex => {
                     const exercise = exercisesList.find(e => e.name === ex.title)
                     return {
                         exerciseId: exercise?.id || '',
-                        sets: ex.sets,
+                        sets: ex.sets ?? undefined,
                         reps: ex.reps || undefined,
-                        duration: ex.duration || undefined,
-                        rest: ex.rest || undefined,
-                        weight: ex.weight || undefined,
+                        duration: ex.duration ? parseFloat(ex.duration) : undefined,
+                        rest: ex.rest ? parseFloat(ex.rest) : undefined,
+                        weight: ex.weight ? parseFloat(ex.weight) : undefined,
                     }
                 }),
                 muscleGroups: workoutData.muscleGroups,
@@ -354,9 +321,9 @@ export const createWorkoutApi = createAsyncThunk(
 
 export const updateWorkoutApi = createAsyncThunk(
     'library/updateWorkoutApi',
-    async (
+        async (
         { id, updates }: { id: string; updates: Partial<WorkoutTemplate> & { programId?: string } },
-        { rejectWithValue, dispatch }
+        { rejectWithValue }
     ) => {
         try {
             // Если нет programId, обновляем только локально
@@ -486,7 +453,9 @@ export const updateExerciseApi = createAsyncThunk(
             }
             
             // Если visibility!='client', то client_id должен быть null
-            const clientId = updates.visibility === 'client' ? updates.clientId : (updates.visibility !== undefined && updates.visibility !== 'client' ? null : undefined)
+            const clientId = updates.visibility === 'client' 
+                ? updates.clientId 
+                : (updates.visibility !== undefined ? null : undefined)
             
             const apiData: any = {}
             if (updates.name !== undefined) apiData.name = updates.name

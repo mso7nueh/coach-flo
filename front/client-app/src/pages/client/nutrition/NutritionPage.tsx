@@ -12,12 +12,12 @@ import {
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { IconCalendar } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { upsertNutritionEntry } from '@/app/store/slices/metricsSlice'
+import { upsertNutritionEntryApi, fetchNutritionEntries } from '@/app/store/slices/metricsSlice'
 
 export const NutritionPage = () => {
   const { t } = useTranslation()
@@ -30,6 +30,13 @@ export const NutritionPage = () => {
   const [fats, setFats] = useState<number | ''>('')
   const [carbs, setCarbs] = useState<number | ''>('')
 
+  useEffect(() => {
+    // Загружаем записи питания при монтировании компонента
+    const endDate = dayjs().toISOString()
+    const startDate = dayjs().subtract(30, 'days').toISOString()
+    dispatch(fetchNutritionEntries({ start_date: startDate, end_date: endDate }))
+  }, [dispatch])
+
   const selectedDateNutrition = useMemo(() => {
     if (!selectedDate) return null
     return nutritionEntries.find((entry) => dayjs(entry.date).isSame(dayjs(selectedDate), 'day'))
@@ -40,7 +47,7 @@ export const NutritionPage = () => {
       return
     }
     dispatch(
-      upsertNutritionEntry({
+      upsertNutritionEntryApi({
         date: selectedDate.toISOString(),
         calories: Number(calories),
         proteins: proteins === '' ? undefined : Number(proteins),

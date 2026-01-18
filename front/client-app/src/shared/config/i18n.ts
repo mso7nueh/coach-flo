@@ -284,11 +284,6 @@ const resources = {
                 exerciseCreated: 'Упражнение создано',
                 exerciseUpdated: 'Упражнение обновлено',
                 exerciseDeleted: 'Упражнение удалено',
-                error: {
-                    createExercise: 'Ошибка создания упражнения',
-                    updateExercise: 'Ошибка обновления упражнения',
-                    deleteExercise: 'Ошибка удаления упражнения',
-                },
                 dayRenamed: 'День программы переименован',
                 dayDuplicated: 'День программы скопирован',
                 dayDeleted: 'День программы удален',
@@ -302,6 +297,8 @@ const resources = {
                     deleteExercise: 'Ошибка удаления упражнения',
                     addExercise: 'Ошибка добавления упражнения',
                     deleteDay: 'Ошибка удаления дня программы',
+                    createExercise: 'Ошибка создания упражнения',
+                    updateExercise: 'Ошибка обновления упражнения',
                 },
             },
             metricsPage: {
@@ -1041,11 +1038,6 @@ const resources = {
                 exerciseCreated: 'Exercise created',
                 exerciseUpdated: 'Exercise updated',
                 exerciseDeleted: 'Exercise deleted',
-                error: {
-                    createExercise: 'Error creating exercise',
-                    updateExercise: 'Error updating exercise',
-                    deleteExercise: 'Error deleting exercise',
-                },
                 dayRenamed: 'Program day renamed',
                 dayDuplicated: 'Program day duplicated',
                 dayDeleted: 'Program day deleted',
@@ -1059,6 +1051,8 @@ const resources = {
                     deleteExercise: 'Error deleting exercise',
                     addExercise: 'Error adding exercise',
                     deleteDay: 'Error deleting program day',
+                    createExercise: 'Error creating exercise',
+                    updateExercise: 'Error updating exercise',
                 },
             },
             metricsPage: {

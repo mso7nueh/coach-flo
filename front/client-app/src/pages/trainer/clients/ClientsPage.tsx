@@ -72,7 +72,6 @@ export const ClientsPage = () => {
     const navigate = useNavigate()
     const { clients, searchQuery } = useAppSelector((state) => state.clients)
     const trainerConnectionCode = useAppSelector((state) => state.user.trainerConnectionCode)
-    const trainerName = useAppSelector((state) => state.user.fullName)
     const [addModalOpened, { open: openAddModal, close: closeAddModal }] = useDisclosure(false)
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false)
     const [invitationModalOpened, { open: openInvitationModal, close: closeInvitationModal }] = useDisclosure(false)

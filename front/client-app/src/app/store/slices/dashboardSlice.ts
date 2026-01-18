@@ -72,6 +72,47 @@ export const fetchTrainerNotes = createAsyncThunk(
     }
 )
 
+export const createNoteApi = createAsyncThunk(
+    'dashboard/createNote',
+    async (data: { client_id?: string; title: string; content?: string }) => {
+        const note = await apiClient.createNote({
+            client_id: data.client_id || '',
+            title: data.title,
+            content: data.content,
+        })
+        return {
+            id: note.id,
+            title: note.title,
+            content: note.content || '',
+            updatedAt: note.created_at,
+        }
+    }
+)
+
+export const updateNoteApi = createAsyncThunk(
+    'dashboard/updateNote',
+    async (data: { note_id: string; title?: string; content?: string }) => {
+        const note = await apiClient.updateNote(data.note_id, {
+            title: data.title,
+            content: data.content,
+        })
+        return {
+            id: note.id,
+            title: note.title,
+            content: note.content || '',
+            updatedAt: note.created_at,
+        }
+    }
+)
+
+export const deleteNoteApi = createAsyncThunk(
+    'dashboard/deleteNote',
+    async (note_id: string) => {
+        await apiClient.deleteNote(note_id)
+        return note_id
+    }
+)
+
 const dashboardSlice = createSlice({
     name: 'dashboard',
     initialState,
@@ -138,6 +179,23 @@ const dashboardSlice = createSlice({
             })
             .addCase(fetchTrainerNotes.fulfilled, (state, action) => {
                 state.trainerNotes = action.payload
+            })
+            .addCase(createNoteApi.fulfilled, (state, action) => {
+                const existingIndex = state.trainerNotes.findIndex((note) => note.id === action.payload.id)
+                if (existingIndex >= 0) {
+                    state.trainerNotes[existingIndex] = action.payload
+                } else {
+                    state.trainerNotes.push(action.payload)
+                }
+            })
+            .addCase(updateNoteApi.fulfilled, (state, action) => {
+                const index = state.trainerNotes.findIndex((note) => note.id === action.payload.id)
+                if (index >= 0) {
+                    state.trainerNotes[index] = action.payload
+                }
+            })
+            .addCase(deleteNoteApi.fulfilled, (state, action) => {
+                state.trainerNotes = state.trainerNotes.filter((note) => note.id !== action.payload)
             })
     },
 })

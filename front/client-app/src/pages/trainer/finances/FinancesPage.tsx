@@ -56,7 +56,7 @@ export const FinancesPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const location = useLocation()
-    const { payments, selectedClientId, loading } = useAppSelector((state) => state.finances)
+    const { payments, selectedClientId } = useAppSelector((state) => state.finances)
     const { clients } = useAppSelector((state) => state.clients)
     const [addModalOpened, { open: openAddModal, close: closeAddModal }] = useDisclosure(false)
 

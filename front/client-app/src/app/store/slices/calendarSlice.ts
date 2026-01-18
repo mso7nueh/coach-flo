@@ -122,6 +122,52 @@ export const createWorkout = createAsyncThunk(
   }
 )
 
+export const updateWorkoutApi = createAsyncThunk(
+  'calendar/updateWorkoutApi',
+  async (
+    data: {
+      workoutId: string
+      updates: {
+        title?: string
+        start?: string
+        end?: string
+        location?: string
+        format?: 'online' | 'offline'
+        attendance?: AttendanceStatus
+        coach_note?: string
+      }
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const workout = await apiClient.updateWorkout(data.workoutId, {
+        title: data.updates.title,
+        start: data.updates.start,
+        end: data.updates.end,
+        location: data.updates.location,
+        format: data.updates.format,
+        attendance: data.updates.attendance,
+        coach_note: data.updates.coach_note,
+      })
+      return mapApiWorkoutToState(workout)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка обновления тренировки')
+    }
+  }
+)
+
+export const deleteWorkoutApi = createAsyncThunk(
+  'calendar/deleteWorkoutApi',
+  async (data: { workoutId: string; deleteSeries?: boolean }, { rejectWithValue }) => {
+    try {
+      await apiClient.deleteWorkout(data.workoutId, data.deleteSeries)
+      return data.workoutId
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка удаления тренировки')
+    }
+  }
+)
+
 const initialState: CalendarState = {
   workouts: [],
   selectedDate: today.startOf('day').toISOString(),
@@ -304,6 +350,17 @@ const calendarSlice = createSlice({
       .addCase(createWorkout.rejected, (state, action) => {
         state.loading = false
         state.error = action.payload as string
+      })
+      .addCase(updateWorkoutApi.fulfilled, (state, action) => {
+        const index = state.workouts.findIndex(w => w.id === action.payload.id)
+        if (index >= 0) {
+          state.workouts[index] = action.payload
+        }
+      })
+      .addCase(deleteWorkoutApi.fulfilled, (state, action) => {
+        if (action.payload) {
+          state.workouts = state.workouts.filter(w => w.id !== action.payload)
+        }
       })
   },
 })

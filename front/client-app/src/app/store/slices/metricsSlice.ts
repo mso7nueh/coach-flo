@@ -212,6 +212,43 @@ export const createExerciseMetricApi = createAsyncThunk(
   }
 )
 
+const mapApiNutritionEntryToState = (entry: any): DailyNutritionEntry => ({
+  id: entry.id,
+  date: entry.date,
+  calories: entry.calories,
+  proteins: entry.proteins || undefined,
+  fats: entry.fats || undefined,
+  carbs: entry.carbs || undefined,
+  notes: entry.notes || undefined,
+})
+
+export const fetchNutritionEntries = createAsyncThunk(
+  'metrics/fetchNutritionEntries',
+  async (params?: { start_date?: string; end_date?: string }) => {
+    const entries = await apiClient.getNutritionEntries(params)
+    return entries.map(mapApiNutritionEntryToState)
+  }
+)
+
+export const upsertNutritionEntryApi = createAsyncThunk(
+  'metrics/upsertNutritionEntryApi',
+  async (data: Omit<DailyNutritionEntry, 'id'>, { rejectWithValue }) => {
+    try {
+      const entry = await apiClient.createOrUpdateNutritionEntry({
+        date: data.date,
+        calories: data.calories,
+        proteins: data.proteins,
+        fats: data.fats,
+        carbs: data.carbs,
+        notes: data.notes,
+      })
+      return mapApiNutritionEntryToState(entry)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка сохранения записи питания')
+    }
+  }
+)
+
 const metricsSlice = createSlice({
   name: 'metrics',
   initialState,
@@ -343,6 +380,23 @@ const metricsSlice = createSlice({
           state.exerciseMetricEntries[existingIndex] = action.payload
         } else {
           state.exerciseMetricEntries.push(action.payload)
+        }
+      })
+      .addCase(fetchNutritionEntries.fulfilled, (state, action) => {
+        // Объединяем новые записи с существующими, избегая дубликатов
+        const existingIds = new Set(state.nutritionEntries.map(e => e.id))
+        const newEntries = action.payload.filter(e => !existingIds.has(e.id))
+        state.nutritionEntries = [...state.nutritionEntries, ...newEntries]
+      })
+      .addCase(upsertNutritionEntryApi.fulfilled, (state, action) => {
+        // Добавляем новую запись или обновляем существующую
+        const existingIndex = state.nutritionEntries.findIndex((entry) =>
+          dayjs(entry.date).isSame(dayjs(action.payload.date), 'day')
+        )
+        if (existingIndex >= 0) {
+          state.nutritionEntries[existingIndex] = action.payload
+        } else {
+          state.nutritionEntries.push(action.payload)
         }
       })
   },

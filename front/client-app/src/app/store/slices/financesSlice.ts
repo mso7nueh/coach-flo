@@ -50,7 +50,7 @@ const mapApiPaymentToState = (apiPayment: any): Payment => {
 // Async thunks для работы с API
 export const fetchPayments = createAsyncThunk(
     'finances/fetchPayments',
-    async (params?: { client_id?: string; start_date?: string; end_date?: string }, { rejectWithValue }) => {
+    async (params: { client_id?: string; start_date?: string; end_date?: string } | undefined, { rejectWithValue }) => {
         try {
             const payments = await apiClient.getPayments(params)
             return payments.map(mapApiPaymentToState)

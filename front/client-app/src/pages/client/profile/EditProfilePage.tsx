@@ -2,10 +2,11 @@ import { Button, Card, Divider, Group, NumberInput, Radio, Stack, Text, Textarea
 import { useTranslation } from 'react-i18next'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { updateProfile, updateOnboardingMetrics } from '@/app/store/slices/userSlice'
+import { updateUserApi, updateOnboardingApi } from '@/app/store/slices/userSlice'
 import { useForm } from '@mantine/form'
 import { useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import { notifications } from '@mantine/notifications'
 
 const GOALS = [
     { value: 'weight_loss', label: 'Похудение' },
@@ -55,32 +56,48 @@ export const EditProfilePage = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user.fullName, user.email, user.phone, user.onboardingMetrics])
 
-    const handleSubmit = (values: typeof form.values) => {
-        dispatch(
-            updateProfile({
-                fullName: values.fullName,
-                email: values.email,
-                phone: values.phone || undefined,
-            }),
-        )
+    const handleSubmit = async (values: typeof form.values) => {
+        try {
+            // Обновляем профиль пользователя
+            await dispatch(
+                updateUserApi({
+                    full_name: values.fullName,
+                    email: values.email,
+                    phone: values.phone || undefined,
+                }),
+            ).unwrap()
 
-        const restrictions = values.restrictions
-            ?.split(',')
-            .map((v) => v.trim())
-            .filter(Boolean) || []
+            // Обновляем данные онбординга
+            const restrictions = values.restrictions
+                ?.split(',')
+                .map((v) => v.trim())
+                .filter(Boolean) || []
 
-        dispatch(
-            updateOnboardingMetrics({
-                weight: values.weight,
-                height: values.height,
-                age: values.age,
-                goals: values.goals,
-                restrictions: restrictions.length > 0 ? restrictions : undefined,
-                activityLevel: values.activityLevel,
-            }),
-        )
+            await dispatch(
+                updateOnboardingApi({
+                    weight: values.weight,
+                    height: values.height,
+                    age: values.age,
+                    goals: values.goals,
+                    restrictions: restrictions.length > 0 ? restrictions : undefined,
+                    activityLevel: values.activityLevel,
+                }),
+            ).unwrap()
 
-        navigate('/profile')
+            notifications.show({
+                title: t('common.success'),
+                message: t('profile.updated'),
+                color: 'green',
+            })
+
+            navigate('/profile')
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.message || t('profile.error.update'),
+                color: 'red',
+            })
+        }
     }
 
     return (

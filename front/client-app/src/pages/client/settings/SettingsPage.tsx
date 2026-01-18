@@ -12,13 +12,15 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
-import { setLocale } from '@/app/store/slices/userSlice'
+import { updateSettingsApi, getSettingsApi } from '@/app/store/slices/userSlice'
 import {
     toggleNotificationChannel,
     toggleNotificationType,
     setReminderBeforeMinutes,
+    updateNotificationSettings,
 } from '@/app/store/slices/notificationsSlice'
-import { useId } from 'react'
+import { useId, useEffect, useRef } from 'react'
+import { notifications } from '@mantine/notifications'
 
 export const SettingsPage = () => {
     const { t, i18n } = useTranslation()
@@ -26,11 +28,85 @@ export const SettingsPage = () => {
     const notificationSettings = useAppSelector((state) => state.notifications.settings)
     const dispatch = useAppDispatch()
     const labelId = useId()
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const isInitialMount = useRef(true)
 
-    const handleLocaleChange = (value: 'ru' | 'en') => {
-        dispatch(setLocale(value))
-        i18n.changeLanguage(value)
+    useEffect(() => {
+        // Загружаем настройки при монтировании компонента (только один раз)
+        dispatch(getSettingsApi()).then((result) => {
+            if (getSettingsApi.fulfilled.match(result)) {
+                dispatch(updateNotificationSettings(result.payload.notificationSettings))
+                if (result.payload.locale) {
+                    i18n.changeLanguage(result.payload.locale)
+                }
+            }
+            // Помечаем, что начальная загрузка завершена
+            isInitialMount.current = false
+        })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Загружаем только при монтировании
+
+    const handleLocaleChange = async (value: 'ru' | 'en') => {
+        try {
+            await dispatch(
+                updateSettingsApi({
+                    locale: value,
+                    notificationSettings: notificationSettings,
+                }),
+            ).unwrap()
+            i18n.changeLanguage(value)
+            notifications.show({
+                title: t('common.success'),
+                message: t('settings.updated'),
+                color: 'green',
+            })
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.message || t('settings.error.update'),
+                color: 'red',
+            })
+        }
     }
+
+    // Автоматически сохраняем настройки уведомлений при их изменении (debounce)
+    useEffect(() => {
+        // Не сохраняем при первой загрузке (настройки загружаются из API)
+        if (isInitialMount.current) {
+            return
+        }
+
+        // Очищаем предыдущий таймаут
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current)
+        }
+
+        // Сохраняем с задержкой (debounce) после изменений
+        saveTimeoutRef.current = setTimeout(async () => {
+            try {
+                await dispatch(
+                    updateSettingsApi({
+                        locale: locale,
+                        notificationSettings: notificationSettings,
+                    }),
+                ).unwrap()
+            } catch (error: any) {
+                notifications.show({
+                    title: t('common.error'),
+                    message: error?.message || t('settings.error.update'),
+                    color: 'red',
+                })
+            }
+        }, 1000)
+
+        // Очищаем таймаут при размонтировании или при изменении зависимостей
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current)
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [notificationSettings]) // Сохраняем при изменении настроек уведомлений
 
     return (
         <Stack gap="xl">
@@ -77,17 +153,23 @@ export const SettingsPage = () => {
                             <Switch
                                 label={t('settings.notifications.email')}
                                 checked={notificationSettings.emailEnabled}
-                                onChange={() => dispatch(toggleNotificationChannel('email'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationChannel('email'))
+                                }}
                             />
                             <Switch
                                 label={t('settings.notifications.push')}
                                 checked={notificationSettings.pushEnabled}
-                                onChange={() => dispatch(toggleNotificationChannel('push'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationChannel('push'))
+                                }}
                             />
                             <Switch
                                 label={t('settings.notifications.sms')}
                                 checked={notificationSettings.smsEnabled}
-                                onChange={() => dispatch(toggleNotificationChannel('sms'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationChannel('sms'))
+                                }}
                             />
                         </Group>
                     </Stack>
@@ -103,31 +185,41 @@ export const SettingsPage = () => {
                                 label={t('settings.notifications.workoutReminders')}
                                 description={t('settings.notifications.workoutRemindersDescription')}
                                 checked={notificationSettings.workoutReminders}
-                                onChange={() => dispatch(toggleNotificationType('workout_reminder'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationType('workout_reminder'))
+                                }}
                             />
                             <Switch
                                 label={t('settings.notifications.workoutScheduled')}
                                 description={t('settings.notifications.workoutScheduledDescription')}
                                 checked={notificationSettings.workoutScheduled}
-                                onChange={() => dispatch(toggleNotificationType('workout_scheduled'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationType('workout_scheduled'))
+                                }}
                             />
                             <Switch
                                 label={t('settings.notifications.workoutCompleted')}
                                 description={t('settings.notifications.workoutCompletedDescription')}
                                 checked={notificationSettings.workoutCompleted}
-                                onChange={() => dispatch(toggleNotificationType('workout_completed'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationType('workout_completed'))
+                                }}
                             />
                             <Switch
                                 label={t('settings.notifications.metricsUpdate')}
                                 description={t('settings.notifications.metricsUpdateDescription')}
                                 checked={notificationSettings.metricsUpdate}
-                                onChange={() => dispatch(toggleNotificationType('metrics_update'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationType('metrics_update'))
+                                }}
                             />
                             <Switch
                                 label={t('settings.notifications.trainerNote')}
                                 description={t('settings.notifications.trainerNoteDescription')}
                                 checked={notificationSettings.trainerNote}
-                                onChange={() => dispatch(toggleNotificationType('trainer_note'))}
+                                onChange={() => {
+                                    dispatch(toggleNotificationType('trainer_note'))
+                                }}
                             />
                         </Stack>
                     </Stack>
@@ -146,9 +238,9 @@ export const SettingsPage = () => {
                             </Stack>
                             <NumberInput
                                 value={notificationSettings.reminderBeforeMinutes}
-                                onChange={(value) =>
+                                onChange={(value) => {
                                     dispatch(setReminderBeforeMinutes(Number(value) || 30))
-                                }
+                                }}
                                 min={5}
                                 max={1440}
                                 step={5}

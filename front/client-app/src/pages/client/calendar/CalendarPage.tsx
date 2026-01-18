@@ -48,6 +48,8 @@ import {
     goToPreviousWeek,
     goToNextWeek,
     updateWorkout,
+    updateWorkoutApi,
+    deleteWorkoutApi,
     fetchWorkouts,
     type RecurrenceFrequency,
     type DayOfWeek,
@@ -265,14 +267,31 @@ export const CalendarPage = () => {
 
         try {
             if (formState.id) {
-                dispatch(
-                    updateWorkout({
-                        id: formState.id,
-                        ...workoutData,
-                        attendance: 'scheduled' as const,
-                        withTrainer: formState.withTrainer,
+                await dispatch(
+                    updateWorkoutApi({
+                        workoutId: formState.id,
+                        updates: {
+                            title: workoutData.title,
+                            start: workoutData.start,
+                            end: workoutData.end,
+                            location: workoutData.location,
+                            format: workoutData.format,
+                            attendance: 'scheduled' as const,
+                        },
                     }),
-                )
+                ).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('calendar.workoutUpdated'),
+                    color: 'green',
+                })
+                // Перезагружаем тренировки после обновления
+                const startDate = dayjs(currentStartDate).startOf('week')
+                const endDate = startDate.endOf('week').add(1, 'week')
+                dispatch(fetchWorkouts({
+                    start_date: startDate.subtract(1, 'week').toISOString(),
+                    end_date: endDate.toISOString(),
+                }))
             } else {
                 await dispatch(createWorkout(workoutData)).unwrap()
                 notifications.show({
@@ -622,9 +641,29 @@ export const CalendarPage = () => {
                                                                         size="xs"
                                                                         variant="subtle"
                                                                         color="red"
-                                                                        onClick={(e) => {
+                                                                        onClick={async (e) => {
                                                                             e.stopPropagation()
-                                                                            dispatch(removeWorkout(workout.id))
+                                                                            try {
+                                                                                await dispatch(deleteWorkoutApi({ workoutId: workout.id })).unwrap()
+                                                                                notifications.show({
+                                                                                    title: t('common.success'),
+                                                                                    message: t('calendar.workoutDeleted'),
+                                                                                    color: 'green',
+                                                                                })
+                                                                                // Перезагружаем тренировки после удаления
+                                                                                const startDate = dayjs(currentStartDate).startOf('week')
+                                                                                const endDate = startDate.endOf('week').add(1, 'week')
+                                                                                dispatch(fetchWorkouts({
+                                                                                    start_date: startDate.subtract(1, 'week').toISOString(),
+                                                                                    end_date: endDate.toISOString(),
+                                                                                }))
+                                                                            } catch (error: any) {
+                                                                                notifications.show({
+                                                                                    title: t('common.error'),
+                                                                                    message: error?.message || t('calendar.error.deleteWorkout'),
+                                                                                    color: 'red',
+                                                                                })
+                                                                            }
                                                                         }}
                                                                     >
                                                                         <IconTrash size={12} />
