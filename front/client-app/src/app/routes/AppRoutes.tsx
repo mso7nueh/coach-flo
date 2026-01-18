@@ -65,9 +65,9 @@ export const AppRoutes = () => (
             <Route path="profile/edit" element={<EditProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="trainer/clients" element={<ClientsPage />} />
-            <Route path="trainer/clients/:clientId" element={<ClientDashboardPage />} />
             <Route path="trainer/clients/:clientId/metrics" element={<ClientMetricsPage />} />
             <Route path="trainer/clients/:clientId/program" element={<ClientProgramPage />} />
+            <Route path="trainer/clients/:clientId" element={<ClientDashboardPage />} />
             <Route path="trainer/library" element={<LibraryPage />} />
             <Route path="trainer/calendar" element={<TrainerCalendarPage />} />
             <Route path="trainer/finances" element={<FinancesPage />} />

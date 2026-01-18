@@ -133,12 +133,48 @@ export const ClientsPage = () => {
                     workoutsPackage: client.workouts_package,
                     packageExpiryDate: client.package_expiry_date,
                     isActive: client.is_active ?? true,
-                    attendanceRate: 0, // Эти данные можно получить из статистики клиента
+                    attendanceRate: 0,
                     totalWorkouts: 0,
                     completedWorkouts: 0,
                     joinedDate: client.created_at || new Date().toISOString(),
                 }))
                 dispatch(setClients(mappedClients))
+                
+                // Загружаем статистику для каждого клиента
+                const loadClientStats = async () => {
+                    const statsPromises = mappedClients.map(async (client) => {
+                        try {
+                            const stats = await apiClient.getClientStats(client.id)
+                            return {
+                                clientId: client.id,
+                                stats,
+                            }
+                        } catch (error) {
+                            console.error(`Error loading stats for client ${client.id}:`, error)
+                            return null
+                        }
+                    })
+                    
+                    const statsResults = await Promise.all(statsPromises)
+                    
+                    // Обновляем клиентов со статистикой
+                    statsResults.forEach((result) => {
+                        if (result && result.stats) {
+                            dispatch(updateClientLocal({
+                                id: result.clientId,
+                                updates: {
+                                    totalWorkouts: result.stats.total_workouts || 0,
+                                    completedWorkouts: result.stats.completed_workouts || 0,
+                                    attendanceRate: result.stats.attendance_rate || 0,
+                                    lastWorkout: result.stats.last_workout || undefined,
+                                    nextWorkout: result.stats.next_workout || undefined,
+                                },
+                            }))
+                        }
+                    })
+                }
+                
+                loadClientStats()
             } catch (error) {
                 console.error('Error loading clients:', error)
             }
