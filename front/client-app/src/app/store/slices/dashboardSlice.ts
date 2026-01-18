@@ -21,6 +21,7 @@ export interface TrainerNote {
     title: string
     content: string
     updatedAt: string
+    clientId?: string // Добавляем опциональное поле для фильтрации заметок по клиенту
 }
 
 export interface MetricGoal {

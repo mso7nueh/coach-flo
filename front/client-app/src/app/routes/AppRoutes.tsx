@@ -18,6 +18,7 @@ import { ClientsPage } from '@/pages/trainer/clients/ClientsPage'
 import { ClientDashboardPage } from '@/pages/trainer/clients/ClientDashboardPage'
 import { ClientMetricsPage } from '@/pages/trainer/clients/ClientMetricsPage'
 import { ClientProgramPage } from '@/pages/trainer/clients/ClientProgramPage'
+import { ClientNotesPage } from '@/pages/trainer/clients/ClientNotesPage'
 import { FinancesPage } from '@/pages/trainer/finances/FinancesPage'
 import { LibraryPage } from '@/pages/trainer/library/LibraryPage'
 import { TrainerCalendarPage } from '@/pages/trainer/calendar/TrainerCalendarPage'
@@ -67,6 +68,7 @@ export const AppRoutes = () => (
             <Route path="trainer/clients" element={<ClientsPage />} />
             <Route path="trainer/clients/:clientId/metrics" element={<ClientMetricsPage />} />
             <Route path="trainer/clients/:clientId/program" element={<ClientProgramPage />} />
+            <Route path="trainer/clients/:clientId/notes" element={<ClientNotesPage />} />
             <Route path="trainer/clients/:clientId" element={<ClientDashboardPage />} />
             <Route path="trainer/library" element={<LibraryPage />} />
             <Route path="trainer/calendar" element={<TrainerCalendarPage />} />

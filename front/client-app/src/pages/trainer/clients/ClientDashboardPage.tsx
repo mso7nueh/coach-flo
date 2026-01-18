@@ -25,6 +25,19 @@ import { fetchBodyMetrics, fetchExerciseMetrics } from '@/app/store/slices/metri
 import { useEffect, useState, useMemo } from 'react'
 import { apiClient } from '@/shared/api/client'
 
+const GOALS_MAP: Record<string, string> = {
+    weight_loss: 'Похудение',
+    muscle_gain: 'Набор мышечной массы',
+    endurance: 'Выносливость',
+    strength: 'Сила',
+    flexibility: 'Гибкость',
+    general_fitness: 'Общее здоровье',
+}
+
+const getGoalLabel = (goalKey: string): string => {
+    return GOALS_MAP[goalKey] || goalKey
+}
+
 export const ClientDashboardPage = () => {
     const { t } = useTranslation()
     const { clientId } = useParams<{ clientId: string }>()
@@ -80,7 +93,27 @@ export const ClientDashboardPage = () => {
         const endDate = dayjs().toISOString()
         const startDate = dayjs().subtract(90, 'days').toISOString()
         dispatch(fetchWorkouts({ start_date: startDate, end_date: endDate, client_id: clientId }))
-        dispatch(fetchTrainerNotes())
+        
+        // Загружаем заметки конкретного клиента
+        const loadClientNotes = async () => {
+            try {
+                const notesData = await apiClient.getTrainerClientNotes(clientId)
+                const mappedNotes = notesData.map((note: any) => ({
+                    id: note.id,
+                    title: note.title,
+                    content: note.content || '',
+                    updatedAt: note.created_at,
+                    clientId: note.client_id,
+                }))
+                dispatch({
+                    type: 'dashboard/fetchNotes/fulfilled',
+                    payload: mappedNotes
+                } as any)
+            } catch (error) {
+                console.error('Error loading client notes:', error)
+            }
+        }
+        loadClientNotes()
         
         // Загружаем метрики для клиента - используем API напрямую для загрузки метрик конкретного клиента
         const loadClientMetrics = async () => {
@@ -548,7 +581,7 @@ export const ClientDashboardPage = () => {
                                             {index + 1}
                                         </Badge>
                                         <Text size="sm" style={{ flex: 1 }}>
-                                            {goal}
+                                            {getGoalLabel(goal)}
                                         </Text>
                                     </Group>
                                 ))}
