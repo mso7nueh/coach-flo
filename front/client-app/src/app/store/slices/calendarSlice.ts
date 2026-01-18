@@ -327,7 +327,16 @@ const calendarSlice = createSlice({
       })
       .addCase(fetchWorkouts.fulfilled, (state, action) => {
         state.loading = false
-        state.workouts = action.payload
+        // Объединяем новые тренировки с существующими, избегая дубликатов
+        // Это позволяет не терять тренировки при перезагрузке разных периодов
+        const existingIds = new Set(state.workouts.map(w => w.id))
+        const newWorkouts = action.payload.filter(w => !existingIds.has(w.id))
+        // Обновляем существующие тренировки, если они изменились
+        const updatedWorkouts = state.workouts.map(existing => {
+          const updated = action.payload.find(w => w.id === existing.id)
+          return updated || existing
+        })
+        state.workouts = [...updatedWorkouts, ...newWorkouts]
       })
       .addCase(fetchWorkouts.rejected, (state, action) => {
         state.loading = false

@@ -163,154 +163,156 @@ export const fetchExercises = createAsyncThunk(
     }
 )
 
-export const createWorkoutApi = createAsyncThunk(
-    'library/createWorkoutApi',
-        async (
-        workoutData: Omit<WorkoutTemplate, 'id'> & { programId?: string },
-        { rejectWithValue, getState }
-    ) => {
-        try {
-            // Используем существующий эндпоинт POST /api/programs/{program_id}/days/
-            // для сохранения шаблона тренировки как дня программы
-            // Если programId не передан, создаем локально (для обратной совместимости)
-            
-            if (!workoutData.programId) {
-                // Если нет programId, сохраняем только локально
-                const newWorkout: WorkoutTemplate = {
-                    ...workoutData,
-                    id: crypto.randomUUID(),
-                    isCustom: true,
-                }
-                return newWorkout
+// Маппинг данных из API workout template в формат фронтенда
+const mapApiWorkoutTemplateToState = (apiTemplate: any, exercisesList: Exercise[]): WorkoutTemplate => {
+    const warmup: WorkoutExercise[] = []
+    const main: WorkoutExercise[] = []
+    const cooldown: WorkoutExercise[] = []
+    
+    // Группируем упражнения по типам блоков
+    if (apiTemplate.exercises && Array.isArray(apiTemplate.exercises)) {
+        apiTemplate.exercises.forEach((ex: any) => {
+            const exerciseData: WorkoutExercise = {
+                exerciseId: ex.exercise_id || '',
+                sets: ex.sets,
+                reps: ex.reps || undefined,
+                duration: ex.duration || undefined,
+                rest: ex.rest || undefined,
+                weight: ex.weight || undefined,
+                notes: ex.notes || undefined,
             }
             
+            if (ex.block_type === 'warmup') {
+                warmup.push(exerciseData)
+            } else if (ex.block_type === 'main') {
+                main.push(exerciseData)
+            } else if (ex.block_type === 'cooldown') {
+                cooldown.push(exerciseData)
+            }
+        })
+    }
+    
+    return {
+        id: apiTemplate.id,
+        name: apiTemplate.title || '',
+        duration: apiTemplate.duration || 60,
+        level: (apiTemplate.level || 'beginner') as WorkoutLevel,
+        goal: (apiTemplate.goal || 'general') as WorkoutGoal,
+        description: apiTemplate.description || undefined,
+        warmup,
+        main,
+        cooldown,
+        muscleGroups: apiTemplate.muscle_groups || [],
+        equipment: apiTemplate.equipment || [],
+        isCustom: true,
+    }
+}
+
+export const fetchWorkoutTemplates = createAsyncThunk(
+    'library/fetchWorkoutTemplates',
+    async (params?: { search?: string; level?: string; goal?: string; muscle_group?: string; equipment?: string }, { rejectWithValue, getState }) => {
+        try {
+            const templates = await apiClient.getWorkoutTemplates(params)
             // Получаем список упражнений из состояния для маппинга
             const state = getState() as any
             const exercisesList: Exercise[] = state.library?.exercises || []
             
-            // Преобразуем данные из формата WorkoutTemplate в формат ProgramDay
-            const blocks: ProgramDayBlock[] = []
+            // Если упражнения не загружены, загружаем их
+            if (exercisesList.length === 0) {
+                const loadedExercises = await apiClient.getExercises()
+                const mappedExercises = loadedExercises.map(mapApiExerciseToState)
+                return templates.map(template => mapApiWorkoutTemplateToState(template, mappedExercises))
+            }
             
-            // Добавляем блок warmup
-            if (workoutData.warmup.length > 0) {
-                blocks.push({
-                    type: 'warmup',
-                    title: 'Разминка',
-                    exercises: workoutData.warmup.map(ex => {
-                        const exercise = exercisesList.find(e => e.id === ex.exerciseId)
-                        return {
-                            title: exercise?.name || ex.exerciseId || 'Упражнение',
-                            sets: ex.sets || 1,
-                            reps: ex.reps || null,
-                            duration: ex.duration ? String(ex.duration) : null,
-                            rest: ex.rest ? String(ex.rest) : null,
-                            weight: ex.weight ? String(ex.weight) : null,
-                        }
-                    }),
+            return templates.map(template => mapApiWorkoutTemplateToState(template, exercisesList))
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка загрузки шаблонов тренировок')
+        }
+    }
+)
+
+export const createWorkoutApi = createAsyncThunk(
+    'library/createWorkoutApi',
+    async (
+        workoutData: Omit<WorkoutTemplate, 'id'> & { programId?: string },
+        { rejectWithValue, getState, dispatch }
+    ) => {
+        try {
+            // Используем правильный эндпоинт POST /api/library/workout-templates/ для создания шаблона тренировки
+            const state = getState() as any
+            const exercisesList: Exercise[] = state.library?.exercises || []
+            
+            // Преобразуем данные из формата WorkoutTemplate в формат API workout template
+            const exercises: Array<{
+                exercise_id: string
+                block_type: 'warmup' | 'main' | 'cooldown'
+                sets: number
+                reps?: number
+                duration?: number
+                rest?: number
+                weight?: number
+                notes?: string
+            }> = []
+            
+            // Добавляем упражнения из warmup
+            workoutData.warmup.forEach(ex => {
+                exercises.push({
+                    exercise_id: ex.exerciseId,
+                    block_type: 'warmup',
+                    sets: ex.sets || 1,
+                    reps: ex.reps,
+                    duration: ex.duration,
+                    rest: ex.rest,
+                    weight: ex.weight,
+                    notes: ex.notes,
                 })
-            }
-            
-            // Добавляем блок main
-            if (workoutData.main.length > 0) {
-                blocks.push({
-                    type: 'main',
-                    title: 'Основная часть',
-                    exercises: workoutData.main.map(ex => {
-                        const exercise = exercisesList.find(e => e.id === ex.exerciseId)
-                        return {
-                            title: exercise?.name || ex.exerciseId || 'Упражнение',
-                            sets: ex.sets || 1,
-                            reps: ex.reps || null,
-                            duration: ex.duration ? String(ex.duration) : null,
-                            rest: ex.rest ? String(ex.rest) : null,
-                            weight: ex.weight ? String(ex.weight) : null,
-                        }
-                    }),
-                })
-            }
-            
-            // Добавляем блок cooldown
-            if (workoutData.cooldown.length > 0) {
-                blocks.push({
-                    type: 'cooldown',
-                    title: 'Заминка',
-                    exercises: workoutData.cooldown.map(ex => {
-                        const exercise = exercisesList.find(e => e.id === ex.exerciseId)
-                        return {
-                            title: exercise?.name || ex.exerciseId || 'Упражнение',
-                            sets: ex.sets || 1,
-                            reps: ex.reps || null,
-                            duration: ex.duration ? String(ex.duration) : null,
-                            rest: ex.rest ? String(ex.rest) : null,
-                            weight: ex.weight ? String(ex.weight) : null,
-                        }
-                    }),
-                })
-            }
-            
-            // Если нет блоков, создаем пустые блоки
-            if (blocks.length === 0) {
-                blocks.push(
-                    { type: 'warmup', title: 'Разминка', exercises: [] },
-                    { type: 'main', title: 'Основная часть', exercises: [] },
-                    { type: 'cooldown', title: 'Заминка', exercises: [] }
-                )
-            }
-            
-            // Создаем день программы через API
-            const day = await apiClient.createProgramDay(workoutData.programId, {
-                name: workoutData.name,
-                notes: workoutData.description || undefined,
-                blocks,
-                source_template_id: undefined, // Шаблоны тренировок не имеют source_template_id
             })
             
-            // Преобразуем ответ обратно в формат WorkoutTemplate для локального состояния
-            const newWorkout: WorkoutTemplate = {
-                id: day.id, // Используем ID дня программы как ID шаблона
-                name: day.name,
+            // Добавляем упражнения из main
+            workoutData.main.forEach(ex => {
+                exercises.push({
+                    exercise_id: ex.exerciseId,
+                    block_type: 'main',
+                    sets: ex.sets || 1,
+                    reps: ex.reps,
+                    duration: ex.duration,
+                    rest: ex.rest,
+                    weight: ex.weight,
+                    notes: ex.notes,
+                })
+            })
+            
+            // Добавляем упражнения из cooldown
+            workoutData.cooldown.forEach(ex => {
+                exercises.push({
+                    exercise_id: ex.exerciseId,
+                    block_type: 'cooldown',
+                    sets: ex.sets || 1,
+                    reps: ex.reps,
+                    duration: ex.duration,
+                    rest: ex.rest,
+                    weight: ex.weight,
+                    notes: ex.notes,
+                })
+            })
+            
+            // Создаем шаблон тренировки через правильный API endpoint
+            const template = await apiClient.createWorkoutTemplate({
+                title: workoutData.name,
+                description: workoutData.description,
                 duration: workoutData.duration,
                 level: workoutData.level,
                 goal: workoutData.goal,
-                description: day.notes || workoutData.description,
-                warmup: (day.blocks?.find(b => b.type === 'warmup')?.exercises || []).map(ex => {
-                    // Находим упражнение по названию
-                    const exercise = exercisesList.find(e => e.name === ex.title)
-                    return {
-                        exerciseId: exercise?.id || '',
-                        sets: ex.sets ?? undefined,
-                        reps: ex.reps || undefined,
-                        duration: ex.duration ? parseFloat(ex.duration) : undefined,
-                        rest: ex.rest ? parseFloat(ex.rest) : undefined,
-                        weight: ex.weight ? parseFloat(ex.weight) : undefined,
-                    }
-                }),
-                main: (day.blocks?.find(b => b.type === 'main')?.exercises || []).map(ex => {
-                    const exercise = exercisesList.find(e => e.name === ex.title)
-                    return {
-                        exerciseId: exercise?.id || '',
-                        sets: ex.sets ?? undefined,
-                        reps: ex.reps || undefined,
-                        duration: ex.duration ? parseFloat(ex.duration) : undefined,
-                        rest: ex.rest ? parseFloat(ex.rest) : undefined,
-                        weight: ex.weight ? parseFloat(ex.weight) : undefined,
-                    }
-                }),
-                cooldown: (day.blocks?.find(b => b.type === 'cooldown')?.exercises || []).map(ex => {
-                    const exercise = exercisesList.find(e => e.name === ex.title)
-                    return {
-                        exerciseId: exercise?.id || '',
-                        sets: ex.sets ?? undefined,
-                        reps: ex.reps || undefined,
-                        duration: ex.duration ? parseFloat(ex.duration) : undefined,
-                        rest: ex.rest ? parseFloat(ex.rest) : undefined,
-                        weight: ex.weight ? parseFloat(ex.weight) : undefined,
-                    }
-                }),
-                muscleGroups: workoutData.muscleGroups,
+                muscle_groups: workoutData.muscleGroups,
                 equipment: workoutData.equipment,
-                isCustom: true,
-            }
+                exercises,
+            })
+            
+            // Преобразуем ответ в формат WorkoutTemplate
+            const newWorkout = mapApiWorkoutTemplateToState(template, exercisesList)
+            
+            // После создания перезагружаем список шаблонов
+            await dispatch(fetchWorkoutTemplates())
             
             return newWorkout
         } catch (error: any) {
@@ -321,33 +323,99 @@ export const createWorkoutApi = createAsyncThunk(
 
 export const updateWorkoutApi = createAsyncThunk(
     'library/updateWorkoutApi',
-        async (
+    async (
         { id, updates }: { id: string; updates: Partial<WorkoutTemplate> & { programId?: string } },
-        { rejectWithValue }
+        { rejectWithValue, getState, dispatch }
     ) => {
         try {
-            // Если нет programId, обновляем только локально
-            if (!updates.programId) {
-                return { id, ...updates }
+            const state = getState() as any
+            const exercisesList: Exercise[] = state.library?.exercises || []
+            const currentWorkout = state.library?.workouts?.find((w: WorkoutTemplate) => w.id === id)
+            
+            if (!currentWorkout) {
+                return rejectWithValue('Тренировка не найдена')
             }
             
-            // Используем существующий эндпоинт PUT /api/programs/{program_id}/days/{day_id}
-            // для обновления шаблона тренировки
+            // Объединяем текущие данные с обновлениями
+            const updatedWorkout = { ...currentWorkout, ...updates }
             
-            // Обновляем название дня программы
-            if (updates.name) {
-                await apiClient.updateProgramDay(updates.programId, id, {
-                    name: updates.name,
+            // Если обновляются упражнения, нужно передать их в API
+            let exercises: Array<{
+                exercise_id: string
+                block_type: 'warmup' | 'main' | 'cooldown'
+                sets: number
+                reps?: number
+                duration?: number
+                rest?: number
+                weight?: number
+                notes?: string
+            }> | undefined = undefined
+            
+            if (updates.warmup !== undefined || updates.main !== undefined || updates.cooldown !== undefined) {
+                exercises = []
+                
+                // Добавляем упражнения из warmup
+                updatedWorkout.warmup.forEach((ex: WorkoutExercise) => {
+                    exercises!.push({
+                        exercise_id: ex.exerciseId,
+                        block_type: 'warmup',
+                        sets: ex.sets || 1,
+                        reps: ex.reps,
+                        duration: ex.duration,
+                        rest: ex.rest,
+                        weight: ex.weight,
+                        notes: ex.notes,
+                    })
+                })
+                
+                // Добавляем упражнения из main
+                updatedWorkout.main.forEach((ex: WorkoutExercise) => {
+                    exercises!.push({
+                        exercise_id: ex.exerciseId,
+                        block_type: 'main',
+                        sets: ex.sets || 1,
+                        reps: ex.reps,
+                        duration: ex.duration,
+                        rest: ex.rest,
+                        weight: ex.weight,
+                        notes: ex.notes,
+                    })
+                })
+                
+                // Добавляем упражнения из cooldown
+                updatedWorkout.cooldown.forEach((ex: WorkoutExercise) => {
+                    exercises!.push({
+                        exercise_id: ex.exerciseId,
+                        block_type: 'cooldown',
+                        sets: ex.sets || 1,
+                        reps: ex.reps,
+                        duration: ex.duration,
+                        rest: ex.rest,
+                        weight: ex.weight,
+                        notes: ex.notes,
+                    })
                 })
             }
             
-            // Если обновляются упражнения, нужно обновить весь день программы
-            // Для этого нужно получить текущий день, обновить блоки и пересоздать
-            // Но это сложно, поэтому пока обновляем только название
-            // TODO: Реализовать полное обновление блоков через API
+            // Обновляем шаблон тренировки через правильный API endpoint
+            const template = await apiClient.updateWorkoutTemplate(id, {
+                title: updatedWorkout.name,
+                description: updatedWorkout.description,
+                duration: updatedWorkout.duration,
+                level: updatedWorkout.level,
+                goal: updatedWorkout.goal,
+                muscle_groups: updatedWorkout.muscleGroups,
+                equipment: updatedWorkout.equipment,
+                exercises,
+            })
             
-            // Возвращаем обновленные данные
-            return { id, ...updates }
+            // Преобразуем ответ в формат WorkoutTemplate
+            const mappedWorkout = mapApiWorkoutTemplateToState(template, exercisesList)
+            
+            // После обновления перезагружаем список шаблонов
+            await dispatch(fetchWorkoutTemplates())
+            
+            return mappedWorkout
         } catch (error: any) {
             return rejectWithValue(error.message || 'Ошибка обновления тренировки')
         }
@@ -607,18 +675,32 @@ const librarySlice = createSlice({
                 // Упражнение уже удалено через fetchExercises, но можно удалить и локально для оптимизации
                 state.exercises = state.exercises.filter(e => e.id !== action.payload)
             })
+            .addCase(fetchWorkoutTemplates.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(fetchWorkoutTemplates.fulfilled, (state, action) => {
+                state.loading = false
+                state.workouts = action.payload
+            })
+            .addCase(fetchWorkoutTemplates.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload as string
+            })
             .addCase(createWorkoutApi.fulfilled, (state, action) => {
                 // Добавляем тренировку в локальное состояние
                 const existingIndex = state.workouts.findIndex(w => w.id === action.payload.id)
                 if (existingIndex === -1) {
                     state.workouts.push(action.payload)
+                } else {
+                    state.workouts[existingIndex] = action.payload
                 }
             })
             .addCase(updateWorkoutApi.fulfilled, (state, action) => {
                 // Обновляем тренировку в локальном состоянии
                 const index = state.workouts.findIndex(w => w.id === action.payload.id)
                 if (index !== -1) {
-                    state.workouts[index] = { ...state.workouts[index], ...action.payload }
+                    state.workouts[index] = action.payload
                 }
             })
     },

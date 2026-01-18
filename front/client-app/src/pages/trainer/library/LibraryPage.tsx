@@ -30,6 +30,7 @@ import {
     setWorkoutFilters,
     setExerciseFilters,
     fetchExercises,
+    fetchWorkoutTemplates,
     createExerciseApi,
     updateExerciseApi,
     deleteExerciseApi,
@@ -43,6 +44,7 @@ import {
     fetchProgramDays,
     updateProgramDay,
     deleteProgramDayApi,
+    deleteProgram,
     addExerciseToProgramDayApi,
     updateExerciseInProgramDayApi,
     removeExerciseFromProgramDayApi,
@@ -242,30 +244,12 @@ export const LibraryPage = () => {
 
     const handleSaveWorkout = async (values: typeof workoutForm.values) => {
         try {
-            // Для сохранения шаблона тренировки используем эндпоинт создания дня программы
-            // Нужно получить или создать программу для шаблонов
-            let targetProgramId = resolveProgramId()
-            if (!targetProgramId) {
-                // Если нет программы, создаем новую
-                await handleAddTrainerProgram()
-                targetProgramId = resolveProgramId()
-                if (!targetProgramId) {
-                    notifications.show({
-                        title: t('common.error'),
-                        message: t('program.error.createProgram'),
-                        color: 'red',
-                    })
-                    return
-                }
-            }
-            
             if (editingWorkout) {
-                // Для обновления используем updateProgramDay
-                // TODO: Реализовать полное обновление блоков через API
+                // Обновляем шаблон тренировки через API
                 await dispatch(
                     updateWorkoutApi({
                         id: editingWorkout.id,
-                        updates: { ...values, programId: targetProgramId },
+                        updates: values,
                     }),
                 ).unwrap()
                 notifications.show({
@@ -274,8 +258,8 @@ export const LibraryPage = () => {
                     color: 'green',
                 })
             } else {
-                // Создаем шаблон тренировки как день программы через API
-                await dispatch(createWorkoutApi({ ...values, isCustom: true, programId: targetProgramId })).unwrap()
+                // Создаем шаблон тренировки через правильный API endpoint
+                await dispatch(createWorkoutApi({ ...values, isCustom: true })).unwrap()
                 notifications.show({
                     title: t('common.success'),
                     message: t('trainer.library.workoutCreated'),
@@ -753,6 +737,13 @@ export const LibraryPage = () => {
         }
     }, [activeTab, dispatch])
     
+    // Загружаем шаблоны тренировок при открытии вкладки тренировок
+    useEffect(() => {
+        if (activeTab === 'workouts') {
+            dispatch(fetchWorkoutTemplates())
+        }
+    }, [activeTab, dispatch])
+    
     // Загружаем программы при открытии вкладки программ
     useEffect(() => {
         if (activeTab === 'programs') {
@@ -1169,9 +1160,54 @@ export const LibraryPage = () => {
                                                     <Stack gap={4}>
                                                         <Group justify="space-between">
                                                             <Text fw={600}>{program.title}</Text>
-                                                            <Badge size="xs" color="gray" variant="light">
-                                                                {t(`program.owner.trainer`)}
-                                                            </Badge>
+                                                            <Group gap="xs">
+                                                                <Badge size="xs" color="gray" variant="light">
+                                                                    {t(`program.owner.trainer`)}
+                                                                </Badge>
+                                                                <Menu position="bottom-end">
+                                                                    <Menu.Target>
+                                                                        <ActionIcon
+                                                                            variant="subtle"
+                                                                            color="gray"
+                                                                            size="sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                            }}
+                                                                        >
+                                                                            <IconDotsVertical size={14} />
+                                                                        </ActionIcon>
+                                                                    </Menu.Target>
+                                                                    <Menu.Dropdown>
+                                                                        <Menu.Item
+                                                                            leftSection={<IconTrash size={16} />}
+                                                                            color="red"
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation()
+                                                                                if (confirm(t('common.delete') + '?')) {
+                                                                                    try {
+                                                                                        await dispatch(deleteProgram(program.id)).unwrap()
+                                                                                        // Перезагружаем список программ после удаления
+                                                                                        await dispatch(fetchPrograms())
+                                                                                        notifications.show({
+                                                                                            title: t('common.success'),
+                                                                                            message: t('program.programDeleted'),
+                                                                                            color: 'green',
+                                                                                        })
+                                                                                    } catch (error: any) {
+                                                                                        notifications.show({
+                                                                                            title: t('common.error'),
+                                                                                            message: error || t('program.error.deleteProgram'),
+                                                                                            color: 'red',
+                                                                                        })
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            {t('common.delete')}
+                                                                        </Menu.Item>
+                                                                    </Menu.Dropdown>
+                                                                </Menu>
+                                                            </Group>
                                                         </Group>
                                                         {program.description ? (
                                                             <Text size="xs" c="dimmed">

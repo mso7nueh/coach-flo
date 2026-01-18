@@ -86,6 +86,7 @@ const buildFormState = (date: string, options?: { trainerId?: string; withTraine
     startTime: '18:00',
     endTime: '19:00',
     location: '',
+    programDayId: undefined, // Явно указываем, что при создании новой тренировки programDayId не задан
     isRecurring: false,
     recurrenceFrequency: 'weekly',
     recurrenceInterval: 1,
@@ -112,15 +113,28 @@ export const CalendarPage = () => {
     const [activeDragWorkout, setActiveDragWorkout] = useState<ClientWorkout | null>(null)
     const [dragError, setDragError] = useState<string | null>(null)
 
-    // Загружаем тренировки при открытии календаря и при изменении периода
+    // Загружаем тренировки при открытии календаря
+    useEffect(() => {
+        // При загрузке страницы загружаем тренировки за больший период (месяц назад - месяц вперед), 
+        // чтобы не потерять тренировки при перезагрузке
+        const loadStartDate = dayjs().subtract(30, 'days')
+        const loadEndDate = dayjs().add(30, 'days')
+        dispatch(fetchWorkouts({
+            start_date: loadStartDate.toISOString(),
+            end_date: loadEndDate.toISOString(),
+        }))
+    }, [dispatch]) // Загружаем только при монтировании компонента
+
+    // Дополнительно загружаем тренировки при изменении текущей недели (для пагинации)
     useEffect(() => {
         const startDate = dayjs(currentStartDate).startOf('isoWeek')
-        const endDate = startDate.endOf('isoWeek').add(1, 'week') // Загружаем на неделю вперед для плавной прокрутки
+        const endDate = startDate.endOf('isoWeek').add(1, 'week')
+        // Загружаем тренировки за период вокруг текущей недели (они объединятся с уже загруженными)
         dispatch(fetchWorkouts({
-            start_date: startDate.subtract(1, 'week').toISOString(), // Загружаем неделю назад для плавной прокрутки
+            start_date: startDate.subtract(1, 'week').toISOString(),
             end_date: endDate.toISOString(),
         }))
-    }, [dispatch, currentStartDate])
+    }, [dispatch, currentStartDate]) // Загружаем при изменении недели
 
     // Обновляем форму при изменении trainerInfo
     useEffect(() => {

@@ -301,6 +301,12 @@ async def delete_exercise(
     if not exercise:
         raise HTTPException(status_code=404, detail="Упражнение не найдено")
     
+    # Удаляем все связанные записи из workout_template_exercises перед удалением упражнения
+    # Это необходимо, так как ограничение внешнего ключа может блокировать удаление
+    db.query(models.WorkoutTemplateExercise).filter(
+        models.WorkoutTemplateExercise.exercise_id == exercise_id
+    ).delete()
+    
     db.delete(exercise)
     db.commit()
     return None
