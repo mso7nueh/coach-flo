@@ -138,14 +138,6 @@ export const MetricsPage = () => {
           dispatch(fetchBodyMetrics()).unwrap(),
           dispatch(fetchExerciseMetrics()).unwrap(),
         ])
-        
-        // После загрузки метрик загружаем записи (теперь fetchBodyMetricEntries сможет использовать метрики из state)
-        const endDate = dayjs().toISOString()
-        const startDate = dayjs().subtract(28, 'days').toISOString()
-        await Promise.all([
-          dispatch(fetchBodyMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
-          dispatch(fetchExerciseMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
-        ])
       } catch (error: any) {
         console.error('Error loading metrics:', error)
         // Не показываем уведомление здесь, так как ошибки обрабатываются в thunks
@@ -154,6 +146,39 @@ export const MetricsPage = () => {
     
     loadMetrics()
   }, [dispatch])
+
+  // Загружаем записи метрик при изменении периода
+  useEffect(() => {
+    const loadMetricEntries = async () => {
+      try {
+        const endDate = dayjs().toISOString()
+        // Вычисляем start_date в зависимости от периода
+        let startDate: string
+        if (period === '1w') {
+          startDate = dayjs().subtract(7, 'days').toISOString()
+        } else if (period === '4w') {
+          startDate = dayjs().subtract(28, 'days').toISOString()
+        } else if (period === '12w') {
+          startDate = dayjs().subtract(84, 'days').toISOString()
+        } else {
+          // Для 'all' загружаем за последний год (или можно убрать фильтр полностью)
+          startDate = dayjs().subtract(365, 'days').toISOString()
+        }
+        
+        await Promise.all([
+          dispatch(fetchBodyMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
+          dispatch(fetchExerciseMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
+        ])
+      } catch (error: any) {
+        console.error('Error loading metric entries:', error)
+      }
+    }
+
+    // Загружаем только если списки метрик уже загружены
+    if (bodyMetrics.length > 0 || exerciseMetrics.length > 0) {
+      loadMetricEntries()
+    }
+  }, [dispatch, period, bodyMetrics.length, exerciseMetrics.length])
 
   // Обновляем выбранные метрики при загрузке данных
   useEffect(() => {

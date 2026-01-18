@@ -343,6 +343,40 @@ async def delete_program(
     return None
 
 
+@router.delete("/{program_id}/days/{day_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_program_day(
+    program_id: str,
+    day_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Удалить день программы"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверяем права доступа
+    if not _check_program_access(program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    day = db.query(models.ProgramDay).filter(
+        and_(
+            models.ProgramDay.id == day_id,
+            models.ProgramDay.program_id == program_id
+        )
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    db.delete(day)
+    db.commit()
+    return None
+
+
 # Helper functions for converting between string and numeric formats
 def _string_to_number(value: Optional[str], unit: str) -> Optional[int]:
     """Convert string like '90 сек' to integer 90"""
