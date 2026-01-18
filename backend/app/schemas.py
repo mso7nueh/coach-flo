@@ -269,6 +269,11 @@ class TrainingProgramCreate(TrainingProgramBase):
     pass
 
 
+class TrainingProgramUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+
+
 class TrainingProgramResponse(TrainingProgramBase):
     id: str
     owner: str

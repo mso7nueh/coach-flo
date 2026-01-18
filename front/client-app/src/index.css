@@ -75,4 +75,10 @@ button,
 [data-mantine-notification],
 .mantine-Notification-root {
   pointer-events: auto !important;
+  margin-bottom: 8px !important;
+}
+
+[data-mantine-notification]:last-child,
+.mantine-Notification-root:last-child {
+  margin-bottom: 0 !important;
 }

@@ -44,6 +44,7 @@ import {
     fetchPrograms,
     fetchProgramDays,
     updateProgramDay,
+    updateProgram,
     deleteProgramDayApi,
     deleteProgram,
     addExerciseToProgramDayApi,
@@ -112,11 +113,14 @@ export const LibraryPage = () => {
     const trainerDays = useMemo(() => days.filter((d) => d.owner === 'trainer'), [days])
     const selectedDay = useMemo(() => trainerDays.find((item) => item.id === selectedDayId) ?? null, [trainerDays, selectedDayId])
     const [programRenameModalOpened, { open: openProgramRename, close: closeProgramRename }] = useDisclosure(false)
+    const [programEditModalOpened, { open: openProgramEdit, close: closeProgramEdit }] = useDisclosure(false)
     const [programExerciseModalOpened, { open: openProgramExerciseModal, close: closeProgramExerciseModal }] = useDisclosure(false)
     const [programTemplatePickerOpened, { open: openProgramTemplatePicker, close: closeProgramTemplatePicker }] = useDisclosure(false)
     const [programExerciseLibraryOpened, { open: openProgramExerciseLibrary, close: closeProgramExerciseLibrary }] = useDisclosure(false)
     const [programTemplateModalOpened, { open: openProgramTemplateModal, close: closeProgramTemplateModal }] = useDisclosure(false)
     const [programRenameDraft, setProgramRenameDraft] = useState('')
+    const [programEditDraft, setProgramEditDraft] = useState({ title: '', description: '' })
+    const [editingProgramId, setEditingProgramId] = useState<string | null>(null)
     const [programEditingExercise, setProgramEditingExercise] = useState<{
         exercise: ProgramExercise | null
         blockId: string
@@ -500,6 +504,38 @@ export const LibraryPage = () => {
                 notifications.show({
                     title: t('common.error'),
                     message: error || t('program.error.renameDay'),
+                    color: 'red',
+                })
+            }
+        }
+    }
+
+    const handleSaveProgramEdit = async () => {
+        if (editingProgramId && programEditDraft?.title && programEditDraft.title.trim()) {
+            try {
+                await dispatch(
+                    updateProgram({
+                        id: editingProgramId,
+                        data: {
+                            title: programEditDraft.title.trim(),
+                            description: (programEditDraft.description || '').trim() || undefined,
+                        },
+                    })
+                ).unwrap()
+                // Перезагружаем список программ после редактирования
+                await dispatch(fetchPrograms())
+                setEditingProgramId(null)
+                setProgramEditDraft({ title: '', description: '' })
+                closeProgramEdit()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('program.programUpdated'),
+                    color: 'green',
+                })
+            } catch (error: any) {
+                notifications.show({
+                    title: t('common.error'),
+                    message: error || t('program.error.updateProgram'),
                     color: 'red',
                 })
             }
@@ -1194,6 +1230,20 @@ export const LibraryPage = () => {
                                                                         </ActionIcon>
                                                                     </Menu.Target>
                                                                     <Menu.Dropdown>
+                                                                        <Menu.Item
+                                                                            leftSection={<IconEdit size={16} />}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                setEditingProgramId(program.id)
+                                                                                setProgramEditDraft({
+                                                                                    title: program.title,
+                                                                                    description: program.description || '',
+                                                                                })
+                                                                                openProgramEdit()
+                                                                            }}
+                                                                        >
+                                                                            {t('common.edit')}
+                                                                        </Menu.Item>
                                                                         <Menu.Item
                                                                             leftSection={<IconTrash size={16} />}
                                                                             color="red"
@@ -2918,6 +2968,56 @@ export const LibraryPage = () => {
                             {t('common.cancel')}
                         </Button>
                         <Button onClick={handleSaveTrainerRename}>{t('common.save')}</Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal opened={programEditModalOpened} onClose={() => {
+                setEditingProgramId(null)
+                setProgramEditDraft({ title: '', description: '' })
+                closeProgramEdit()
+            }} title={t('common.edit')}>
+                <Stack gap="md">
+                    <TextInput
+                        label="Название программы"
+                        placeholder="Введите название программы"
+                        value={programEditDraft?.title || ''}
+                        onChange={(event) => {
+                            if (event && event.currentTarget) {
+                                const value = event.currentTarget.value
+                                setProgramEditDraft((state) => ({ ...state, title: value }))
+                            }
+                        }}
+                        required
+                    />
+                    <Textarea
+                        label="Описание"
+                        placeholder="Введите описание программы (необязательно)"
+                        value={programEditDraft?.description || ''}
+                        onChange={(event) => {
+                            if (event && event.currentTarget) {
+                                const value = event.currentTarget.value || ''
+                                setProgramEditDraft((state) => {
+                                    if (!state) {
+                                        return { title: '', description: value }
+                                    }
+                                    return { ...state, description: value }
+                                })
+                            }
+                        }}
+                        rows={3}
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={() => {
+                            setEditingProgramId(null)
+                            setProgramEditDraft({ title: '', description: '' })
+                            closeProgramEdit()
+                        }}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button onClick={handleSaveProgramEdit} disabled={!programEditDraft?.title || !programEditDraft.title.trim()}>
+                            {t('common.save')}
+                        </Button>
                     </Group>
                 </Stack>
             </Modal>

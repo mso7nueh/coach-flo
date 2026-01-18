@@ -287,6 +287,8 @@ const resources = {
                 dayRenamed: 'День программы переименован',
                 dayDuplicated: 'День программы скопирован',
                 dayDeleted: 'День программы удален',
+                programUpdated: 'Программа обновлена',
+                programDeleted: 'Программа удалена',
                 error: {
                     createProgram: 'Ошибка создания программы',
                     createDay: 'Ошибка создания дня программы',
@@ -299,6 +301,8 @@ const resources = {
                     deleteDay: 'Ошибка удаления дня программы',
                     createExercise: 'Ошибка создания упражнения',
                     updateExercise: 'Ошибка обновления упражнения',
+                    updateProgram: 'Ошибка обновления программы',
+                    deleteProgram: 'Ошибка удаления программы',
                 },
             },
             metricsPage: {
@@ -1041,6 +1045,8 @@ const resources = {
                 dayRenamed: 'Program day renamed',
                 dayDuplicated: 'Program day duplicated',
                 dayDeleted: 'Program day deleted',
+                programUpdated: 'Program updated',
+                programDeleted: 'Program deleted',
                 error: {
                     createProgram: 'Error creating program',
                     createDay: 'Error creating program day',
@@ -1053,6 +1059,8 @@ const resources = {
                     deleteDay: 'Error deleting program day',
                     createExercise: 'Error creating exercise',
                     updateExercise: 'Error updating exercise',
+                    updateProgram: 'Error updating program',
+                    deleteProgram: 'Error deleting program',
                 },
             },
             metricsPage: {

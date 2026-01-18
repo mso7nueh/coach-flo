@@ -136,6 +136,43 @@ async def get_program(
     return program
 
 
+@router.put("/{program_id}", response_model=schemas.TrainingProgramResponse)
+async def update_program(
+    program_id: str,
+    program_update: schemas.TrainingProgramUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновить программу тренировок"""
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверяем права доступа
+    if current_user.role == models.UserRole.TRAINER:
+        # Тренер может обновлять только свои программы
+        if program.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Тренер может обновлять только свои программы")
+    else:
+        # Клиент может обновлять только свои программы
+        if program.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    
+    # Обновляем поля программы
+    update_data = program_update.model_dump(exclude_unset=True)
+    if 'title' in update_data and update_data['title'] is not None:
+        program.title = update_data['title']
+    if 'description' in update_data:
+        program.description = update_data.get('description')
+    
+    db.commit()
+    db.refresh(program)
+    return program
+
+
 @router.post("/{program_id}/days", response_model=schemas.ProgramDayResponse, status_code=status.HTTP_201_CREATED)
 async def create_program_day(
     program_id: str,
