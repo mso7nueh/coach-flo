@@ -472,6 +472,7 @@ export const deleteWorkout = async (workout_id: string, delete_series?: boolean)
 export const createProgram = async (data: {
   title: string
   description?: string
+  user_id?: string  // ID клиента (только для тренеров)
 }): Promise<TrainingProgram> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
   const { data: response } = await api.post<TrainingProgram>('/api/programs/', data)

@@ -102,9 +102,13 @@ const mapApiProgramToState = (apiProgram: ApiTrainingProgram): TrainingProgram =
 
 export const createProgram = createAsyncThunk(
   'program/createProgram',
-  async (data: { title: string; description?: string; owner: 'trainer' | 'client' }, { rejectWithValue }) => {
+  async (data: { title: string; description?: string; owner: 'trainer' | 'client'; userId?: string }, { rejectWithValue }) => {
     try {
-      const program = await apiClient.createProgram({ title: data.title, description: data.description })
+      const program = await apiClient.createProgram({
+        title: data.title,
+        description: data.description,
+        user_id: data.userId
+      })
       // Добавляем owner из данных, так как API не возвращает owner напрямую
       return { ...mapApiProgramToState(program), owner: data.owner }
     } catch (error: any) {
@@ -182,17 +186,18 @@ export const createProgramDay = createAsyncThunk(
         title: block.title,
         exercises: block.exercises.map(ex => ({
           title: ex.title,
-          sets: ex.sets || null,
+          sets: ex.sets || 1, // sets обязательное поле, по умолчанию 1
           reps: ex.reps || null,
-          weight: ex.weight || null,
-          duration: ex.duration || null,
-          rest: ex.rest || null,
+          // weight, duration, rest должны быть строками или null для бэкенда
+          weight: ex.weight != null ? String(ex.weight) : null,
+          duration: ex.duration != null ? String(ex.duration) : null,
+          rest: ex.rest != null ? String(ex.rest) : null,
         })),
       })) || [
-        { type: 'warmup' as const, title: 'Разминка', exercises: [] },
-        { type: 'main' as const, title: 'Основная часть', exercises: [] },
-        { type: 'cooldown' as const, title: 'Заминка', exercises: [] },
-      ]
+          { type: 'warmup' as const, title: 'Разминка', exercises: [] },
+          { type: 'main' as const, title: 'Основная часть', exercises: [] },
+          { type: 'cooldown' as const, title: 'Заминка', exercises: [] },
+        ]
 
       const day = await apiClient.createProgramDay(data.programId, {
         name: data.name,

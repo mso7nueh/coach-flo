@@ -11,16 +11,21 @@ import {
     Breadcrumbs,
     Anchor,
     Button,
+    Modal,
+    Select,
 } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useEffect, useState } from 'react'
-import { IconArrowLeft } from '@tabler/icons-react'
-import { fetchPrograms, fetchProgramDays, selectProgram } from '@/app/store/slices/programSlice'
+import { IconArrowLeft, IconPlus } from '@tabler/icons-react'
+import { fetchPrograms, fetchProgramDays, selectProgram, createProgram, createProgramDay } from '@/app/store/slices/programSlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
+import { useDisclosure } from '@mantine/hooks'
+import { notifications } from '@mantine/notifications'
+import type { ProgramBlockInput } from '@/app/store/slices/programSlice'
 
 export const ClientProgramPage = () => {
     const { t } = useTranslation()
@@ -28,9 +33,13 @@ export const ClientProgramPage = () => {
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
     const { clients } = useAppSelector((state) => state.clients)
-    const { days, selectedProgramId, selectedDayId } = useAppSelector((state) => state.program)
+    const { days, selectedProgramId, selectedDayId, programs: clientPrograms } = useAppSelector((state) => state.program)
     const [isLoadingClients, setIsLoadingClients] = useState(false)
-    
+    const [selectProgramModalOpened, { open: openSelectProgramModal, close: closeSelectProgramModal }] = useDisclosure(false)
+    const [trainerPrograms, setTrainerPrograms] = useState<any[]>([])
+    const [selectedTrainerProgramId, setSelectedTrainerProgramId] = useState<string | null>(null)
+    const [isCopying, setIsCopying] = useState(false)
+
     // Загружаем клиентов при монтировании, если клиент не найден
     useEffect(() => {
         const client = clients.find((c) => c.id === clientId)
@@ -64,7 +73,7 @@ export const ClientProgramPage = () => {
             loadClients()
         }
     }, [dispatch, clientId, clients, isLoadingClients])
-    
+
     // Загружаем программы клиента при открытии страницы
     useEffect(() => {
         if (clientId) {
@@ -77,13 +86,97 @@ export const ClientProgramPage = () => {
             })
         }
     }, [dispatch, clientId])
-    
+
     // Загружаем дни программы при выборе программы
     useEffect(() => {
         if (selectedProgramId) {
             dispatch(fetchProgramDays(selectedProgramId))
         }
     }, [dispatch, selectedProgramId])
+
+    // Загружаем программы тренера при открытии модального окна
+    useEffect(() => {
+        if (selectProgramModalOpened) {
+            const loadTrainerPrograms = async () => {
+                try {
+                    // Загружаем программы тренера (без user_id, чтобы получить свои программы)
+                    const programs = await apiClient.getPrograms()
+                    setTrainerPrograms(programs.filter((p: any) => p.owner === 'trainer'))
+                } catch (error) {
+                    console.error('Error loading trainer programs:', error)
+                }
+            }
+            loadTrainerPrograms()
+        }
+    }, [selectProgramModalOpened])
+
+    const handleAssignProgram = async () => {
+        if (!selectedTrainerProgramId || !clientId) return
+
+        setIsCopying(true)
+        try {
+            // Получаем программу тренера и её дни
+            const trainerProgram = trainerPrograms.find((p) => p.id === selectedTrainerProgramId)
+            if (!trainerProgram) {
+                throw new Error('Программа не найдена')
+            }
+
+            const trainerProgramDays = await apiClient.getProgramDays(selectedTrainerProgramId)
+
+            // Создаем новую программу для клиента
+            const newProgram = await dispatch(
+                createProgram({ title: trainerProgram.title, description: trainerProgram.description, owner: 'client' })
+            ).unwrap()
+
+            // Копируем все дни программы
+            for (const day of trainerProgramDays) {
+                const blocks: ProgramBlockInput[] = (day.blocks || []).map((block: any) => ({
+                    type: block.type,
+                    title: block.title,
+                    exercises: (block.exercises || []).map((ex: any) => ({
+                        title: ex.title,
+                        sets: ex.sets || 1, // sets обязательное поле, по умолчанию 1
+                        reps: ex.reps || undefined,
+                        // duration, rest, weight должны быть строками или undefined для бэкенда
+                        duration: ex.duration ? String(ex.duration) : undefined,
+                        rest: ex.rest ? String(ex.rest) : undefined,
+                        weight: ex.weight ? String(ex.weight) : undefined,
+                    })),
+                }))
+
+                await dispatch(
+                    createProgramDay({
+                        name: day.name,
+                        programId: newProgram.id,
+                        blocks,
+                        sourceTemplateId: day.source_template_id,
+                    })
+                ).unwrap()
+            }
+
+            // Перезагружаем программы клиента и выбираем новую
+            await dispatch(fetchPrograms(clientId))
+            dispatch(selectProgram(newProgram.id))
+            await dispatch(fetchProgramDays(newProgram.id))
+
+            notifications.show({
+                title: t('common.success'),
+                message: t('trainer.clients.programAssigned'),
+                color: 'green',
+            })
+
+            closeSelectProgramModal()
+            setSelectedTrainerProgramId(null)
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.message || t('trainer.clients.error.assignProgram'),
+                color: 'red',
+            })
+        } finally {
+            setIsCopying(false)
+        }
+    }
 
     const client = clients.find((c) => c.id === clientId)
 
@@ -122,6 +215,9 @@ export const ClientProgramPage = () => {
                 <Title order={2}>
                     {t('common.program')} - {client.fullName}
                 </Title>
+                <Button leftSection={<IconPlus size={16} />} onClick={openSelectProgramModal}>
+                    {t('trainer.clients.selectProgram')}
+                </Button>
             </Group>
 
             <Card withBorder padding="md">
@@ -274,6 +370,32 @@ export const ClientProgramPage = () => {
                     )}
                 </Stack>
             </Card>
+
+            {/* Modal для выбора программы тренера */}
+            <Modal opened={selectProgramModalOpened} onClose={closeSelectProgramModal} title={t('trainer.clients.selectProgram')}>
+                <Stack gap="md">
+                    <Select
+                        label={t('trainer.clients.selectProgramLabel')}
+                        placeholder={t('trainer.clients.selectProgramPlaceholder')}
+                        data={trainerPrograms.map((p) => ({ value: p.id, label: p.title }))}
+                        value={selectedTrainerProgramId}
+                        onChange={(value) => setSelectedTrainerProgramId(value)}
+                        searchable
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={closeSelectProgramModal}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button
+                            onClick={handleAssignProgram}
+                            disabled={!selectedTrainerProgramId || isCopying}
+                            loading={isCopying}
+                        >
+                            {t('trainer.clients.assignProgram')}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Stack>
     )
 }

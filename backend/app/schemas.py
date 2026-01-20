@@ -266,7 +266,7 @@ class TrainingProgramBase(BaseModel):
 
 
 class TrainingProgramCreate(TrainingProgramBase):
-    pass
+    user_id: Optional[str] = None  # ID клиента (только для тренеров)
 
 
 class TrainingProgramUpdate(BaseModel):

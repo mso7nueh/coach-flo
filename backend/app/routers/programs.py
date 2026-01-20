@@ -58,11 +58,30 @@ async def create_program(
 ):
     """Создать программу тренировок"""
     program_id = str(uuid.uuid4())
+    
+    # Определяем для кого создаётся программа
+    target_user_id = current_user.id
     owner = "trainer" if current_user.role == models.UserRole.TRAINER else "client"
+    
+    # Тренер может создавать программы для своих клиентов
+    if program.user_id and current_user.role == models.UserRole.TRAINER:
+        # Проверяем, что клиент связан с тренером
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == program.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = program.user_id
+        owner = "client"
+    elif program.user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут создавать программы для других пользователей")
     
     db_program = models.TrainingProgram(
         id=program_id,
-        user_id=current_user.id,
+        user_id=target_user_id,
         title=program.title,
         description=program.description,
         owner=owner
