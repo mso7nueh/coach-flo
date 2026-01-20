@@ -30,6 +30,8 @@ services:
       DATABASE_URL: postgresql://coachfit:coachfit@db:5432/coachfit
       SECRET_KEY: your-secret-key-change-in-production-please-use-strong-random-key
       CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      SMSAERO_EMAIL: ${SMSAERO_EMAIL:-}
+      SMSAERO_API_KEY: ${SMSAERO_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
