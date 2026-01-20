@@ -386,6 +386,7 @@ class ProgressPhoto(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     date = Column(DateTime(timezone=True), nullable=False, index=True)
     url = Column(String, nullable=False)
+    notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="progress_photos")

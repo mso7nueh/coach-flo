@@ -6,15 +6,22 @@ import {
     Card,
     Divider,
     Drawer,
+    FileButton,
     Group,
+    Image,
+    Loader,
     Modal,
     NumberInput,
+    Overlay,
     Select,
     SimpleGrid,
     Stack,
     Text,
+    Textarea,
     TextInput,
     Title,
+    Tooltip,
+    Box,
 } from '@mantine/core'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { useTranslation } from 'react-i18next'
@@ -23,11 +30,18 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconCalendarTime,
+    IconCamera,
+    IconChevronLeft,
+    IconChevronRight,
     IconDotsVertical,
     IconGripVertical,
+    IconPhoto,
     IconPlus,
     IconTrash,
     IconEdit,
+    IconUpload,
+    IconX,
+    IconZoomIn,
 } from '@tabler/icons-react'
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area, ReferenceLine } from 'recharts'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
@@ -54,6 +68,7 @@ import dayjs from 'dayjs'
 import { updateWorkoutAttendance, updateWorkoutApi } from '@/app/store/slices/calendarSlice'
 import type { TrainerNote } from '@/app/store/slices/dashboardSlice'
 import { notifications } from '@mantine/notifications'
+import { uploadProgressPhoto, deleteProgressPhoto, type ProgressPhoto } from '@/shared/api/client'
 
 const periods: { label: string; value: '7d' | '14d' | '30d' }[] = [
     { label: '7', value: '7d' },
@@ -87,6 +102,17 @@ export const DashboardPage = () => {
     const [goalModalOpened, { open: openGoalModal, close: closeGoalModal }] = useDisclosure(false)
     const [goalMetricId, setGoalMetricId] = useState<string | null>(null)
     const [goalValue, setGoalValue] = useState<number>(0)
+
+    // Progress photos state
+    const [photoGalleryOpened, { open: openPhotoGallery, close: closePhotoGallery }] = useDisclosure(false)
+    const [uploadModalOpened, { open: openUploadModal, close: closeUploadModal }] = useDisclosure(false)
+    const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0)
+    const [photoFile, setPhotoFile] = useState<File | null>(null)
+    const [photoNotes, setPhotoNotes] = useState('')
+    const [photoDate, setPhotoDate] = useState(dayjs().format('YYYY-MM-DD'))
+    const [isUploading, setIsUploading] = useState(false)
+    const [localPhotos, setLocalPhotos] = useState<Array<{ id: string; date: string; url: string; notes?: string }>>([])
+
 
     useEffect(() => {
         dispatch(fetchDashboardStats(period))
@@ -268,17 +294,17 @@ export const DashboardPage = () => {
         }
 
         return {
-            weight: formatChartData(weightMetric?.id).length > 0 
-                ? formatChartData(weightMetric?.id) 
+            weight: formatChartData(weightMetric?.id).length > 0
+                ? formatChartData(weightMetric?.id)
                 : buildChartSeries(74.4, 0.7),
-            sleep: formatChartData(sleepMetric?.id).length > 0 
-                ? formatChartData(sleepMetric?.id) 
+            sleep: formatChartData(sleepMetric?.id).length > 0
+                ? formatChartData(sleepMetric?.id)
                 : buildChartSeries(6.8, 0.4),
-            heartRate: formatChartData(heartRateMetric?.id).length > 0 
-                ? formatChartData(heartRateMetric?.id) 
+            heartRate: formatChartData(heartRateMetric?.id).length > 0
+                ? formatChartData(heartRateMetric?.id)
                 : buildChartSeries(66, 3),
-            steps: formatChartData(stepsMetric?.id).length > 0 
-                ? formatChartData(stepsMetric?.id) 
+            steps: formatChartData(stepsMetric?.id).length > 0
+                ? formatChartData(stepsMetric?.id)
                 : buildChartSeries(7500, 500),
         }
     }, [bodyMetrics, bodyMetricEntries, weightMetric, sleepMetric, heartRateMetric, stepsMetric])
@@ -299,21 +325,98 @@ export const DashboardPage = () => {
         return items
     }, [clientOnboarding?.restrictions])
 
-    // Используем данные фото прогресса из API
+    // Используем данные фото прогресса из API и локальное состояние
     const progressPhotos = useMemo(
         () => {
-            if (stats?.progress_photos && stats.progress_photos.length > 0) {
-                return stats.progress_photos.map((photo, index) => ({
-                    id: photo.id,
-                    label: dayjs(photo.date).format('MM/YY'),
-                    accent: index === 0 ? '#7c3aed' : '#f97316',
-                    url: photo.url,
-                }))
-            }
-            return []
+            const apiPhotos = stats?.progress_photos?.map((photo, index) => ({
+                id: photo.id,
+                label: dayjs(photo.date).format('MM/YY'),
+                date: photo.date,
+                accent: index % 2 === 0 ? '#7c3aed' : '#f97316',
+                url: photo.url,
+                notes: '',
+            })) || []
+
+            const local = localPhotos.map((photo, index) => ({
+                id: photo.id,
+                label: dayjs(photo.date).format('MM/YY'),
+                date: photo.date,
+                accent: (apiPhotos.length + index) % 2 === 0 ? '#7c3aed' : '#f97316',
+                url: photo.url,
+                notes: photo.notes || '',
+            }))
+
+            return [...apiPhotos, ...local].sort((a, b) =>
+                dayjs(b.date).diff(dayjs(a.date))
+            )
         },
-        [stats?.progress_photos],
+        [stats?.progress_photos, localPhotos],
     )
+
+    // Обработчик загрузки фото
+    const handlePhotoUpload = async () => {
+        if (!photoFile) return
+
+        setIsUploading(true)
+        try {
+            const uploaded = await uploadProgressPhoto(photoFile, photoDate, photoNotes)
+            setLocalPhotos(prev => [...prev, {
+                id: uploaded.id,
+                date: uploaded.date,
+                url: uploaded.url,
+                notes: uploaded.notes,
+            }])
+            notifications.show({
+                title: t('common.success'),
+                message: t('dashboard.photos.uploadSuccess'),
+                color: 'green',
+            })
+            setPhotoFile(null)
+            setPhotoNotes('')
+            setPhotoDate(dayjs().format('YYYY-MM-DD'))
+            closeUploadModal()
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.message || t('dashboard.photos.uploadError'),
+                color: 'red',
+            })
+        } finally {
+            setIsUploading(false)
+        }
+    }
+
+    // Обработчик удаления фото
+    const handleDeletePhoto = async (photoId: string) => {
+        try {
+            await deleteProgressPhoto(photoId)
+            setLocalPhotos(prev => prev.filter(p => p.id !== photoId))
+            notifications.show({
+                title: t('common.success'),
+                message: t('dashboard.photos.deleteSuccess'),
+                color: 'green',
+            })
+            if (selectedPhotoIndex >= progressPhotos.length - 1) {
+                setSelectedPhotoIndex(Math.max(0, progressPhotos.length - 2))
+            }
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.message || t('dashboard.photos.deleteError'),
+                color: 'red',
+            })
+        }
+    }
+
+    // Навигация по фото
+    const handlePrevPhoto = () => {
+        setSelectedPhotoIndex(prev => prev > 0 ? prev - 1 : progressPhotos.length - 1)
+    }
+
+    const handleNextPhoto = () => {
+        setSelectedPhotoIndex(prev => prev < progressPhotos.length - 1 ? prev + 1 : 0)
+    }
+
 
     const notesPreview = trainerNotes.slice(0, 3)
 
@@ -902,32 +1005,128 @@ export const DashboardPage = () => {
 
                 <Card withBorder padding="md">
                     <Stack gap="md">
-                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                            {t('dashboard.photos.title')}
-                        </Text>
-                        <SimpleGrid cols={2} spacing="xs">
-                            {progressPhotos.length === 0 ? (
-                                <Text size="sm" c="dimmed" style={{ gridColumn: '1 / -1' }}>{t('dashboard.noPhotos')}</Text>
-                            ) : (
-                                progressPhotos.map((photo) => (
-                                    <Card
+                        <Group justify="space-between" align="center">
+                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                                {t('dashboard.photos.title')}
+                            </Text>
+                            <Tooltip label={t('dashboard.photos.addPhoto')}>
+                                <ActionIcon
+                                    variant="light"
+                                    color="violet"
+                                    size="sm"
+                                    onClick={openUploadModal}
+                                >
+                                    <IconPlus size={14} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Group>
+                        {progressPhotos.length === 0 ? (
+                            <Box
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '24px',
+                                    border: '2px dashed var(--mantine-color-gray-3)',
+                                    borderRadius: 'var(--mantine-radius-md)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                }}
+                                onClick={openUploadModal}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--mantine-color-violet-5)'
+                                    e.currentTarget.style.backgroundColor = 'var(--mantine-color-violet-0)'
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = 'var(--mantine-color-gray-3)'
+                                    e.currentTarget.style.backgroundColor = 'transparent'
+                                }}
+                            >
+                                <IconCamera size={32} color="var(--mantine-color-gray-5)" style={{ marginBottom: 8 }} />
+                                <Text size="sm" c="dimmed" ta="center">
+                                    {t('dashboard.photos.noPhotos')}
+                                </Text>
+                                <Text size="xs" c="dimmed" ta="center" mt={4}>
+                                    {t('dashboard.photos.clickToUpload')}
+                                </Text>
+                            </Box>
+                        ) : (
+                            <SimpleGrid cols={2} spacing="xs">
+                                {progressPhotos.slice(0, 4).map((photo, index) => (
+                                    <Box
                                         key={photo.id}
-                                        withBorder
-                                        padding="md"
                                         style={{
-                                            background: `linear-gradient(135deg, ${photo.accent} 0%, rgba(15, 23, 42, 0.9) 100%)`,
-                                            color: 'white',
-                                            minHeight: '80px',
+                                            position: 'relative',
+                                            aspectRatio: '1',
+                                            borderRadius: 'var(--mantine-radius-md)',
+                                            overflow: 'hidden',
+                                            cursor: 'pointer',
+                                        }}
+                                        onClick={() => {
+                                            setSelectedPhotoIndex(index)
+                                            openPhotoGallery()
                                         }}
                                     >
-                                        <Stack align="center" gap={2} justify="center" style={{ height: '100%' }}>
-                                            <Text fw={700} size="sm">{photo.label}</Text>
-                                            <Text size="xs" c="white" style={{ opacity: 0.8 }}>{t('dashboard.photos.compare')}</Text>
-                                        </Stack>
-                                    </Card>
-                                ))
-                            )}
-                        </SimpleGrid>
+                                        <Image
+                                            src={photo.url}
+                                            alt={photo.label}
+                                            h="100%"
+                                            w="100%"
+                                            fit="cover"
+                                            fallbackSrc={`data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23${photo.accent.replace('#', '')}" width="100" height="100"/><text x="50%" y="50%" fill="white" font-size="12" text-anchor="middle" dy=".3em">${photo.label}</text></svg>`}
+                                        />
+                                        <Box
+                                            style={{
+                                                position: 'absolute',
+                                                bottom: 0,
+                                                left: 0,
+                                                right: 0,
+                                                background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                                                padding: '8px',
+                                            }}
+                                        >
+                                            <Text size="xs" c="white" fw={600}>
+                                                {photo.label}
+                                            </Text>
+                                        </Box>
+                                        <Box
+                                            style={{
+                                                position: 'absolute',
+                                                top: 8,
+                                                right: 8,
+                                                opacity: 0,
+                                                transition: 'opacity 0.2s',
+                                            }}
+                                            className="photo-zoom-icon"
+                                        >
+                                            <IconZoomIn size={20} color="white" />
+                                        </Box>
+                                    </Box>
+                                ))}
+                                {progressPhotos.length > 4 && (
+                                    <Box
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            background: 'var(--mantine-color-gray-1)',
+                                            borderRadius: 'var(--mantine-radius-md)',
+                                            cursor: 'pointer',
+                                            aspectRatio: '1',
+                                        }}
+                                        onClick={() => {
+                                            setSelectedPhotoIndex(0)
+                                            openPhotoGallery()
+                                        }}
+                                    >
+                                        <Text size="sm" c="dimmed" fw={600}>
+                                            +{progressPhotos.length - 4} {t('dashboard.photos.more')}
+                                        </Text>
+                                    </Box>
+                                )}
+                            </SimpleGrid>
+                        )}
                     </Stack>
                 </Card>
             </SimpleGrid>
@@ -1156,6 +1355,191 @@ export const DashboardPage = () => {
                             {t('common.cancel')}
                         </Button>
                         <Button onClick={handleSaveGoal}>{t('common.save')}</Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            {/* Photo Gallery Modal */}
+            <Modal
+                opened={photoGalleryOpened}
+                onClose={closePhotoGallery}
+                size="xl"
+                padding={0}
+                withCloseButton={false}
+                styles={{
+                    content: {
+                        backgroundColor: 'transparent',
+                        boxShadow: 'none',
+                    },
+                    body: {
+                        padding: 0,
+                    },
+                }}
+            >
+                <Box style={{ position: 'relative' }}>
+                    {/* Close button */}
+                    <ActionIcon
+                        variant="filled"
+                        color="dark"
+                        size="lg"
+                        radius="xl"
+                        style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}
+                        onClick={closePhotoGallery}
+                    >
+                        <IconX size={20} />
+                    </ActionIcon>
+
+                    {/* Navigation buttons */}
+                    {progressPhotos.length > 1 && (
+                        <>
+                            <ActionIcon
+                                variant="filled"
+                                color="dark"
+                                size="xl"
+                                radius="xl"
+                                style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}
+                                onClick={handlePrevPhoto}
+                            >
+                                <IconChevronLeft size={24} />
+                            </ActionIcon>
+                            <ActionIcon
+                                variant="filled"
+                                color="dark"
+                                size="xl"
+                                radius="xl"
+                                style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}
+                                onClick={handleNextPhoto}
+                            >
+                                <IconChevronRight size={24} />
+                            </ActionIcon>
+                        </>
+                    )}
+
+                    {/* Photo display */}
+                    {progressPhotos.length > 0 && progressPhotos[selectedPhotoIndex] && (
+                        <Box>
+                            <Image
+                                src={progressPhotos[selectedPhotoIndex].url}
+                                alt={progressPhotos[selectedPhotoIndex].label}
+                                fit="contain"
+                                h="70vh"
+                                w="100%"
+                                radius="md"
+                                fallbackSrc={`data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect fill="%23${progressPhotos[selectedPhotoIndex].accent.replace('#', '')}" width="400" height="400"/><text x="50%" y="50%" fill="white" font-size="24" text-anchor="middle" dy=".3em">${progressPhotos[selectedPhotoIndex].label}</text></svg>`}
+                            />
+                            <Card mt="md" padding="md" radius="md">
+                                <Group justify="space-between" align="center">
+                                    <Stack gap={4}>
+                                        <Text size="lg" fw={600}>
+                                            {dayjs(progressPhotos[selectedPhotoIndex].date).format('D MMMM YYYY')}
+                                        </Text>
+                                        {progressPhotos[selectedPhotoIndex].notes && (
+                                            <Text size="sm" c="dimmed">
+                                                {progressPhotos[selectedPhotoIndex].notes}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                    <Group gap="xs">
+                                        <Text size="sm" c="dimmed">
+                                            {selectedPhotoIndex + 1} / {progressPhotos.length}
+                                        </Text>
+                                        <ActionIcon
+                                            variant="light"
+                                            color="red"
+                                            onClick={() => handleDeletePhoto(progressPhotos[selectedPhotoIndex].id)}
+                                        >
+                                            <IconTrash size={16} />
+                                        </ActionIcon>
+                                    </Group>
+                                </Group>
+                            </Card>
+                        </Box>
+                    )}
+                </Box>
+            </Modal>
+
+            {/* Upload Photo Modal */}
+            <Modal
+                opened={uploadModalOpened}
+                onClose={closeUploadModal}
+                title={t('dashboard.photos.uploadTitle')}
+                centered
+            >
+                <Stack gap="md">
+                    <Box
+                        style={{
+                            border: '2px dashed var(--mantine-color-gray-3)',
+                            borderRadius: 'var(--mantine-radius-md)',
+                            padding: '24px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            backgroundColor: photoFile ? 'var(--mantine-color-violet-0)' : 'transparent',
+                            transition: 'all 0.2s ease',
+                        }}
+                    >
+                        {photoFile ? (
+                            <Stack align="center" gap="xs">
+                                <IconPhoto size={32} color="var(--mantine-color-violet-6)" />
+                                <Text size="sm" fw={500}>{photoFile.name}</Text>
+                                <Text size="xs" c="dimmed">
+                                    {(photoFile.size / 1024 / 1024).toFixed(2)} MB
+                                </Text>
+                                <Button
+                                    variant="subtle"
+                                    color="red"
+                                    size="xs"
+                                    onClick={() => setPhotoFile(null)}
+                                >
+                                    {t('common.delete')}
+                                </Button>
+                            </Stack>
+                        ) : (
+                            <FileButton
+                                onChange={setPhotoFile}
+                                accept="image/png,image/jpeg,image/webp,image/heic"
+                            >
+                                {(props) => (
+                                    <Stack align="center" gap="xs" {...props}>
+                                        <IconUpload size={32} color="var(--mantine-color-gray-5)" />
+                                        <Text size="sm" c="dimmed">
+                                            {t('dashboard.photos.selectFile')}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            PNG, JPG, WEBP, HEIC
+                                        </Text>
+                                    </Stack>
+                                )}
+                            </FileButton>
+                        )}
+                    </Box>
+
+                    <TextInput
+                        label={t('dashboard.photos.date')}
+                        type="date"
+                        value={photoDate}
+                        onChange={(e) => setPhotoDate(e.currentTarget.value)}
+                    />
+
+                    <Textarea
+                        label={t('dashboard.photos.notes')}
+                        placeholder={t('dashboard.photos.notesPlaceholder')}
+                        value={photoNotes}
+                        onChange={(e) => setPhotoNotes(e.currentTarget.value)}
+                        minRows={2}
+                    />
+
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={closeUploadModal}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button
+                            onClick={handlePhotoUpload}
+                            loading={isUploading}
+                            disabled={!photoFile}
+                            leftSection={<IconUpload size={16} />}
+                        >
+                            {t('dashboard.photos.upload')}
+                        </Button>
                     </Group>
                 </Stack>
             </Modal>

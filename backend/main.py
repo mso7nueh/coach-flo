@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.database import engine, Base
 from app.routers import (
     auth, onboarding, users, workouts, programs, metrics,
-    nutrition, finances, clients, exercises, notes, dashboard, settings, library
+    nutrition, finances, clients, exercises, notes, dashboard, settings, library, progress_photos
 )
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +166,12 @@ app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(settings.router, prefix="/api/users/me/settings", tags=["settings"])
 app.include_router(library.router, prefix="/api/library", tags=["library"])
+app.include_router(progress_photos.router, prefix="/api/progress-photos", tags=["progress-photos"])
+
+# Mount static files for uploads
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
 @app.get("/")

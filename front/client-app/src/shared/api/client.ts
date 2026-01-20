@@ -713,6 +713,40 @@ export const getDashboardStats = async (period?: '7d' | '14d' | '30d'): Promise<
   return data
 }
 
+// Progress Photos API
+export interface ProgressPhoto {
+  id: string
+  date: string
+  url: string
+  thumbnail_url?: string
+  notes?: string
+  created_at: string
+}
+
+export const getProgressPhotos = async (): Promise<ProgressPhoto[]> => {
+  const { data } = await api.get<ProgressPhoto[]>('/api/progress-photos/')
+  return data
+}
+
+export const uploadProgressPhoto = async (file: File, date: string, notes?: string): Promise<ProgressPhoto> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('date', date)
+  if (notes) {
+    formData.append('notes', notes)
+  }
+  const { data } = await api.post<ProgressPhoto>('/api/progress-photos/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return data
+}
+
+export const deleteProgressPhoto = async (photoId: string): Promise<void> => {
+  await api.delete(`/api/progress-photos/${photoId}`)
+}
+
 // Notes API
 export const getNotes = async (client_id?: string): Promise<Note[]> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
@@ -1178,6 +1212,9 @@ export const apiClient = {
   updateNutritionEntry,
   deleteNutritionEntry,
   getDashboardStats,
+  getProgressPhotos,
+  uploadProgressPhoto,
+  deleteProgressPhoto,
   getNotes,
   getNote,
   createNote,

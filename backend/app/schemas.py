@@ -485,6 +485,9 @@ class ProgressPhotoResponse(BaseModel):
     id: str
     date: datetime
     url: str
+    thumbnail_url: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
