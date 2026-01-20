@@ -56,7 +56,7 @@ export interface WorkoutTemplate {
     muscleGroups: MuscleGroup[]
     equipment: Equipment[]
     isCustom: boolean
-  clientId?: string
+    clientId?: string
 }
 
 interface LibraryState {
@@ -102,7 +102,7 @@ const mapApiExerciseToState = (apiExercise: any): Exercise => {
         'cardio': 'cardio',
         'full_body': 'full_body',
     }
-    
+
     const muscleGroupStr = apiExercise.muscle_groups?.toLowerCase() || ''
     let muscleGroup: MuscleGroup = 'chest'
     for (const [key, value] of Object.entries(muscleGroupMap)) {
@@ -111,7 +111,7 @@ const mapApiExerciseToState = (apiExercise: any): Exercise => {
             break
         }
     }
-    
+
     // Преобразуем equipment из строки в массив
     const equipmentStr = apiExercise.equipment?.toLowerCase() || ''
     const equipment: Equipment[] = []
@@ -124,16 +124,16 @@ const mapApiExerciseToState = (apiExercise: any): Exercise => {
         'kettlebell': 'kettlebell',
         'resistance_bands': 'resistance_bands',
     }
-    
+
     for (const [key, value] of Object.entries(equipmentMap)) {
         if (equipmentStr.includes(key)) {
             equipment.push(value)
         }
     }
-    
+
     // Определяем visibility из API ответа, если не указано - по умолчанию 'all'
     const visibility: 'all' | 'client' | 'trainer' = apiExercise.visibility || 'all'
-    
+
     return {
         id: apiExercise.id,
         name: apiExercise.name,
@@ -164,11 +164,11 @@ export const fetchExercises = createAsyncThunk(
 )
 
 // Маппинг данных из API workout template в формат фронтенда
-const mapApiWorkoutTemplateToState = (apiTemplate: any, exercisesList: Exercise[]): WorkoutTemplate => {
+const mapApiWorkoutTemplateToState = (apiTemplate: any): WorkoutTemplate => {
     const warmup: WorkoutExercise[] = []
     const main: WorkoutExercise[] = []
     const cooldown: WorkoutExercise[] = []
-    
+
     // Группируем упражнения по типам блоков
     if (apiTemplate.exercises && Array.isArray(apiTemplate.exercises)) {
         apiTemplate.exercises.forEach((ex: any) => {
@@ -181,7 +181,7 @@ const mapApiWorkoutTemplateToState = (apiTemplate: any, exercisesList: Exercise[
                 weight: ex.weight || undefined,
                 notes: ex.notes || undefined,
             }
-            
+
             if (ex.block_type === 'warmup') {
                 warmup.push(exerciseData)
             } else if (ex.block_type === 'main') {
@@ -191,7 +191,7 @@ const mapApiWorkoutTemplateToState = (apiTemplate: any, exercisesList: Exercise[
             }
         })
     }
-    
+
     return {
         id: apiTemplate.id,
         name: apiTemplate.title || '',
@@ -210,21 +210,21 @@ const mapApiWorkoutTemplateToState = (apiTemplate: any, exercisesList: Exercise[
 
 export const fetchWorkoutTemplates = createAsyncThunk(
     'library/fetchWorkoutTemplates',
-    async (params?: { search?: string; level?: string; goal?: string; muscle_group?: string; equipment?: string }, { rejectWithValue, getState }) => {
+    async (params: { search?: string; level?: string; goal?: string; muscle_group?: string; equipment?: string } | undefined, { rejectWithValue, getState }) => {
         try {
             const templates = await apiClient.getWorkoutTemplates(params)
             // Получаем список упражнений из состояния для маппинга
             const state = getState() as any
             const exercisesList: Exercise[] = state.library?.exercises || []
-            
+
             // Если упражнения не загружены, загружаем их
             if (exercisesList.length === 0) {
-                const loadedExercises = await apiClient.getExercises()
-                const mappedExercises = loadedExercises.map(mapApiExerciseToState)
-                return templates.map(template => mapApiWorkoutTemplateToState(template, mappedExercises))
+                await apiClient.getExercises()
+                // Мы не используем результат здесь, так как mapApiWorkoutTemplateToState больше не требует exercisesList
+                return templates.map(template => mapApiWorkoutTemplateToState(template))
             }
-            
-            return templates.map(template => mapApiWorkoutTemplateToState(template, exercisesList))
+
+            return templates.map(template => mapApiWorkoutTemplateToState(template))
         } catch (error: any) {
             return rejectWithValue(error.message || 'Ошибка загрузки шаблонов тренировок')
         }
@@ -241,7 +241,7 @@ export const createWorkoutApi = createAsyncThunk(
             // Используем правильный эндпоинт POST /api/library/workout-templates/ для создания шаблона тренировки
             const state = getState() as any
             const exercisesList: Exercise[] = state.library?.exercises || []
-            
+
             // Преобразуем данные из формата WorkoutTemplate в формат API workout template
             const exercises: Array<{
                 exercise_id: string
@@ -253,7 +253,7 @@ export const createWorkoutApi = createAsyncThunk(
                 weight?: number
                 notes?: string
             }> = []
-            
+
             // Добавляем упражнения из warmup
             workoutData.warmup.forEach(ex => {
                 exercises.push({
@@ -267,7 +267,7 @@ export const createWorkoutApi = createAsyncThunk(
                     notes: ex.notes,
                 })
             })
-            
+
             // Добавляем упражнения из main
             workoutData.main.forEach(ex => {
                 exercises.push({
@@ -281,7 +281,7 @@ export const createWorkoutApi = createAsyncThunk(
                     notes: ex.notes,
                 })
             })
-            
+
             // Добавляем упражнения из cooldown
             workoutData.cooldown.forEach(ex => {
                 exercises.push({
@@ -295,7 +295,7 @@ export const createWorkoutApi = createAsyncThunk(
                     notes: ex.notes,
                 })
             })
-            
+
             // Создаем шаблон тренировки через правильный API endpoint
             const template = await apiClient.createWorkoutTemplate({
                 title: workoutData.name,
@@ -307,13 +307,13 @@ export const createWorkoutApi = createAsyncThunk(
                 equipment: workoutData.equipment,
                 exercises,
             })
-            
+
             // Преобразуем ответ в формат WorkoutTemplate
-            const newWorkout = mapApiWorkoutTemplateToState(template, exercisesList)
-            
+            const newWorkout = mapApiWorkoutTemplateToState(template)
+
             // После создания перезагружаем список шаблонов
             await dispatch(fetchWorkoutTemplates())
-            
+
             return newWorkout
         } catch (error: any) {
             return rejectWithValue(error.message || 'Ошибка создания тренировки')
@@ -331,14 +331,14 @@ export const updateWorkoutApi = createAsyncThunk(
             const state = getState() as any
             const exercisesList: Exercise[] = state.library?.exercises || []
             const currentWorkout = state.library?.workouts?.find((w: WorkoutTemplate) => w.id === id)
-            
+
             if (!currentWorkout) {
                 return rejectWithValue('Тренировка не найдена')
             }
-            
+
             // Объединяем текущие данные с обновлениями
             const updatedWorkout = { ...currentWorkout, ...updates }
-            
+
             // Если обновляются упражнения, нужно передать их в API
             let exercises: Array<{
                 exercise_id: string
@@ -350,10 +350,10 @@ export const updateWorkoutApi = createAsyncThunk(
                 weight?: number
                 notes?: string
             }> | undefined = undefined
-            
+
             if (updates.warmup !== undefined || updates.main !== undefined || updates.cooldown !== undefined) {
                 exercises = []
-                
+
                 // Добавляем упражнения из warmup
                 updatedWorkout.warmup.forEach((ex: WorkoutExercise) => {
                     exercises!.push({
@@ -367,7 +367,7 @@ export const updateWorkoutApi = createAsyncThunk(
                         notes: ex.notes,
                     })
                 })
-                
+
                 // Добавляем упражнения из main
                 updatedWorkout.main.forEach((ex: WorkoutExercise) => {
                     exercises!.push({
@@ -381,7 +381,7 @@ export const updateWorkoutApi = createAsyncThunk(
                         notes: ex.notes,
                     })
                 })
-                
+
                 // Добавляем упражнения из cooldown
                 updatedWorkout.cooldown.forEach((ex: WorkoutExercise) => {
                     exercises!.push({
@@ -396,7 +396,7 @@ export const updateWorkoutApi = createAsyncThunk(
                     })
                 })
             }
-            
+
             // Обновляем шаблон тренировки через правильный API endpoint
             const template = await apiClient.updateWorkoutTemplate(id, {
                 title: updatedWorkout.name,
@@ -408,13 +408,13 @@ export const updateWorkoutApi = createAsyncThunk(
                 equipment: updatedWorkout.equipment,
                 exercises,
             })
-            
+
             // Преобразуем ответ в формат WorkoutTemplate
-            const mappedWorkout = mapApiWorkoutTemplateToState(template, exercisesList)
-            
+            const mappedWorkout = mapApiWorkoutTemplateToState(template)
+
             // После обновления перезагружаем список шаблонов
             await dispatch(fetchWorkoutTemplates())
-            
+
             return mappedWorkout
         } catch (error: any) {
             return rejectWithValue(error.message || 'Ошибка обновления тренировки')
@@ -437,7 +437,7 @@ export const createExerciseApi = createAsyncThunk(
                 'cardio': 'Кардио',
                 'full_body': 'Все тело',
             }
-            
+
             const equipmentMap: Record<Equipment, string> = {
                 'bodyweight': 'Собственный вес',
                 'dumbbells': 'Гантели',
@@ -447,18 +447,18 @@ export const createExerciseApi = createAsyncThunk(
                 'kettlebell': 'Гиря',
                 'resistance_bands': 'Эспандер',
             }
-            
+
             const muscleGroups = muscleGroupMap[exerciseData.muscleGroup] || ''
             const equipment = exerciseData.equipment.map(eq => equipmentMap[eq] || eq).join(', ')
-            
+
             // Валидация: если visibility='client', то client_id обязателен
             if (exerciseData.visibility === 'client' && !exerciseData.clientId) {
                 throw new Error('client_id обязателен когда visibility="client"')
             }
-            
+
             // Если visibility!='client', то client_id должен быть null
             const clientId = exerciseData.visibility === 'client' ? exerciseData.clientId : null
-            
+
             const apiData = {
                 name: exerciseData.name,
                 description: exerciseData.description || undefined,
@@ -472,13 +472,13 @@ export const createExerciseApi = createAsyncThunk(
                 visibility: exerciseData.visibility || 'all',
                 client_id: clientId || null,
             }
-            
+
             const createdExercise = await apiClient.createExercise(apiData)
             const mappedExercise = mapApiExerciseToState(createdExercise)
-            
+
             // После создания перезагружаем список упражнений
             await dispatch(fetchExercises())
-            
+
             return mappedExercise
         } catch (error: any) {
             return rejectWithValue(error.message || 'Ошибка создания упражнения')
@@ -501,7 +501,7 @@ export const updateExerciseApi = createAsyncThunk(
                 'cardio': 'Кардио',
                 'full_body': 'Все тело',
             }
-            
+
             const equipmentMap: Record<Equipment, string> = {
                 'bodyweight': 'Собственный вес',
                 'dumbbells': 'Гантели',
@@ -511,20 +511,20 @@ export const updateExerciseApi = createAsyncThunk(
                 'kettlebell': 'Гиря',
                 'resistance_bands': 'Эспандер',
             }
-            
+
             const muscleGroups = updates.muscleGroup ? muscleGroupMap[updates.muscleGroup] || '' : undefined
             const equipment = updates.equipment ? updates.equipment.map(eq => equipmentMap[eq] || eq).join(', ') : undefined
-            
+
             // Валидация: если visibility='client', то client_id обязателен
             if (updates.visibility === 'client' && !updates.clientId) {
                 throw new Error('client_id обязателен когда visibility="client"')
             }
-            
+
             // Если visibility!='client', то client_id должен быть null
-            const clientId = updates.visibility === 'client' 
-                ? updates.clientId 
+            const clientId = updates.visibility === 'client'
+                ? updates.clientId
                 : (updates.visibility !== undefined ? null : undefined)
-            
+
             const apiData: any = {}
             if (updates.name !== undefined) apiData.name = updates.name
             if (updates.description !== undefined) apiData.description = updates.description
@@ -536,13 +536,13 @@ export const updateExerciseApi = createAsyncThunk(
             if (updates.notes !== undefined) apiData.notes = updates.notes
             if (updates.visibility !== undefined) apiData.visibility = updates.visibility
             if (clientId !== undefined) apiData.client_id = clientId
-            
+
             const updatedExercise = await apiClient.updateExercise(id, apiData)
             const mappedExercise = mapApiExerciseToState(updatedExercise)
-            
+
             // После обновления перезагружаем список упражнений
             await dispatch(fetchExercises())
-            
+
             return mappedExercise
         } catch (error: any) {
             return rejectWithValue(error.message || 'Ошибка обновления упражнения')

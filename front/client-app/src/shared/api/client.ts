@@ -6,6 +6,8 @@ const API_BASE_URL = import.meta.env.DEV
   ? '' // Используем прокси в dev режиме
   : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
 
+export type AttendanceStatus = 'scheduled' | 'completed' | 'cancelled' | 'missed'
+
 export interface User {
   id: string
   full_name: string
@@ -77,7 +79,7 @@ export interface Workout {
   end: string
   location?: string | null
   format?: 'online' | 'offline' | null
-  attendance?: 'scheduled' | 'completed' | 'cancelled' | null
+  attendance?: AttendanceStatus | null
   coach_note?: string | null
   trainer_id?: string | null
   program_day_id?: string | null
@@ -456,7 +458,7 @@ export const updateWorkout = async (
     end?: string
     location?: string
     format?: 'online' | 'offline'
-    attendance?: 'scheduled' | 'completed' | 'cancelled'
+    attendance?: AttendanceStatus
     coach_note?: string
   }
 ): Promise<Workout> => {

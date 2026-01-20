@@ -157,7 +157,7 @@ export const fetchCurrentUser = createAsyncThunk(
         try {
             const user = await apiClient.getCurrentUser()
             const mappedUser = mapApiUserToState(user)
-            
+
             // Загружаем онбординг только если пользователь прошел его И данные онбординга еще не загружены
             // Это предотвращает ненужные запросы при каждой загрузке страницы
             const currentState = getState() as { user: UserState }
@@ -166,14 +166,14 @@ export const fetchCurrentUser = createAsyncThunk(
                 currentState.user.onboardingMetrics.height !== undefined ||
                 currentState.user.onboardingMetrics.age !== undefined
             )
-            
+
             if (mappedUser.onboardingSeen && !hasOnboardingMetrics) {
                 try {
                     const onboarding = await apiClient.getOnboarding()
                     mappedUser.onboardingMetrics = {
-                        weight: onboarding.weight,
-                        height: onboarding.height,
-                        age: onboarding.age,
+                        weight: onboarding.weight ?? undefined,
+                        height: onboarding.height ?? undefined,
+                        age: onboarding.age ?? undefined,
                         goals: onboarding.goals,
                         restrictions: onboarding.restrictions,
                         activityLevel: onboarding.activity_level as 'low' | 'medium' | 'high' | undefined,
@@ -186,18 +186,18 @@ export const fetchCurrentUser = createAsyncThunk(
                 // Сохраняем существующие данные онбординга, чтобы не потерять их
                 mappedUser.onboardingMetrics = currentState.user.onboardingMetrics
             }
-            
+
             // Загружаем настройки
             try {
                 const settings = await apiClient.getSettings()
-                mappedUser.locale = settings.locale
+                mappedUser.locale = settings.locale as SupportedLocale
                 // Настройки уведомлений загружаются в notificationsSlice, если нужно
                 dispatch(getSettingsApi())
             } catch (error) {
                 // Настройки могут отсутствовать - используем дефолтные
                 console.log('Settings not found, using defaults...')
             }
-            
+
             return mappedUser
         } catch (error: any) {
             // Передаем статус ошибки для правильной обработки
@@ -460,7 +460,12 @@ const userSlice = createSlice({
                 Object.assign(state, action.payload)
             })
             .addCase(getOnboardingApi.fulfilled, (state, action) => {
-                state.onboardingMetrics = action.payload
+                state.onboardingMetrics = {
+                    ...action.payload,
+                    weight: action.payload.weight ?? undefined,
+                    height: action.payload.height ?? undefined,
+                    age: action.payload.age ?? undefined,
+                }
             })
             .addCase(updateOnboardingApi.fulfilled, (state, action) => {
                 if (state.onboardingMetrics) {
@@ -471,10 +476,10 @@ const userSlice = createSlice({
                 Object.assign(state, action.payload)
             })
             .addCase(getSettingsApi.fulfilled, (state, action) => {
-                state.locale = action.payload.locale
+                state.locale = action.payload.locale as SupportedLocale
             })
             .addCase(updateSettingsApi.fulfilled, (state, action) => {
-                state.locale = action.payload.locale
+                state.locale = action.payload.locale as SupportedLocale
             })
     },
 })

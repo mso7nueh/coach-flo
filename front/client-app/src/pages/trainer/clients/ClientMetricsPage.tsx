@@ -98,7 +98,7 @@ export const ClientMetricsPage = () => {
                     apiClient.getBodyMetrics(clientId),
                     apiClient.getExerciseMetrics(clientId)
                 ])
-                
+
                 // Загружаем записи для всех метрик клиента
                 const bodyEntriesPromises = bodyMetricsData.map((metric) =>
                     apiClient.getBodyMetricEntries({ metric_id: metric.id, user_id: clientId })
@@ -106,16 +106,16 @@ export const ClientMetricsPage = () => {
                 const exerciseEntriesPromises = exerciseMetricsData.map((metric) =>
                     apiClient.getExerciseMetricEntries({ exercise_metric_id: metric.id, user_id: clientId })
                 )
-                
+
                 const [bodyEntriesResults, exerciseEntriesResults] = await Promise.all([
                     Promise.all(bodyEntriesPromises),
                     Promise.all(exerciseEntriesPromises)
                 ])
-                
+
                 // Объединяем все записи
                 const allBodyEntries = bodyEntriesResults.flat()
                 const allExerciseEntries = exerciseEntriesResults.flat()
-                
+
                 // Маппим данные в формат state
                 const mapApiBodyMetricToState = (metric: any) => ({
                     id: metric.id,
@@ -123,7 +123,7 @@ export const ClientMetricsPage = () => {
                     unit: metric.unit,
                     target: metric.target || undefined,
                 })
-                
+
                 const mapApiBodyMetricEntryToState = (entry: any, unit: string) => ({
                     id: entry.id,
                     metricId: entry.metric_id,
@@ -131,13 +131,13 @@ export const ClientMetricsPage = () => {
                     recordedAt: entry.recorded_at,
                     unit,
                 })
-                
+
                 const mapApiExerciseMetricToState = (metric: any) => ({
                     id: metric.id,
                     label: metric.label,
                     muscleGroup: metric.muscle_group || '',
                 })
-                
+
                 const mapApiExerciseMetricEntryToState = (entry: any) => ({
                     id: entry.id,
                     exerciseId: entry.exercise_metric_id,
@@ -146,27 +146,27 @@ export const ClientMetricsPage = () => {
                     repetitions: entry.repetitions || 0,
                     sets: entry.sets || 0,
                 })
-                
+
                 // Создаем map для единиц измерения
                 const metricUnitMap = new Map(bodyMetricsData.map(m => [m.id, m.unit]))
-                
+
                 // Обновляем state через dispatch существующих fulfilled actions
                 // Используем fulfilled action types напрямую
                 dispatch({
                     type: 'metrics/fetchBodyMetrics/fulfilled',
                     payload: bodyMetricsData.map(mapApiBodyMetricToState)
                 } as any)
-                
+
                 dispatch({
                     type: 'metrics/fetchExerciseMetrics/fulfilled',
                     payload: exerciseMetricsData.map(mapApiExerciseMetricToState)
                 } as any)
-                
+
                 dispatch({
                     type: 'metrics/fetchBodyMetricEntries/fulfilled',
                     payload: allBodyEntries.map(entry => mapApiBodyMetricEntryToState(entry, metricUnitMap.get(entry.metric_id) || ''))
                 } as any)
-                
+
                 dispatch({
                     type: 'metrics/fetchExerciseMetricEntries/fulfilled',
                     payload: allExerciseEntries.map(mapApiExerciseMetricEntryToState)
@@ -179,8 +179,9 @@ export const ClientMetricsPage = () => {
         loadMetrics()
     }, [dispatch, clientId])
 
+
     const client = clients.find((c) => c.id === clientId)
-    
+
     const clientBodyMetrics = Array.isArray(bodyMetrics) ? bodyMetrics : Object.values(bodyMetrics)
     const clientExerciseMetrics = Array.isArray(exerciseMetrics) ? exerciseMetrics : Object.values(exerciseMetrics)
 
@@ -190,15 +191,17 @@ export const ClientMetricsPage = () => {
     // Обновляем выбранные метрики когда они загружены
     useEffect(() => {
         if (clientBodyMetrics.length > 0 && !selectedMetricId) {
-            setSelectedMetricId(clientBodyMetrics[0]?.id ?? null)
+            setSelectedMetricId((clientBodyMetrics[0] as any)?.id ?? null)
         }
         if (clientExerciseMetrics.length > 0 && !selectedExerciseId) {
-            setSelectedExerciseId(clientExerciseMetrics[0]?.id ?? null)
+            setSelectedExerciseId((clientExerciseMetrics[0] as any)?.id ?? null)
         }
     }, [clientBodyMetrics, clientExerciseMetrics, selectedMetricId, selectedExerciseId])
 
-    // Показываем "клиент не найден" только после попытки загрузки
-    if (!client && !isLoadingClients) {
+    // Пока загружаем, показываем заглушку или ничего
+    if (!client) {
+        if (isLoadingClients) return null // или можно показать Loader
+
         return (
             <Stack gap="md">
                 <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
@@ -209,13 +212,8 @@ export const ClientMetricsPage = () => {
         )
     }
 
-    // Пока загружаем, показываем заглушку или ничего
-    if (!client && isLoadingClients) {
-        return null // или можно показать Loader
-    }
-
-    const selectedMetric = clientBodyMetrics.find((m) => m.id === selectedMetricId)
-    const selectedExercise = clientExerciseMetrics.find((e) => e.id === selectedExerciseId)
+    const selectedMetric = (clientBodyMetrics as any[]).find((m) => m.id === selectedMetricId)
+    const selectedExercise = (clientExerciseMetrics as any[]).find((e) => e.id === selectedExerciseId)
 
     const filteredBodyEntries = useMemo(() => {
         if (!selectedMetricId) return []
@@ -318,7 +316,7 @@ export const ClientMetricsPage = () => {
                             <Stack gap="md">
                                 <Select
                                     label={t('metricsPage.selectMetric')}
-                                    data={clientBodyMetrics.map((m) => ({ value: m.id, label: m.label }))}
+                                    data={(clientBodyMetrics as any[]).map((m) => ({ value: m.id, label: m.label }))}
                                     value={selectedMetricId}
                                     onChange={(value) => setSelectedMetricId(value)}
                                     placeholder={clientBodyMetrics.length === 0 ? t('metricsPage.noMetrics') : undefined}
@@ -377,7 +375,7 @@ export const ClientMetricsPage = () => {
                             <Stack gap="md">
                                 <Select
                                     label={t('metricsPage.selectExercise')}
-                                    data={clientExerciseMetrics.map((e) => ({ value: e.id, label: e.label }))}
+                                    data={(clientExerciseMetrics as any[]).map((e) => ({ value: e.id, label: e.label }))}
                                     value={selectedExerciseId}
                                     onChange={(value) => setSelectedExerciseId(value)}
                                     placeholder={clientExerciseMetrics.length === 0 ? t('metricsPage.noMetrics') : undefined}

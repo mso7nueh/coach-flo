@@ -5,10 +5,10 @@ import 'dayjs/locale/ru'
 
 dayjs.extend(isoWeek)
 dayjs.locale('ru')
-import { apiClient } from '@/shared/api/client'
+import { apiClient, type AttendanceStatus } from '@/shared/api/client'
 import type { Workout } from '@/shared/api/client'
 
-export type AttendanceStatus = 'scheduled' | 'completed' | 'missed'
+export type { AttendanceStatus }
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly'
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6 // 0 = Sunday, 1 = Monday, etc.
 
@@ -30,6 +30,7 @@ export interface ClientWorkout {
   programDayId?: string
   attendance: AttendanceStatus
   coachNote?: string
+  userId?: string
   recurrence?: RecurrenceRule // Правило повторения
   trainerId?: string
   withTrainer?: boolean
@@ -67,13 +68,14 @@ const mapApiWorkoutToState = (workout: Workout): ClientWorkout => ({
   attendance: workout.attendance as AttendanceStatus,
   coachNote: workout.coach_note || undefined,
   trainerId: workout.trainer_id || undefined,
+  userId: workout.user_id || undefined,
   withTrainer: !!workout.trainer_id,
   format: workout.format || undefined,
 })
 
 export const fetchWorkouts = createAsyncThunk(
   'calendar/fetchWorkouts',
-  async (params?: { start_date?: string; end_date?: string }) => {
+  async (params?: { start_date?: string; end_date?: string; client_id?: string }) => {
     const workouts = await apiClient.getWorkouts(params)
     return workouts.map(mapApiWorkoutToState)
   }

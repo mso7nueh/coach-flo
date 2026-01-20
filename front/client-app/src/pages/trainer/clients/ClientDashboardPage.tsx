@@ -87,13 +87,13 @@ export const ClientDashboardPage = () => {
     // Загружаем платежи, тренировки, заметки, метрики и онбординг при монтировании компонента
     useEffect(() => {
         if (!clientId) return
-        
+
         dispatch(fetchPayments())
         // Загружаем тренировки за последние 90 дней для отображения
         const endDate = dayjs().toISOString()
         const startDate = dayjs().subtract(90, 'days').toISOString()
         dispatch(fetchWorkouts({ start_date: startDate, end_date: endDate, client_id: clientId }))
-        
+
         // Загружаем заметки конкретного клиента
         const loadClientNotes = async () => {
             try {
@@ -114,7 +114,7 @@ export const ClientDashboardPage = () => {
             }
         }
         loadClientNotes()
-        
+
         // Загружаем метрики для клиента - используем API напрямую для загрузки метрик конкретного клиента
         const loadClientMetrics = async () => {
             try {
@@ -124,7 +124,7 @@ export const ClientDashboardPage = () => {
             }
         }
         loadClientMetrics()
-        
+
         // Загружаем онбординг клиента для получения целей и ограничений
         const loadClientData = async () => {
             try {
@@ -132,10 +132,10 @@ export const ClientDashboardPage = () => {
                     apiClient.getClientOnboarding(clientId).catch(() => null),
                     apiClient.getClientStats(clientId).catch(() => null)
                 ])
-                
+
                 // Обновляем данные клиента - используем getState чтобы избежать зависимости от clients
                 const updates: any = {}
-                
+
                 if (onboardingData) {
                     updates.goals = onboardingData.goals || []
                     updates.restrictions = onboardingData.restrictions || []
@@ -144,7 +144,7 @@ export const ClientDashboardPage = () => {
                     updates.age = onboardingData.age
                     updates.activityLevel = onboardingData.activity_level as 'low' | 'medium' | 'high' | undefined
                 }
-                
+
                 if (clientStats) {
                     updates.totalWorkouts = clientStats.total_workouts || 0
                     updates.completedWorkouts = clientStats.completed_workouts || 0
@@ -152,7 +152,7 @@ export const ClientDashboardPage = () => {
                     updates.lastWorkout = clientStats.last_workout
                     updates.nextWorkout = clientStats.next_workout
                 }
-                
+
                 if (Object.keys(updates).length > 0) {
                     dispatch(updateClient({ id: clientId, updates }))
                 }
@@ -160,14 +160,16 @@ export const ClientDashboardPage = () => {
                 console.error('Error loading client data:', error)
             }
         }
-        
+
         loadClientData()
     }, [dispatch, clientId])
 
     const client = clients.find((c) => c.id === clientId)
 
-    // Показываем "клиент не найден" только после попытки загрузки
-    if (!client && !isLoadingClients) {
+    // Пока загружаем, показываем заглушку или ничего
+    if (!client) {
+        if (isLoadingClients) return null // или можно показать Loader
+
         return (
             <Stack gap="md">
                 <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
@@ -176,11 +178,6 @@ export const ClientDashboardPage = () => {
                 <Text>{t('trainer.clients.clientNotFound')}</Text>
             </Stack>
         )
-    }
-
-    // Пока загружаем, показываем заглушку или ничего
-    if (!client && isLoadingClients) {
-        return null // или можно показать Loader
     }
 
     const clientWorkouts = workouts.filter((w) => w.userId === clientId || w.trainerId === clientId)
@@ -195,7 +192,7 @@ export const ClientDashboardPage = () => {
         .slice(0, 3)
 
     const clientNotes = trainerNotes.filter((note) => note.clientId === clientId)
-    const clientPayments = payments.filter((payment) => payment.clientId === client.id).sort((a, b) => dayjs(b.date).diff(dayjs(a.date)))
+    const clientPayments = (payments || []).filter((payment) => payment.clientId === client.id).sort((a, b) => dayjs(b.date).diff(dayjs(a.date)))
     const determineActivePayment = () => {
         const now = dayjs()
         return (

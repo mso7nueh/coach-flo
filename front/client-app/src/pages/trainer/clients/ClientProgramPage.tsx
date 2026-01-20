@@ -149,7 +149,7 @@ export const ClientProgramPage = () => {
                         name: day.name,
                         programId: newProgram.id,
                         blocks,
-                        sourceTemplateId: day.source_template_id,
+                        sourceTemplateId: day.source_template_id || undefined,
                     })
                 ).unwrap()
             }
@@ -180,8 +180,10 @@ export const ClientProgramPage = () => {
 
     const client = clients.find((c) => c.id === clientId)
 
-    // Показываем "клиент не найден" только после попытки загрузки
-    if (!client && !isLoadingClients) {
+    // Пока загружаем, показываем заглушку или ничего
+    if (!client) {
+        if (isLoadingClients) return null // или можно показать Loader
+
         return (
             <Stack gap="md">
                 <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
@@ -190,11 +192,6 @@ export const ClientProgramPage = () => {
                 <Text>{t('trainer.clients.clientNotFound')}</Text>
             </Stack>
         )
-    }
-
-    // Пока загружаем, показываем заглушку или ничего
-    if (!client && isLoadingClients) {
-        return null // или можно показать Loader
     }
 
     const selectedDay = days.find((d) => d.id === selectedDayId) || days[0]
