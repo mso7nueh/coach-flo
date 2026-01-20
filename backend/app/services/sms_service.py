@@ -9,19 +9,46 @@ import uuid
 
 def generate_sms_code() -> str:
     """Генерирует 4-значный SMS код"""
-    # Временно статический код для разработки
-    return "1111"
+    return str(random.randint(1000, 9999))
 
+
+import os
+from smsaero import SmsAero, SmsAeroException
 
 def send_sms_code(phone: str, code: str) -> bool:
     """
-    Отправляет SMS код на телефон.
-    В продакшене здесь должна быть интеграция с SMS провайдером (Twilio, SMS.ru и т.д.)
+    Отправляет SMS код на телефон используя сервис SMS Aero.
     """
-    # TODO: Интеграция с реальным SMS сервисом
-    print(f"[SMS] Отправка кода {code} на номер {phone}")
-    # В разработке просто выводим в консоль
-    return True
+    email = os.getenv("SMSAERO_EMAIL")
+    api_key = os.getenv("SMSAERO_API_KEY")
+    
+    # Очистка номера телефона (оставляем только цифры)
+    clean_phone = "".join(filter(str.isdigit, phone))
+    
+    print(f"[SMS] Отправка кода {code} на номер {clean_phone}")
+    
+    if not email or not api_key:
+        print("[SMS] WARNING: SMSAERO_EMAIL or SMSAERO_API_KEY not set. SMS not sent.")
+        # В разработке возвращаем True, чтобы не блокировать процесс, 
+        # но код "1111" уже не будет работать по умолчанию
+        return True
+
+    try:
+        api = SmsAero(email, api_key)
+        # SMS Aero ожидает инт или строку без лишних символов
+        result = api.send_sms(int(clean_phone), f"Код подтверждения Coach Fit: {code}")
+        if result.get('success'):
+            print(f"[SMS] Код успешно отправлен: {result}")
+            return True
+        else:
+            print(f"[SMS] Ошибка отправки: {result}")
+            return False
+    except SmsAeroException as e:
+        print(f"[SMS] Произошла ошибка при отправке через SmsAero: {e}")
+        return False
+    except Exception as e:
+        print(f"[SMS] Непредвиденная ошибка: {e}")
+        return False
 
 
 def create_sms_verification(db: Session, phone: str, user_id: str = None) -> models.SMSVerification:
