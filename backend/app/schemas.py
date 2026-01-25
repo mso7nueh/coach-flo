@@ -28,6 +28,8 @@ class UserResponse(UserBase):
     trainer_connection_code: Optional[str] = None
     phone_verified: bool
     timezone: Optional[str] = None
+    subscription_plan: Optional[str] = None
+    subscription_expires_at: Optional[datetime] = None
     created_at: datetime
 
     class Config:

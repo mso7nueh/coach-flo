@@ -166,7 +166,10 @@ app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(settings.router, prefix="/api/users/me/settings", tags=["settings"])
 app.include_router(library.router, prefix="/api/library", tags=["library"])
+app.include_router(library.router, prefix="/api/library", tags=["library"])
 app.include_router(progress_photos.router, prefix="/api/progress-photos", tags=["progress-photos"])
+from app.routers import payments
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 
 # Mount static files for uploads
 uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")

@@ -20,6 +20,8 @@ export interface User {
   created_at: string
   trainer?: User | null
   timezone?: string | null // Часовой пояс пользователя (например, 'Europe/Moscow')
+  subscription_plan?: string | null
+  subscription_expires_at?: string | null
 }
 
 export interface OnboardingResponse {
@@ -799,6 +801,16 @@ export const createClient = async (data: {
 }): Promise<any> => {
   // Добавляем слэш в конце, чтобы избежать редиректа
   const { data: response } = await api.post<any>('/api/clients/', data)
+  return response
+}
+
+// Payment API
+export const createOnlinePayment = async (data: {
+  amount: number
+  description: string
+  plan_id: string
+}): Promise<{ payment_id: string; confirmation_token: string; status: string }> => {
+  const { data: response } = await api.post('/api/payments/create', data)
   return response
 }
 

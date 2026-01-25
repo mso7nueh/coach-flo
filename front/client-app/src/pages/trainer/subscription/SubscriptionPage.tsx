@@ -14,6 +14,9 @@ import {
 } from '@mantine/core'
 import { IconCheck, IconX } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
+import { createOnlinePayment } from '@/shared/api/client'
+import { useAppSelector } from '@/shared/hooks/useAppSelector'
+import dayjs from 'dayjs'
 
 declare global {
     interface Window {
@@ -85,6 +88,7 @@ const PLANS = [
 
 export const SubscriptionPage = () => {
     const theme = useMantineTheme()
+    const user = useAppSelector((state) => state.user)
     const [widget, setWidget] = useState<any>(null)
 
     useEffect(() => {
@@ -110,26 +114,39 @@ export const SubscriptionPage = () => {
             return
         }
 
-        // Mock getting confirmation token from backend
-        // In real app: const { confirmation_token } = await api.createPayment({ amount, planId })
-        // Since we don't have the backend endpoint yet, we'll demonstrate where the widget would initialize.
+        try {
+            const { confirmation_token } = await createOnlinePayment({
+                amount,
+                description: `Подписка ${planId}`,
+                plan_id: planId
+            })
 
-        console.log(`Initiating payment for ${planId}: ${amount} RUB`)
-        alert(`Payment integration would start here for ${planId}. Need backend to generate confirmation_token using ShopID: 1252826`)
-
-        /*
-        // Example YooKassa Widget Usage:
-        const checkout = new window.YooMoneyCheckoutWidget({
-            confirmation_token: 'TOKEN_FROM_BACKEND', // Token obtained from your backend
-            return_url: window.location.href, // Return URL after payment
-            error_callback: function(error: any) {
-                console.error(error)
+            if (window.YooMoneyCheckoutWidget) {
+                const checkout = new window.YooMoneyCheckoutWidget({
+                    confirmation_token: confirmation_token,
+                    return_url: window.location.href,
+                    error_callback: function (error: any) {
+                        console.error(error)
+                    }
+                });
+                checkout.render('payment-form')
             }
-        });
 
-        checkout.render('payment-form') or checkout.on('success', ...)
-        */
+        } catch (error) {
+            console.error('Payment creation failed', error)
+            alert('Ошибка создания платежа')
+        }
     }
+
+    // Display subscription info if active
+    // We need to fetch current user to check subscription_expires_at
+    // assuming it is available in user profile (which we updated in backend schemas)
+    // For now, let's just assume we reload or show it from props if passed, 
+    // but better to use useAppSelector(state => state.user) if it was updated properly.
+
+    // NOTE: Need to update userSlice to include the new fields in User interface first?
+    // User type in client.ts was updated? No, I need to update User interface in client.ts as well!
+
 
     return (
         <Container size="xl" py="xl">
@@ -140,6 +157,19 @@ export const SubscriptionPage = () => {
                         Выберите план, который подходит именно вам. От начинающих тренеров до крупных фитнес-сетей.
                     </Text>
                 </Stack>
+
+                {user.subscription_expires_at && dayjs(user.subscription_expires_at).isAfter(dayjs()) && (
+                    <Card withBorder padding="lg" radius="md" style={{ borderColor: 'var(--mantine-color-violet-5)', backgroundColor: 'var(--mantine-color-violet-0)' }}>
+                        <Group justify="center" gap="xs">
+                            <Text fw={600} c="violet">
+                                Ваша подписка активна!
+                            </Text>
+                            <Text c="dimmed">
+                                Осталось дней: {dayjs(user.subscription_expires_at).diff(dayjs(), 'day')}
+                            </Text>
+                        </Group>
+                    </Card>
+                )}
 
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg" pt="lg">
                     {PLANS.map((plan) => (

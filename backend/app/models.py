@@ -32,6 +32,12 @@ class User(Base):
     workouts_package = Column(Integer, nullable=True)  # Количество тренировок в пакете
     package_expiry_date = Column(DateTime(timezone=True), nullable=True)  # Дата окончания пакета
     is_active = Column(Boolean, default=True)  # Активен ли клиент
+    
+    # Subscription fields
+    subscription_plan = Column(String, nullable=True)  # starter, pro, studio, enterprise
+    subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
+    yookassa_payment_id = Column(String, nullable=True)  # Last payment ID
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
