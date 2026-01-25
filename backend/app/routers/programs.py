@@ -171,14 +171,8 @@ async def update_program(
         raise HTTPException(status_code=404, detail="Программа не найдена")
     
     # Проверяем права доступа
-    if current_user.role == models.UserRole.TRAINER:
-        # Тренер может обновлять только свои программы
-        if program.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Тренер может обновлять только свои программы")
-    else:
-        # Клиент может обновлять только свои программы
-        if program.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    if not _check_program_access(program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
     
     # Обновляем поля программы
     update_data = program_update.model_dump(exclude_unset=True)
@@ -385,14 +379,8 @@ async def delete_program(
         raise HTTPException(status_code=404, detail="Программа не найдена")
     
     # Проверяем права доступа
-    if current_user.role == models.UserRole.TRAINER:
-        # Тренер может удалять только свои программы (не программы клиентов)
-        if program.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Тренер может удалять только свои программы")
-    else:
-        # Клиент может удалять только свои программы
-        if program.user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+    if not _check_program_access(program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
     
     db.delete(program)
     db.commit()
