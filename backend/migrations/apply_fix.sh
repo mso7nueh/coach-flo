@@ -7,11 +7,11 @@ echo "🚀 Применение исправления базы данных..."
 
 # Проверка переменных окружения
 if [ -z "$POSTGRES_USER" ]; then
-    POSTGRES_USER="coachfit"
+    POSTGRES_USER="coachflo"
 fi
 
 if [ -z "$POSTGRES_DB" ]; then
-    POSTGRES_DB="coachfit"
+    POSTGRES_DB="coachflo"
 fi
 
 if [ -z "$POSTGRES_HOST" ]; then

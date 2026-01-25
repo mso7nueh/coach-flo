@@ -4,9 +4,9 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # PostgreSQL connection
-POSTGRES_USER = os.getenv("POSTGRES_USER", "coachfit")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "coachfit")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "coachfit")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "coachflo")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "coachflo")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "coachflo")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 
