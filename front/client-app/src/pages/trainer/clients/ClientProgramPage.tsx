@@ -18,9 +18,9 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react'
-import { fetchPrograms, fetchProgramDays, selectProgram, selectProgramDay, createProgram, createProgramDay } from '@/app/store/slices/programSlice'
+import { fetchPrograms, fetchProgramDays, selectProgram, selectProgramDay, createProgram, createProgramDay, deleteProgram } from '@/app/store/slices/programSlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
 import { useDisclosure } from '@mantine/hooks'
@@ -110,6 +110,16 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
         }
     }, [selectProgramModalOpened])
 
+    // Фильтруем программы тренера, чтобы в списке не было дубликатов по названию
+    const uniqueTrainerPrograms = useMemo(() => {
+        const seen = new Set()
+        return trainerPrograms.filter((p) => {
+            if (seen.has(p.title)) return false
+            seen.add(p.title)
+            return true
+        })
+    }, [trainerPrograms])
+
     const handleAssignProgram = async () => {
         if (!selectedTrainerProgramId || !clientId) return
 
@@ -123,19 +133,11 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
 
             const trainerProgramDays = await apiClient.getProgramDays(selectedTrainerProgramId)
 
-            // Проверяем, нет ли уже такой программы у клиента
-            const existingProgram = clientPrograms.find((p) => p.title === trainerProgram.title)
-            if (existingProgram) {
-                dispatch(selectProgram(existingProgram.id))
-                dispatch(fetchProgramDays(existingProgram.id))
-                notifications.show({
-                    title: t('common.info'),
-                    message: t('trainer.clients.programAlreadyAssigned'),
-                    color: 'blue',
-                })
-                closeSelectProgramModal()
-                setSelectedTrainerProgramId(null)
-                return
+            // Удаляем все текущие программы клиента (Replacement logic)
+            if (clientPrograms.length > 0) {
+                for (const p of clientPrograms) {
+                    await dispatch(deleteProgram(p.id)).unwrap()
+                }
             }
 
             // Создаем новую программу для клиента
@@ -407,7 +409,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                     <Select
                         label={t('trainer.clients.selectProgramLabel')}
                         placeholder={t('trainer.clients.selectProgramPlaceholder')}
-                        data={trainerPrograms.map((p) => ({ value: p.id, label: p.title }))}
+                        data={uniqueTrainerPrograms.map((p) => ({ value: p.id, label: p.title }))}
                         value={selectedTrainerProgramId}
                         onChange={(value) => setSelectedTrainerProgramId(value)}
                         searchable
