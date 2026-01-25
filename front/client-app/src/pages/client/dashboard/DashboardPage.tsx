@@ -829,7 +829,7 @@ export const DashboardPage = () => {
                                             </Text>
                                         )}
                                     </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('weight')}>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('weight')}>
                                         <IconEdit size={14} />
                                     </ActionIcon>
                                 </Group>
@@ -883,7 +883,7 @@ export const DashboardPage = () => {
                                             </Text>
                                         )}
                                     </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('sleep')}>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('sleep')}>
                                         <IconEdit size={14} />
                                     </ActionIcon>
                                 </Group>
@@ -936,7 +936,7 @@ export const DashboardPage = () => {
                                             </Text>
                                         )}
                                     </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('heartRate')}>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('heartRate')}>
                                         <IconEdit size={14} />
                                     </ActionIcon>
                                 </Group>
@@ -988,7 +988,7 @@ export const DashboardPage = () => {
                                             </Text>
                                         )}
                                     </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenGoalModal('steps')}>
+                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('steps')}>
                                         <IconEdit size={14} />
                                     </ActionIcon>
                                 </Group>
