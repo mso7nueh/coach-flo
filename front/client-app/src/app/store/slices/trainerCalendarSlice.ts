@@ -3,7 +3,13 @@ import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
 import 'dayjs/locale/ru'
 import { apiClient } from '@/shared/api/client'
-import type { AttendanceStatus, RecurrenceRule } from './calendarSlice'
+import {
+    type AttendanceStatus,
+    type RecurrenceRule,
+    createWorkout as createClientWorkout,
+    updateWorkoutApi as updateClientWorkout,
+    deleteWorkoutApi as deleteClientWorkout,
+} from './calendarSlice'
 
 dayjs.extend(isoWeek)
 dayjs.locale('ru')
@@ -42,6 +48,20 @@ const mapApiWorkoutToTrainerWorkout = (workout: any): TrainerWorkout => ({
     programDayId: workout.program_day_id || undefined,
     attendance: (workout.attendance || 'scheduled') as AttendanceStatus,
     coachNote: workout.coach_note || undefined,
+})
+
+const mapGlobalToTrainerWorkout = (workout: any): TrainerWorkout => ({
+    id: workout.id,
+    clientId: workout.userId,
+    title: workout.title,
+    start: workout.start,
+    end: workout.end,
+    location: workout.location || undefined,
+    format: (workout.format || 'offline') as 'online' | 'offline',
+    programDayId: workout.programDayId || undefined,
+    attendance: (workout.attendance || 'scheduled') as AttendanceStatus,
+    coachNote: workout.coachNote || undefined,
+    recurrence: workout.recurrence,
 })
 
 export const fetchTrainerWorkouts = createAsyncThunk(
@@ -235,6 +255,26 @@ const trainerCalendarSlice = createSlice({
             })
             .addCase(deleteTrainerWorkout.fulfilled, (state, action) => {
                 // Удаляем тренировку из state
+                state.workouts = state.workouts.filter(w => w.id !== action.payload)
+            })
+            // Синхронизация с общим календарем (когда клиент или тренер создают тренировку через ProgramPage/CalendarPage)
+            .addCase(createClientWorkout.fulfilled, (state, action) => {
+                const workout = mapGlobalToTrainerWorkout(action.payload)
+                const existingIndex = state.workouts.findIndex(w => w.id === workout.id)
+                if (existingIndex >= 0) {
+                    state.workouts[existingIndex] = workout
+                } else {
+                    state.workouts.push(workout)
+                }
+            })
+            .addCase(updateClientWorkout.fulfilled, (state, action) => {
+                const workout = mapGlobalToTrainerWorkout(action.payload)
+                const index = state.workouts.findIndex(w => w.id === workout.id)
+                if (index >= 0) {
+                    state.workouts[index] = workout
+                }
+            })
+            .addCase(deleteClientWorkout.fulfilled, (state, action) => {
                 state.workouts = state.workouts.filter(w => w.id !== action.payload)
             })
     },

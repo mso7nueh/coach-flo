@@ -19,9 +19,11 @@ import {
 import { DateInput, TimeInput } from '@mantine/dates'
 import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import 'dayjs/locale/ru'
 
 dayjs.extend(isoWeek)
+dayjs.extend(isSameOrAfter)
 dayjs.locale('ru')
 import { useTranslation } from 'react-i18next'
 import { notifications } from '@mantine/notifications'
@@ -515,7 +517,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                             for (let i = 0; i < columns.length; i++) {
                                                 const lastInColumn = columns[i][columns[i].length - 1]
                                                 // Если тренировка начинается после окончания последней в колонке
-                                                if (dayjs(workout.start).isAfter(dayjs(lastInColumn.end).subtract(1, 'minute'))) {
+                                                if (dayjs(workout.start).isSameOrAfter(dayjs(lastInColumn.end))) {
                                                     columns[i].push(workout)
                                                     placed = true
                                                     break
@@ -526,12 +528,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                             }
                                         })
 
-                                        const hourWorkouts = dayWorkouts.filter((w) => {
-                                            const hourStart = day.hour(hour).minute(0).second(0)
-                                            const hourEnd = day.hour(hour).minute(59).second(59)
-                                            const workoutStart = dayjs(w.start)
-                                            return workoutStart.isAfter(hourStart.subtract(1, 'minute')) && workoutStart.isBefore(hourEnd.add(1, 'minute'))
-                                        })
+                                        const hourWorkouts = dayWorkouts.filter((w) => dayjs(w.start).hour() === hour)
 
                                         const isDragOver = dragOverDay === dayKey
                                         return (
