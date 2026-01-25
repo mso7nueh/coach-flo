@@ -22,6 +22,7 @@ import { ClientNotesPage } from '@/pages/trainer/clients/ClientNotesPage'
 import { FinancesPage } from '@/pages/trainer/finances/FinancesPage'
 import { LibraryPage } from '@/pages/trainer/library/LibraryPage'
 import { TrainerCalendarPage } from '@/pages/trainer/calendar/TrainerCalendarPage'
+import { SubscriptionPage } from '@/pages/trainer/subscription/SubscriptionPage'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 
 const DefaultRedirect = () => {
@@ -73,6 +74,7 @@ export const AppRoutes = () => (
             <Route path="trainer/library" element={<LibraryPage />} />
             <Route path="trainer/calendar" element={<TrainerCalendarPage />} />
             <Route path="trainer/finances" element={<FinancesPage />} />
+            <Route path="trainer/subscription" element={<SubscriptionPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

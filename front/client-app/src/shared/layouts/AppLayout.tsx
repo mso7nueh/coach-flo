@@ -21,6 +21,7 @@ import {
     IconCalendarStats,
     IconCurrencyRubel,
     IconApple,
+    IconCreditCard,
 } from '@tabler/icons-react'
 
 export const AppLayout = () => {
@@ -48,6 +49,7 @@ export const AppLayout = () => {
         { to: '/trainer/library', label: t('common.library'), icon: IconLibrary },
         { to: '/trainer/calendar', label: t('common.trainerCalendar'), icon: IconCalendarStats },
         { to: '/trainer/finances', label: t('common.finances'), icon: IconCurrencyRubel },
+        { to: '/trainer/subscription', label: 'Подписка', icon: IconCreditCard },
     ]
 
     const items = isClient ? clientItems : trainerItems
