@@ -23,6 +23,7 @@ import {
     Tooltip,
     Box,
 } from '@mantine/core'
+import { DateInput } from '@mantine/dates'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import { useTranslation } from 'react-i18next'
 import {
@@ -61,7 +62,7 @@ import {
     updateNoteApi,
 } from '@/app/store/slices/dashboardSlice'
 import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
-import { fetchBodyMetrics, fetchBodyMetricEntries } from '@/app/store/slices/metricsSlice'
+import { fetchBodyMetrics, fetchBodyMetricEntries, addBodyMetricEntryApi, type BodyMetricDescriptor } from '@/app/store/slices/metricsSlice'
 import { useMemo, useState, useEffect } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import dayjs from 'dayjs'
@@ -112,6 +113,62 @@ export const DashboardPage = () => {
     const [photoDate, setPhotoDate] = useState(dayjs().format('YYYY-MM-DD'))
     const [isUploading, setIsUploading] = useState(false)
     const [localPhotos, setLocalPhotos] = useState<Array<{ id: string; date: string; url: string; notes?: string }>>([])
+
+    // Quick Log State
+    const [quickLogOpened, { open: openQuickLog, close: closeQuickLog }] = useDisclosure(false)
+    const [quickLogMetric, setQuickLogMetric] = useState<BodyMetricDescriptor | null>(null)
+    const [quickLogValue, setQuickLogValue] = useState<number | ''>('')
+    const [quickLogDate, setQuickLogDate] = useState<Date | null>(new Date())
+    const [isQuickLogSubmitting, setIsQuickLogSubmitting] = useState(false)
+
+    const handleOpenQuickLog = (metricId: string) => {
+        // Find metric by analyzing tiles or bodyMetrics
+        // We know tile IDs map to metric labels (weight, sleep etc)
+        // But we need the actual metric ID from the DB
+        // Let's use the memos we already have
+        let metric: BodyMetricDescriptor | undefined
+        if (metricId === 'weight') metric = weightMetric
+        else if (metricId === 'sleep') metric = sleepMetric
+        else if (metricId === 'heartRate') metric = heartRateMetric
+        else if (metricId === 'steps') metric = stepsMetric
+
+        if (metric) {
+            setQuickLogMetric(metric as BodyMetricDescriptor) // Force type because Memo returns array element
+            setQuickLogValue('')
+            setQuickLogDate(new Date())
+            openQuickLog()
+        }
+    }
+
+    const handleQuickLogSubmit = async () => {
+        if (!quickLogMetric || quickLogValue === '' || !quickLogDate) return
+
+        setIsQuickLogSubmitting(true)
+        try {
+            await dispatch(addBodyMetricEntryApi({
+                metricId: quickLogMetric.id,
+                value: Number(quickLogValue),
+                recordedAt: dayjs(quickLogDate).toISOString(),
+            })).unwrap()
+
+            notifications.show({
+                title: t('common.success'),
+                message: t('dashboard.quickLog.success'),
+                color: 'green',
+            })
+            closeQuickLog()
+            // Data refresh is handled by the thunk or auto-refetch if needed, 
+            // but addBodyMetricEntryApi already updates the store
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.message || t('dashboard.quickLog.error'),
+                color: 'red',
+            })
+        } finally {
+            setIsQuickLogSubmitting(false)
+        }
+    }
 
 
     useEffect(() => {
@@ -586,6 +643,17 @@ export const DashboardPage = () => {
                                             )}
                                         </Group>
                                     )}
+                                    <ActionIcon
+                                        size="xs"
+                                        variant="subtle"
+                                        color="gray"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleOpenQuickLog(tile.id)
+                                        }}
+                                    >
+                                        <IconPlus size={14} />
+                                    </ActionIcon>
                                 </Group>
                                 <Stack gap={4}>
                                     {showToday ? (
@@ -1543,7 +1611,48 @@ export const DashboardPage = () => {
                     </Group>
                 </Stack>
             </Modal>
-        </Stack>
+
+            {/* Quick Log Modal */}
+            <Modal
+                opened={quickLogOpened}
+                onClose={closeQuickLog}
+                title={t('dashboard.quickLog.title')}
+                size="sm"
+            >
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        {t('dashboard.quickLog.valueLabel')} - {quickLogMetric?.label} ({quickLogMetric?.unit})
+                    </Text>
+                    <NumberInput
+                        label={t('dashboard.quickLog.valueLabel')}
+                        placeholder="0"
+                        value={quickLogValue}
+                        onChange={(value) => setQuickLogValue(typeof value === 'number' ? value : '')}
+                        min={0}
+                        suffix={` ${quickLogMetric?.unit || ''}`}
+                    />
+                    <DateInput
+                        label={t('dashboard.quickLog.dateLabel')}
+                        value={quickLogDate}
+                        onChange={setQuickLogDate}
+                        clearable={false}
+                        maxDate={new Date()}
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={closeQuickLog}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button
+                            onClick={handleQuickLogSubmit}
+                            loading={isQuickLogSubmitting}
+                            disabled={quickLogValue === '' || !quickLogDate}
+                        >
+                            {t('dashboard.quickLog.submit')}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+        </Stack >
     )
 }
 

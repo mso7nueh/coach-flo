@@ -86,6 +86,14 @@ const resources = {
                     empty: 'Пока нет обновлений',
                     workoutLogged: 'Тренировка от {{date}}',
                 },
+                quickLog: {
+                    title: 'Внести значение',
+                    valueLabel: 'Значение',
+                    dateLabel: 'Дата',
+                    submit: 'Сохранить',
+                    success: 'Показатель сохранен',
+                    error: 'Ошибка сохранения'
+                },
                 goalsCard: {
                     title: 'Мои цели',
                     empty: 'Цели пока не указаны',
