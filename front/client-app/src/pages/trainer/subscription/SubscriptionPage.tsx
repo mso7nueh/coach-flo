@@ -153,6 +153,7 @@ export const SubscriptionPage = () => {
                                 flexDirection: 'column',
                                 borderColor: plan.popular ? 'var(--mantine-color-violet-5)' : undefined,
                                 borderWidth: plan.popular ? 2 : 1,
+                                height: '100%',
                             }}
                         >
                             {plan.popular && (
@@ -191,8 +192,8 @@ export const SubscriptionPage = () => {
                                 )}
                             </Group>
 
-                            <List mt="xl" spacing="sm" size="sm" center icon={
-                                <ThemeIcon size={20} radius="xl" color="violet" variant="light">
+                            <List mt="xl" spacing="sm" size="sm" center={false} icon={
+                                <ThemeIcon size={20} radius="xl" color="violet" variant="light" style={{ marginTop: 2 }}>
                                     <IconCheck size={12} stroke={1.5} />
                                 </ThemeIcon>
                             }>
@@ -201,7 +202,7 @@ export const SubscriptionPage = () => {
                                         key={index}
                                         icon={
                                             !feature.included ? (
-                                                <ThemeIcon size={20} radius="xl" color="gray" variant="light">
+                                                <ThemeIcon size={20} radius="xl" color="gray" variant="light" style={{ marginTop: 2 }}>
                                                     <IconX size={12} stroke={1.5} />
                                                 </ThemeIcon>
                                             ) : undefined

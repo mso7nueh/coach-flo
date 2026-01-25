@@ -1,4 +1,4 @@
-import { AppShell, Avatar, Burger, Divider, Group, Menu, SegmentedControl, Stack, Text, UnstyledButton, Box } from '@mantine/core'
+import { AppShell, Avatar, Burger, Button, Divider, Group, Menu, SegmentedControl, Stack, Text, UnstyledButton, Box } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
@@ -198,6 +198,15 @@ export const AppLayout = () => {
                                 </Text>
                             </Group>
                             <Group gap="lg">
+                                <Button
+                                    variant="light"
+                                    color="violet"
+                                    size="xs"
+                                    component={NavLink}
+                                    to="/trainer/subscription"
+                                >
+                                    Подписка
+                                </Button>
                                 <SegmentedControl
                                     aria-labelledby={labelId}
                                     value={locale}
