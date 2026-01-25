@@ -29,7 +29,14 @@ services:
     pullRequestPreviewsEnabled: false
     envVars:
       - key: VITE_API_URL
-        value: http://45.144.221.74:8000
+        value: "/"
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: http://103.88.243.123:8000/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
 ```
 
 ### 3. Переменные окружения
@@ -37,7 +44,7 @@ services:
 В Render Dashboard нужно добавить переменную окружения:
 
 - **Key:** `VITE_API_URL`
-- **Value:** `http://45.144.221.74:8000`
+- **Value:** `/`
 
 **Важно:** Переменные окружения с префиксом `VITE_` доступны в коде через `import.meta.env.VITE_API_URL`.
 
@@ -62,7 +69,7 @@ Render автоматически обнаружит `render.yaml` в корне
 В разделе "Environment" добавьте:
 
 ```
-VITE_API_URL=http://45.144.221.74:8000
+VITE_API_URL=/
 ```
 
 ### Шаг 4: Деплой
@@ -118,7 +125,7 @@ VITE_API_URL=http://localhost:8000
 Переменные окружения настраиваются в Render Dashboard:
 
 ```
-VITE_API_URL=http://45.144.221.74:8000
+VITE_API_URL=/
 ```
 
 ## Troubleshooting

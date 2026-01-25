@@ -20,4 +20,14 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'http://103.88.243.123:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path,
+      },
+    },
+  },
 })

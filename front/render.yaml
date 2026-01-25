@@ -6,5 +6,12 @@ services:
     pullRequestPreviewsEnabled: false
     envVars:
       - key: VITE_API_URL
-        value: http://103.88.243.123:8000
+        value: "/"
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: http://103.88.243.123:8000/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
