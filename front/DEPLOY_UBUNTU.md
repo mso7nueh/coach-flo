@@ -61,12 +61,14 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Если API находится на том же сервере, можно проксировать запросы
-    # location /api {
-    #     proxy_pass http://localhost:8000;
-    #     proxy_set_header Host $host;
-    #     proxy_set_header X-Real-IP $remote_addr;
-    # }
+    # Проксирование запросов к API (ОБЯЗАТЕЛЬНО для работы приложения)
+    location /api/ {
+        proxy_pass http://localhost:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 ```
 
