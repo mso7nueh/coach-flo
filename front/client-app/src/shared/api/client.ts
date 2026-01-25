@@ -814,6 +814,13 @@ export const createOnlinePayment = async (data: {
   return response
 }
 
+export const checkPaymentStatus = async (payment_id: string): Promise<{ status: string; message?: string }> => {
+  const { data } = await api.post<{ status: string; message?: string }>('/api/payments/check', null, {
+    params: { payment_id }
+  })
+  return data
+}
+
 export const updateClient = async (
   client_id: string,
   data: {
