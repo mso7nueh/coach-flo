@@ -52,6 +52,24 @@ async def create_payment(
             "metadata": {
                 "user_id": current_user.id,
                 "plan_id": request.plan_id
+            },
+            "receipt": {
+                "customer": {
+                    "email": current_user.email
+                },
+                "items": [
+                    {
+                        "description": request.description,
+                        "quantity": "1.00",
+                        "amount": {
+                            "value": str(request.amount),
+                            "currency": "RUB"
+                        },
+                        "vat_code": "1",
+                        "payment_mode": "full_payment",
+                        "payment_subject": "service"
+                    }
+                ]
             }
         }, idempotency_key)
 
