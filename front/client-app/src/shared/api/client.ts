@@ -678,6 +678,7 @@ export const createOrUpdateNutritionEntry = async (data: {
 export const getNutritionEntries = async (params?: {
   start_date?: string
   end_date?: string
+  client_id?: string
 }): Promise<NutritionEntry[]> => {
   const { data } = await api.get<NutritionEntry[]>('/api/nutrition/', { params })
   return data

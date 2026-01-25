@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
-import { IconArrowLeft, IconCalendar, IconChartBar, IconBarbell, IconEdit, IconAlertTriangle, IconTarget, IconLayoutDashboard, IconListCheck, IconCoin } from '@tabler/icons-react'
+import { IconArrowLeft, IconCalendar, IconChartBar, IconBarbell, IconEdit, IconAlertTriangle, IconTarget, IconLayoutDashboard, IconListCheck, IconCoin, IconApple } from '@tabler/icons-react'
 import { SimpleGrid } from '@mantine/core'
 import dayjs from 'dayjs'
 import { updateClient, setClients } from '@/app/store/slices/clientsSlice'
@@ -29,6 +29,7 @@ import { apiClient } from '@/shared/api/client'
 import { ClientProgramContent } from './ClientProgramPage'
 import { ClientMetricsContent } from './ClientMetricsPage'
 import { ClientNotesContent } from './ClientNotesPage'
+import { NutritionContent } from '../../client/nutrition/NutritionPage'
 
 const GOALS_MAP: Record<string, string> = {
     weight_loss: 'Похудение',
@@ -280,10 +281,13 @@ export const ClientDashboardPage = () => {
             <Tabs value={activeTab} onChange={setActiveTab} variant="outline" radius="md">
                 <Tabs.List>
                     <Tabs.Tab value="overview" leftSection={<IconLayoutDashboard size={16} />}>
-                        {t('common.overview')}
+                        Обзор
                     </Tabs.Tab>
                     <Tabs.Tab value="training" leftSection={<IconBarbell size={16} />}>
                         {t('common.program')}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="nutrition" leftSection={<IconApple size={16} />}>
+                        Питание
                     </Tabs.Tab>
                     <Tabs.Tab value="tasks" leftSection={<IconListCheck size={16} />}>
                         {t('dashboard.notesTitle')}
@@ -437,6 +441,64 @@ export const ClientDashboardPage = () => {
                         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
                             <Card withBorder padding="md">
                                 <Stack gap="md">
+                                    <Group gap="xs">
+                                        <IconTarget size={20} color="var(--mantine-color-violet-6)" />
+                                        <Title order={4}>{t('trainer.clients.clientGoals')}</Title>
+                                    </Group>
+                                    {!client.goals || client.goals.length === 0 ? (
+                                        <Text size="sm" c="dimmed">
+                                            {t('trainer.clients.noGoals')}
+                                        </Text>
+                                    ) : (
+                                        <Stack gap="xs">
+                                            {client.goals.map((goal, index) => (
+                                                <Group key={index} gap="xs" align="flex-start">
+                                                    <Badge variant="light" color="violet" size="sm">
+                                                        {index + 1}
+                                                    </Badge>
+                                                    <Text size="sm" style={{ flex: 1 }}>
+                                                        {getGoalLabel(goal)}
+                                                    </Text>
+                                                </Group>
+                                            ))}
+                                        </Stack>
+                                    )}
+                                </Stack>
+                            </Card>
+
+                            <Card withBorder padding="md">
+                                <Stack gap="md">
+                                    <Group gap="xs">
+                                        <IconAlertTriangle size={20} color="var(--mantine-color-red-6)" />
+                                        <Title order={4}>{t('trainer.clients.clientRestrictions')}</Title>
+                                    </Group>
+                                    {!client.restrictions || client.restrictions.length === 0 ? (
+                                        <Text size="sm" c="dimmed">
+                                            {t('trainer.clients.noRestrictions')}
+                                        </Text>
+                                    ) : (
+                                        <Stack gap="xs">
+                                            {client.restrictions.map((restriction, index) => (
+                                                <Group key={index} gap="xs" align="flex-start">
+                                                    <IconAlertTriangle size={16} color="var(--mantine-color-red-6)" />
+                                                    <Text size="sm" style={{ flex: 1 }}>
+                                                        {restriction}
+                                                    </Text>
+                                                </Group>
+                                            ))}
+                                        </Stack>
+                                    )}
+                                </Stack>
+                            </Card>
+                        </SimpleGrid>
+                    </Stack>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="training" pt="md">
+                    <Stack gap="lg">
+                        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+                            <Card withBorder padding="md">
+                                <Stack gap="md">
                                     <Group justify="space-between">
                                         <Title order={4}>{t('dashboard.upcomingSessions')}</Title>
                                         <Button
@@ -506,141 +568,12 @@ export const ClientDashboardPage = () => {
                                 </Stack>
                             </Card>
                         </SimpleGrid>
-
-                        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-                            <Card withBorder padding="md">
-                                <Stack gap="md">
-                                    <Group justify="space-between">
-                                        <Title order={4}>{t('dashboard.notesTitle')}</Title>
-                                        <Button
-                                            variant="subtle"
-                                            size="xs"
-                                            leftSection={<IconEdit size={14} />}
-                                            onClick={() => setActiveTab('tasks')}
-                                        >
-                                            {t('common.edit')}
-                                        </Button>
-                                    </Group>
-                                    {clientNotes.length === 0 ? (
-                                        <Text size="sm" c="dimmed">
-                                            {t('dashboard.emptyNotes')}
-                                        </Text>
-                                    ) : (
-                                        <Stack gap="xs">
-                                            {clientNotes.slice(0, 5).map((note) => (
-                                                <Card key={note.id} withBorder padding="xs">
-                                                    <Stack gap={4}>
-                                                        <Text size="sm" fw={500}>
-                                                            {note.title}
-                                                        </Text>
-                                                        <Text size="xs" c="dimmed">
-                                                            {dayjs(note.updatedAt).format('D MMM YYYY, HH:mm')}
-                                                        </Text>
-                                                    </Stack>
-                                                </Card>
-                                            ))}
-                                        </Stack>
-                                    )}
-                                </Stack>
-                            </Card>
-
-                            <Card withBorder padding="md">
-                                <Stack gap="md">
-                                    <Group justify="space-between">
-                                        <Title order={4}>{t('common.metrics')}</Title>
-                                        <Button
-                                            variant="subtle"
-                                            size="xs"
-                                            leftSection={<IconChartBar size={14} />}
-                                            onClick={() => setActiveTab('metrics')}
-                                        >
-                                            {t('common.view')}
-                                        </Button>
-                                    </Group>
-                                    <SimpleGrid cols={2} spacing="xs">
-                                        <Card withBorder padding="xs">
-                                            <Stack gap={2}>
-                                                <Text size="xs" c="dimmed">
-                                                    {t('metricsPage.bodyMetrics')}
-                                                </Text>
-                                                <Text fw={600} size="lg">
-                                                    {Array.isArray(bodyMetrics) ? bodyMetrics.length : Object.keys(bodyMetrics).length}
-                                                </Text>
-                                            </Stack>
-                                        </Card>
-                                        <Card withBorder padding="xs">
-                                            <Stack gap={2}>
-                                                <Text size="xs" c="dimmed">
-                                                    {t('metricsPage.exerciseMetrics')}
-                                                </Text>
-                                                <Text fw={600} size="lg">
-                                                    {Array.isArray(exerciseMetrics) ? exerciseMetrics.length : Object.keys(exerciseMetrics).length}
-                                                </Text>
-                                            </Stack>
-                                        </Card>
-                                    </SimpleGrid>
-                                </Stack>
-                            </Card>
-                        </SimpleGrid>
-
-                        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-                            <Card withBorder padding="md">
-                                <Stack gap="md">
-                                    <Group gap="xs">
-                                        <IconTarget size={20} color="var(--mantine-color-violet-6)" />
-                                        <Title order={4}>{t('trainer.clients.clientGoals')}</Title>
-                                    </Group>
-                                    {!client.goals || client.goals.length === 0 ? (
-                                        <Text size="sm" c="dimmed">
-                                            {t('trainer.clients.noGoals')}
-                                        </Text>
-                                    ) : (
-                                        <Stack gap="xs">
-                                            {client.goals.map((goal, index) => (
-                                                <Group key={index} gap="xs" align="flex-start">
-                                                    <Badge variant="light" color="violet" size="sm">
-                                                        {index + 1}
-                                                    </Badge>
-                                                    <Text size="sm" style={{ flex: 1 }}>
-                                                        {getGoalLabel(goal)}
-                                                    </Text>
-                                                </Group>
-                                            ))}
-                                        </Stack>
-                                    )}
-                                </Stack>
-                            </Card>
-
-                            <Card withBorder padding="md">
-                                <Stack gap="md">
-                                    <Group gap="xs">
-                                        <IconAlertTriangle size={20} color="var(--mantine-color-red-6)" />
-                                        <Title order={4}>{t('trainer.clients.clientRestrictions')}</Title>
-                                    </Group>
-                                    {!client.restrictions || client.restrictions.length === 0 ? (
-                                        <Text size="sm" c="dimmed">
-                                            {t('trainer.clients.noRestrictions')}
-                                        </Text>
-                                    ) : (
-                                        <Stack gap="xs">
-                                            {client.restrictions.map((restriction, index) => (
-                                                <Group key={index} gap="xs" align="flex-start">
-                                                    <IconAlertTriangle size={16} color="var(--mantine-color-red-6)" />
-                                                    <Text size="sm" style={{ flex: 1 }}>
-                                                        {restriction}
-                                                    </Text>
-                                                </Group>
-                                            ))}
-                                        </Stack>
-                                    )}
-                                </Stack>
-                            </Card>
-                        </SimpleGrid>
+                        <ClientProgramContent embedded />
                     </Stack>
                 </Tabs.Panel>
 
-                <Tabs.Panel value="training" pt="md">
-                    <ClientProgramContent embedded />
+                <Tabs.Panel value="nutrition" pt="md">
+                    <NutritionContent embedded clientId={clientId} />
                 </Tabs.Panel>
 
                 <Tabs.Panel value="tasks" pt="md">
