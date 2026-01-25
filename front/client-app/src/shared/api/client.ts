@@ -4,7 +4,7 @@ import axios, { type AxiosInstance } from 'axios'
 // В продакшне используем полный URL
 const API_BASE_URL = import.meta.env.DEV
   ? '' // Используем прокси в dev режиме
-  : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+  : (import.meta.env.VITE_API_URL || 'http://103.88.243.123:8000')
 
 export type AttendanceStatus = 'scheduled' | 'completed' | 'cancelled' | 'missed'
 
