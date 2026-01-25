@@ -1,13 +1,13 @@
-version: '3.8'
+
 
 services:
   db:
     image: postgres:15-alpine
     container_name: coachfit_db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-coachfit}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coachfit}
-      POSTGRES_DB: ${POSTGRES_DB:-coachfit}
+      POSTGRES_USER: ${POSTGRES_USER:-coachflo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coachflo}
+      POSTGRES_DB: ${POSTGRES_DB:-coachflo}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -22,12 +22,12 @@ services:
     build: .
     container_name: coachfit_backend
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-coachfit}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coachfit}
-      POSTGRES_DB: ${POSTGRES_DB:-coachfit}
+      POSTGRES_USER: ${POSTGRES_USER:-coachflo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coachflo}
+      POSTGRES_DB: ${POSTGRES_DB:-coachflo}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
-      DATABASE_URL: postgresql://${POSTGRES_USER:-coachfit}:${POSTGRES_PASSWORD:-coachfit}@db:5432/${POSTGRES_DB:-coachfit}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-coachflo}:${POSTGRES_PASSWORD:-coachflo}@db:5432/${POSTGRES_DB:-coachflo}
       SECRET_KEY: your-secret-key-change-in-production-please-use-strong-random-key
       CORS_ORIGINS: http://localhost:5173,http://localhost:3000
       SMSAERO_EMAIL: ${SMSAERO_EMAIL:-}
