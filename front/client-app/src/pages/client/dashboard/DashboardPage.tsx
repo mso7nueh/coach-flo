@@ -62,7 +62,7 @@ import {
     updateNoteApi,
 } from '@/app/store/slices/dashboardSlice'
 import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
-import { fetchBodyMetrics, fetchBodyMetricEntries, addBodyMetricEntryApi, type BodyMetricDescriptor } from '@/app/store/slices/metricsSlice'
+import { fetchBodyMetrics, fetchBodyMetricEntries, addBodyMetricEntryApi, createBodyMetricApi, type BodyMetricDescriptor } from '@/app/store/slices/metricsSlice'
 import { useMemo, useState, useEffect } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import dayjs from 'dayjs'
@@ -121,16 +121,36 @@ export const DashboardPage = () => {
     const [quickLogDate, setQuickLogDate] = useState<Date | null>(new Date())
     const [isQuickLogSubmitting, setIsQuickLogSubmitting] = useState(false)
 
-    const handleOpenQuickLog = (metricId: string) => {
+    const handleOpenQuickLog = async (metricId: string) => {
         // Find metric by analyzing tiles or bodyMetrics
-        // We know tile IDs map to metric labels (weight, sleep etc)
-        // But we need the actual metric ID from the DB
-        // Let's use the memos we already have
         let metric: BodyMetricDescriptor | undefined
         if (metricId === 'weight') metric = weightMetric
         else if (metricId === 'sleep') metric = sleepMetric
         else if (metricId === 'heartRate') metric = heartRateMetric
         else if (metricId === 'steps') metric = stepsMetric
+
+        if (!metric) {
+            // Если метрика не найдена, создаем её
+            try {
+                const defaults: Record<string, { label: string; unit: string }> = {
+                    weight: { label: 'Вес', unit: 'kg' },
+                    sleep: { label: 'Сон', unit: 'h' },
+                    heartRate: { label: 'Пульс', unit: 'bpm' },
+                    steps: { label: 'Шаги', unit: 'steps' },
+                }
+
+                if (defaults[metricId]) {
+                    const newMetric = await dispatch(createBodyMetricApi({
+                        label: defaults[metricId].label,
+                        unit: defaults[metricId].unit
+                    })).unwrap()
+
+                    metric = newMetric
+                }
+            } catch (error) {
+                console.error('Failed to auto-create metric:', error)
+            }
+        }
 
         if (metric) {
             setQuickLogMetric(metric as BodyMetricDescriptor) // Force type because Memo returns array element
@@ -138,8 +158,6 @@ export const DashboardPage = () => {
             setQuickLogDate(new Date())
             openQuickLog()
         } else {
-            console.error(`Metric not found for ID: ${metricId}`)
-            console.log('Available metrics:', bodyMetrics)
             notifications.show({
                 title: t('common.error'),
                 message: t('dashboard.errors.metricNotFound', { metric: t(`dashboard.bodyOverview.${metricId}`) }),
