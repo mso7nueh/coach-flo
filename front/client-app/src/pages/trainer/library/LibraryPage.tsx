@@ -2007,7 +2007,7 @@ export const LibraryPage = () => {
                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                 {ex.duration && ` × ${ex.duration} мин`}
-                                                {ex.rest && ` · отдых ${ex.rest} сек`}
+                                                {ex.rest && ` · отдых ${ex.rest} мин`}
                                             </Text>
                                         )}
                                     </Card>
@@ -2072,7 +2072,7 @@ export const LibraryPage = () => {
                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                 {ex.duration && ` × ${ex.duration} мин`}
                                                 {ex.weight && ` · ${ex.weight} кг`}
-                                                {ex.rest && ` · отдых ${ex.rest} сек`}
+                                                {ex.rest && ` · отдых ${ex.rest} мин`}
                                             </Text>
                                         )}
                                     </Card>
@@ -2136,7 +2136,7 @@ export const LibraryPage = () => {
                                                 {ex.sets && `${ex.sets} ${t('program.sets')}`}
                                                 {ex.reps && ` × ${ex.reps} ${t('program.reps')}`}
                                                 {ex.duration && ` × ${ex.duration} мин`}
-                                                {ex.rest && ` · отдых ${ex.rest} сек`}
+                                                {ex.rest && ` · отдых ${ex.rest} мин`}
                                             </Text>
                                         )}
                                     </Card>

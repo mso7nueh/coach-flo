@@ -258,7 +258,7 @@ const resources = {
                 duration: 'Время',
                 durationPlaceholder: 'Например: 5 мин',
                 rest: 'Отдых',
-                restPlaceholder: 'Например: 90 сек',
+                restPlaceholder: 'Например: 1.5 мин',
                 weight: 'Вес',
                 weightPlaceholder: 'Например: 70 кг',
                 assignToCalendar: 'Назначить в календарь',
