@@ -108,7 +108,7 @@ export const LibraryPage = () => {
     const [addExerciseModalOpened, { open: openAddExerciseModal, close: closeAddExerciseModal }] = useDisclosure(false)
     const [currentBlockType, setCurrentBlockType] = useState<'warmup' | 'main' | 'cooldown' | null>(null)
     const [editingWorkoutExercise, setEditingWorkoutExercise] = useState<{ blockType: 'warmup' | 'main' | 'cooldown'; index: number } | null>(null)
-    
+
     const trainerPrograms = useMemo(() => programs.filter((p) => p.owner === 'trainer'), [programs])
     const trainerDays = useMemo(() => days.filter((d) => d.owner === 'trainer'), [days])
     const selectedDay = useMemo(() => trainerDays.find((item) => item.id === selectedDayId) ?? null, [trainerDays, selectedDayId])
@@ -386,7 +386,7 @@ export const LibraryPage = () => {
                 sets: item.sets ?? 1,
                 reps: item.reps,
                 duration: item.duration ? `${item.duration} ${t('program.minutesShort')}` : undefined,
-                rest: item.rest ? `${item.rest} ${t('program.secondsShort')}` : undefined,
+                rest: item.rest ? `${item.rest} ${t('program.minutesShort')}` : undefined,
                 weight: item.weight ? `${item.weight}` : undefined,
             }
         }
@@ -553,12 +553,12 @@ export const LibraryPage = () => {
         }
         // Обновляем порядок локально для быстрого отклика
         dispatch(reorderDays({ from: sourceIndex, to: destinationIndex }))
-        
+
         // Обновляем порядок через API для каждого дня программы
         const reorderedDays = [...visibleProgramDays]
         const [moved] = reorderedDays.splice(sourceIndex, 1)
         reorderedDays.splice(destinationIndex, 0, moved)
-        
+
         // Обновляем порядок каждого дня через API
         try {
             await Promise.all(
@@ -773,14 +773,14 @@ export const LibraryPage = () => {
             dispatch(fetchExercises())
         }
     }, [activeTab, dispatch])
-    
+
     // Загружаем шаблоны тренировок при открытии вкладки тренировок
     useEffect(() => {
         if (activeTab === 'workouts') {
             dispatch(fetchWorkoutTemplates())
         }
     }, [activeTab, dispatch])
-    
+
     // Загружаем программы при открытии вкладки программ
     useEffect(() => {
         if (activeTab === 'programs') {
@@ -794,7 +794,7 @@ export const LibraryPage = () => {
             })
         }
     }, [activeTab, dispatch, selectedProgramId])
-    
+
     // Загружаем дни программы при выборе программы
     useEffect(() => {
         if (activeTab === 'programs' && selectedProgramId) {
@@ -908,9 +908,9 @@ export const LibraryPage = () => {
 
                         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
                             {filteredExercises.map((exercise) => (
-                                <Card 
-                                    key={exercise.id} 
-                                    withBorder 
+                                <Card
+                                    key={exercise.id}
+                                    withBorder
                                     padding="md"
                                     style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
@@ -931,24 +931,24 @@ export const LibraryPage = () => {
                                                         {exercise.muscleGroup === 'chest'
                                                             ? t('trainer.library.muscleChest')
                                                             : exercise.muscleGroup === 'back'
-                                                            ? t('trainer.library.muscleBack')
-                                                            : exercise.muscleGroup === 'shoulders'
-                                                            ? t('trainer.library.muscleShoulders')
-                                                            : exercise.muscleGroup === 'arms'
-                                                            ? t('trainer.library.muscleArms')
-                                                            : exercise.muscleGroup === 'legs'
-                                                            ? t('trainer.library.muscleLegs')
-                                                            : exercise.muscleGroup === 'core'
-                                                            ? t('trainer.library.muscleCore')
-                                                            : exercise.muscleGroup === 'cardio'
-                                                            ? t('trainer.library.muscleCardio')
-                                                            : t('trainer.library.muscleFullBody')}
+                                                                ? t('trainer.library.muscleBack')
+                                                                : exercise.muscleGroup === 'shoulders'
+                                                                    ? t('trainer.library.muscleShoulders')
+                                                                    : exercise.muscleGroup === 'arms'
+                                                                        ? t('trainer.library.muscleArms')
+                                                                        : exercise.muscleGroup === 'legs'
+                                                                            ? t('trainer.library.muscleLegs')
+                                                                            : exercise.muscleGroup === 'core'
+                                                                                ? t('trainer.library.muscleCore')
+                                                                                : exercise.muscleGroup === 'cardio'
+                                                                                    ? t('trainer.library.muscleCardio')
+                                                                                    : t('trainer.library.muscleFullBody')}
                                                     </Badge>
                                                 </Group>
                                             </Stack>
                                             <Menu shadow="md" width={200} position="bottom-end">
                                                 <Menu.Target>
-                                                    <ActionIcon 
+                                                    <ActionIcon
                                                         variant="subtle"
                                                         data-menu-trigger
                                                         onClick={(e) => {
@@ -1060,9 +1060,9 @@ export const LibraryPage = () => {
 
                         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
                             {filteredWorkouts.map((workout) => (
-                                <Card 
-                                    key={workout.id} 
-                                    withBorder 
+                                <Card
+                                    key={workout.id}
+                                    withBorder
                                     padding="md"
                                     style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
@@ -1087,14 +1087,14 @@ export const LibraryPage = () => {
                                                         {workout.level === 'beginner'
                                                             ? t('trainer.library.levelBeginner')
                                                             : workout.level === 'intermediate'
-                                                            ? t('trainer.library.levelIntermediate')
-                                                            : t('trainer.library.levelAdvanced')}
+                                                                ? t('trainer.library.levelIntermediate')
+                                                                : t('trainer.library.levelAdvanced')}
                                                     </Badge>
                                                 </Group>
                                             </Stack>
                                             <Menu shadow="md" width={200} position="bottom-end">
                                                 <Menu.Target>
-                                                    <ActionIcon 
+                                                    <ActionIcon
                                                         variant="subtle"
                                                         data-menu-trigger
                                                         onClick={(e) => {
@@ -1487,215 +1487,215 @@ export const LibraryPage = () => {
                                     </Group>
                                     <Group gap="lg" wrap="wrap" align="flex-start">
                                         {selectedDay.blocks.map((block) => {
-                                                const getBlockConfig = () => {
-                                                    switch (block.type) {
-                                                        case 'warmup':
-                                                            return {
-                                                                icon: <IconStretching size={24} />,
-                                                                color: 'blue',
-                                                                gradient: { from: 'blue.1', to: 'blue.0' },
-                                                                borderColor: 'blue.3',
-                                                            }
-                                                        case 'main':
-                                                            return {
-                                                                icon: <IconFlame size={24} />,
-                                                                color: 'violet',
-                                                                gradient: { from: 'violet.1', to: 'violet.0' },
-                                                                borderColor: 'violet.3',
-                                                            }
-                                                        case 'cooldown':
-                                                            return {
-                                                                icon: <IconStretching size={24} />,
-                                                                color: 'green',
-                                                                gradient: { from: 'green.1', to: 'green.0' },
-                                                                borderColor: 'green.3',
-                                                            }
-                                                        default:
-                                                            return {
-                                                                icon: <IconBarbell size={24} />,
-                                                                color: 'gray',
-                                                                gradient: { from: 'gray.1', to: 'gray.0' },
-                                                                borderColor: 'gray.3',
-                                                            }
-                                                    }
+                                            const getBlockConfig = () => {
+                                                switch (block.type) {
+                                                    case 'warmup':
+                                                        return {
+                                                            icon: <IconStretching size={24} />,
+                                                            color: 'blue',
+                                                            gradient: { from: 'blue.1', to: 'blue.0' },
+                                                            borderColor: 'blue.3',
+                                                        }
+                                                    case 'main':
+                                                        return {
+                                                            icon: <IconFlame size={24} />,
+                                                            color: 'violet',
+                                                            gradient: { from: 'violet.1', to: 'violet.0' },
+                                                            borderColor: 'violet.3',
+                                                        }
+                                                    case 'cooldown':
+                                                        return {
+                                                            icon: <IconStretching size={24} />,
+                                                            color: 'green',
+                                                            gradient: { from: 'green.1', to: 'green.0' },
+                                                            borderColor: 'green.3',
+                                                        }
+                                                    default:
+                                                        return {
+                                                            icon: <IconBarbell size={24} />,
+                                                            color: 'gray',
+                                                            gradient: { from: 'gray.1', to: 'gray.0' },
+                                                            borderColor: 'gray.3',
+                                                        }
                                                 }
-                                                const config = getBlockConfig()
+                                            }
+                                            const config = getBlockConfig()
 
-                                                return (
-                                                    <Card
-                                                        key={block.id}
-                                                        withBorder
-                                                        padding="lg"
-                                                        style={{
-                                                            borderColor: `var(--mantine-color-${config.borderColor})`,
-                                                            backgroundColor: `var(--mantine-color-${config.gradient.to})`,
-                                                            minWidth: 280,
-                                                            maxWidth: 320,
-                                                            width: '100%',
-                                                            flex: '1 1 280px',
-                                                        }}
-                                                    >
-                                                        <Stack gap="md">
-                                                            <Group justify="space-between" mb="xs">
-                                                                <Group gap="sm">
-                                                                    <div
-                                                                        style={{
-                                                                            padding: '8px',
-                                                                            borderRadius: '8px',
-                                                                            backgroundColor: `var(--mantine-color-${config.color}-1)`,
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                        }}
-                                                                    >
-                                                                        {config.icon}
-                                                                    </div>
-                                                                    <Text fw={700} size="lg" c={`${config.color}.7`}>
-                                                                        {t(`program.sections.${block.type}`)}
-                                                                    </Text>
-                                                                </Group>
-                                                                <Badge variant="light" color={config.color} size="lg" style={{ fontWeight: 600 }}>
-                                                                    {block.exercises.length}
-                                                                </Badge>
+                                            return (
+                                                <Card
+                                                    key={block.id}
+                                                    withBorder
+                                                    padding="lg"
+                                                    style={{
+                                                        borderColor: `var(--mantine-color-${config.borderColor})`,
+                                                        backgroundColor: `var(--mantine-color-${config.gradient.to})`,
+                                                        minWidth: 280,
+                                                        maxWidth: 320,
+                                                        width: '100%',
+                                                        flex: '1 1 280px',
+                                                    }}
+                                                >
+                                                    <Stack gap="md">
+                                                        <Group justify="space-between" mb="xs">
+                                                            <Group gap="sm">
+                                                                <div
+                                                                    style={{
+                                                                        padding: '8px',
+                                                                        borderRadius: '8px',
+                                                                        backgroundColor: `var(--mantine-color-${config.color}-1)`,
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                    }}
+                                                                >
+                                                                    {config.icon}
+                                                                </div>
+                                                                <Text fw={700} size="lg" c={`${config.color}.7`}>
+                                                                    {t(`program.sections.${block.type}`)}
+                                                                </Text>
                                                             </Group>
-                                                            <Stack gap="sm">
-                                                                {block.exercises.map((exercise, index) => (
-                                                                    <Card
-                                                                        key={exercise.id}
-                                                                        padding="md"
-                                                                        withBorder
-                                                                        style={{
-                                                                            backgroundColor: 'var(--mantine-color-white)',
-                                                                            borderColor: `var(--mantine-color-${config.color}-2)`,
-                                                                            transition: 'all 0.2s',
-                                                                        }}
-                                                                        onMouseEnter={(e) => {
-                                                                            e.currentTarget.style.transform = 'translateY(-2px)'
-                                                                            e.currentTarget.style.boxShadow = 'var(--mantine-shadow-sm)'
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            e.currentTarget.style.transform = 'translateY(0)'
-                                                                            e.currentTarget.style.boxShadow = 'none'
-                                                                        }}
-                                                                    >
-                                                                        <Group justify="space-between" align="flex-start">
-                                                                            <Stack gap="xs" style={{ flex: 1 }}>
-                                                                                <Group gap="xs">
-                                                                                    <Badge
-                                                                                        variant="light"
-                                                                                        color={config.color}
-                                                                                        size="sm"
-                                                                                        style={{ minWidth: '24px', justifyContent: 'center' }}
-                                                                                    >
-                                                                                        {index + 1}
-                                                                                    </Badge>
-                                                                                    <Text fw={600} size="sm">
-                                                                                        {exercise.title}
-                                                                                    </Text>
-                                                                                </Group>
-                                                                                <Group gap="md" wrap="wrap">
-                                                                                    {exercise.sets && (
-                                                                                        <Group gap={4}>
-                                                                                            <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
-                                                                                            <Text size="xs" c="dimmed">
-                                                                                                {exercise.sets} {t('program.sets')}
-                                                                                            </Text>
-                                                                                        </Group>
-                                                                                    )}
-                                                                                    {exercise.reps && (
-                                                                                        <Group gap={4}>
-                                                                                            <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
-                                                                                            <Text size="xs" c="dimmed">
-                                                                                                {exercise.reps} {t('program.reps')}
-                                                                                            </Text>
-                                                                                        </Group>
-                                                                                    )}
-                                                                                    {exercise.duration && (
-                                                                                        <Group gap={4}>
-                                                                                            <IconClock size={14} color="var(--mantine-color-gray-6)" />
-                                                                                            <Text size="xs" c="dimmed">
-                                                                                                {exercise.duration}
-                                                                                            </Text>
-                                                                                        </Group>
-                                                                                    )}
-                                                                                    {exercise.rest && (
-                                                                                        <Group gap={4}>
-                                                                                            <IconClock size={14} color="var(--mantine-color-gray-6)" />
-                                                                                            <Text size="xs" c="dimmed">
-                                                                                                {exercise.rest}
-                                                                                            </Text>
-                                                                                        </Group>
-                                                                                    )}
-                                                                                    {exercise.weight && (
-                                                                                        <Badge variant="light" color={config.color} size="sm">
-                                                                                            {exercise.weight}
-                                                                                        </Badge>
-                                                                                    )}
-                                                                                </Group>
-                                                                            </Stack>
+                                                            <Badge variant="light" color={config.color} size="lg" style={{ fontWeight: 600 }}>
+                                                                {block.exercises.length}
+                                                            </Badge>
+                                                        </Group>
+                                                        <Stack gap="sm">
+                                                            {block.exercises.map((exercise, index) => (
+                                                                <Card
+                                                                    key={exercise.id}
+                                                                    padding="md"
+                                                                    withBorder
+                                                                    style={{
+                                                                        backgroundColor: 'var(--mantine-color-white)',
+                                                                        borderColor: `var(--mantine-color-${config.color}-2)`,
+                                                                        transition: 'all 0.2s',
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        e.currentTarget.style.transform = 'translateY(-2px)'
+                                                                        e.currentTarget.style.boxShadow = 'var(--mantine-shadow-sm)'
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        e.currentTarget.style.transform = 'translateY(0)'
+                                                                        e.currentTarget.style.boxShadow = 'none'
+                                                                    }}
+                                                                >
+                                                                    <Group justify="space-between" align="flex-start">
+                                                                        <Stack gap="xs" style={{ flex: 1 }}>
                                                                             <Group gap="xs">
-                                                                                <ActionIcon
-                                                                                    variant="subtle"
-                                                                                    size="sm"
+                                                                                <Badge
+                                                                                    variant="light"
                                                                                     color={config.color}
-                                                                                    onClick={() => handleEditProgramExercise(exercise, block.id)}
-                                                                                >
-                                                                                    <IconEdit size={14} />
-                                                                                </ActionIcon>
-                                                                                <ActionIcon
-                                                                                    variant="subtle"
                                                                                     size="sm"
-                                                                                    color="red"
-                                                                                    onClick={() => handleDeleteProgramExercise(exercise.id, block.id)}
+                                                                                    style={{ minWidth: '24px', justifyContent: 'center' }}
                                                                                 >
-                                                                                    <IconTrash size={14} />
-                                                                                </ActionIcon>
+                                                                                    {index + 1}
+                                                                                </Badge>
+                                                                                <Text fw={600} size="sm">
+                                                                                    {exercise.title}
+                                                                                </Text>
                                                                             </Group>
-                                                                        </Group>
-                                                                    </Card>
-                                                                ))}
-                                                                {block.exercises.length === 0 ? (
-                                                                    <Card
-                                                                        padding="xl"
-                                                                        style={{
-                                                                            backgroundColor: 'var(--mantine-color-gray-0)',
-                                                                            borderStyle: 'dashed',
-                                                                            borderColor: `var(--mantine-color-${config.color}-3)`,
-                                                                        }}
-                                                                    >
-                                                                        <Stack align="center" gap="xs">
-                                                                            <Text c="dimmed" size="sm" ta="center">
-                                                                                {t('program.noExercises')}
-                                                                            </Text>
+                                                                            <Group gap="md" wrap="wrap">
+                                                                                {exercise.sets && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.sets} {t('program.sets')}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.reps && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.reps} {t('program.reps')}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.duration && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.duration}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.rest && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.rest}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.weight && (
+                                                                                    <Badge variant="light" color={config.color} size="sm">
+                                                                                        {exercise.weight}
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </Group>
                                                                         </Stack>
-                                                                    </Card>
-                                                                ) : null}
-                                                            </Stack>
-                                                            <Group mt="sm" gap="xs">
-                                                                <Button
-                                                                    variant="light"
-                                                                    color={config.color}
-                                                                    leftSection={<IconPlus size={16} />}
-                                                                    onClick={() => handleAddProgramExercise(block.id)}
-                                                                    fullWidth
+                                                                        <Group gap="xs">
+                                                                            <ActionIcon
+                                                                                variant="subtle"
+                                                                                size="sm"
+                                                                                color={config.color}
+                                                                                onClick={() => handleEditProgramExercise(exercise, block.id)}
+                                                                            >
+                                                                                <IconEdit size={14} />
+                                                                            </ActionIcon>
+                                                                            <ActionIcon
+                                                                                variant="subtle"
+                                                                                size="sm"
+                                                                                color="red"
+                                                                                onClick={() => handleDeleteProgramExercise(exercise.id, block.id)}
+                                                                            >
+                                                                                <IconTrash size={14} />
+                                                                            </ActionIcon>
+                                                                        </Group>
+                                                                    </Group>
+                                                                </Card>
+                                                            ))}
+                                                            {block.exercises.length === 0 ? (
+                                                                <Card
+                                                                    padding="xl"
+                                                                    style={{
+                                                                        backgroundColor: 'var(--mantine-color-gray-0)',
+                                                                        borderStyle: 'dashed',
+                                                                        borderColor: `var(--mantine-color-${config.color}-3)`,
+                                                                    }}
                                                                 >
-                                                                    {t('program.addExercise')}
-                                                                </Button>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    color={config.color}
-                                                                    leftSection={<IconBooks size={16} />}
-                                                                    onClick={() => handleOpenProgramExerciseLibrary(block.id)}
-                                                                    fullWidth
-                                                                >
-                                                                    {t('program.addFromLibrary')}
-                                                                </Button>
-                                                            </Group>
+                                                                    <Stack align="center" gap="xs">
+                                                                        <Text c="dimmed" size="sm" ta="center">
+                                                                            {t('program.noExercises')}
+                                                                        </Text>
+                                                                    </Stack>
+                                                                </Card>
+                                                            ) : null}
                                                         </Stack>
-                                                    </Card>
-                                                )
-                                            })}
-                                        </Group>
+                                                        <Group mt="sm" gap="xs">
+                                                            <Button
+                                                                variant="light"
+                                                                color={config.color}
+                                                                leftSection={<IconPlus size={16} />}
+                                                                onClick={() => handleAddProgramExercise(block.id)}
+                                                                fullWidth
+                                                            >
+                                                                {t('program.addExercise')}
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                color={config.color}
+                                                                leftSection={<IconBooks size={16} />}
+                                                                onClick={() => handleOpenProgramExerciseLibrary(block.id)}
+                                                                fullWidth
+                                                            >
+                                                                {t('program.addFromLibrary')}
+                                                            </Button>
+                                                        </Group>
+                                                    </Stack>
+                                                </Card>
+                                            )
+                                        })}
+                                    </Group>
                                 </Stack>
                             ) : (
                                 <Card withBorder>
@@ -1732,24 +1732,24 @@ export const LibraryPage = () => {
                                     {viewingWorkout.level === 'beginner'
                                         ? t('trainer.library.levelBeginner')
                                         : viewingWorkout.level === 'intermediate'
-                                        ? t('trainer.library.levelIntermediate')
-                                        : t('trainer.library.levelAdvanced')}
+                                            ? t('trainer.library.levelIntermediate')
+                                            : t('trainer.library.levelAdvanced')}
                                 </Badge>
                                 <Badge size="lg" variant="light" color="violet">
                                     {viewingWorkout.goal === 'weight_loss'
                                         ? t('trainer.library.goalWeightLoss')
                                         : viewingWorkout.goal === 'muscle_gain'
-                                        ? t('trainer.library.goalMuscleGain')
-                                        : viewingWorkout.goal === 'endurance'
-                                        ? t('trainer.library.goalEndurance')
-                                        : viewingWorkout.goal === 'flexibility'
-                                        ? t('trainer.library.goalFlexibility')
-                                        : t('trainer.library.goalGeneral')}
+                                            ? t('trainer.library.goalMuscleGain')
+                                            : viewingWorkout.goal === 'endurance'
+                                                ? t('trainer.library.goalEndurance')
+                                                : viewingWorkout.goal === 'flexibility'
+                                                    ? t('trainer.library.goalFlexibility')
+                                                    : t('trainer.library.goalGeneral')}
                                 </Badge>
                             </Group>
                             <Group gap="xs">
-                                <Button 
-                                    variant="light" 
+                                <Button
+                                    variant="light"
                                     leftSection={<IconEdit size={16} />}
                                     onClick={() => {
                                         closeViewWorkoutModal()
@@ -1905,7 +1905,7 @@ export const LibraryPage = () => {
                             <Button variant="subtle" onClick={closeViewWorkoutModal}>
                                 {t('common.close')}
                             </Button>
-                            <Button 
+                            <Button
                                 leftSection={<IconEdit size={16} />}
                                 onClick={() => {
                                     closeViewWorkoutModal()
@@ -1962,15 +1962,15 @@ export const LibraryPage = () => {
                             />
                         </Group>
                         <Textarea label={t('trainer.library.workoutForm.description')} {...workoutForm.getInputProps('description')} />
-                        
+
                         <Divider label={t('trainer.library.workoutForm.warmup')} labelPosition="left" />
                         <Stack gap="xs">
                             {workoutForm.values.warmup.map((ex, index) => {
                                 const exercise = exercises.find((e) => e.id === ex.exerciseId)
                                 return (
-                                    <Card 
-                                        key={index} 
-                                        padding="sm" 
+                                    <Card
+                                        key={index}
+                                        padding="sm"
                                         withBorder
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => {
@@ -2032,9 +2032,9 @@ export const LibraryPage = () => {
                             {workoutForm.values.main.map((ex, index) => {
                                 const exercise = exercises.find((e) => e.id === ex.exerciseId)
                                 return (
-                                    <Card 
-                                        key={index} 
-                                        padding="sm" 
+                                    <Card
+                                        key={index}
+                                        padding="sm"
                                         withBorder
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => {
@@ -2097,9 +2097,9 @@ export const LibraryPage = () => {
                             {workoutForm.values.cooldown.map((ex, index) => {
                                 const exercise = exercises.find((e) => e.id === ex.exerciseId)
                                 return (
-                                    <Card 
-                                        key={index} 
-                                        padding="sm" 
+                                    <Card
+                                        key={index}
+                                        padding="sm"
                                         withBorder
                                         style={{ cursor: 'pointer' }}
                                         onClick={() => {
@@ -2178,10 +2178,10 @@ export const LibraryPage = () => {
                 <form onSubmit={exerciseForm.onSubmit(handleSaveExercise)}>
                     <Stack gap="lg" style={{ paddingBottom: 'var(--mantine-spacing-md)' }}>
                         <Group grow>
-                            <TextInput 
-                                label={t('trainer.library.exerciseForm.name')} 
-                                required 
-                                {...exerciseForm.getInputProps('name')} 
+                            <TextInput
+                                label={t('trainer.library.exerciseForm.name')}
+                                required
+                                {...exerciseForm.getInputProps('name')}
                             />
                             <Select
                                 label={t('trainer.library.exerciseForm.muscleGroup')}
@@ -2199,11 +2199,11 @@ export const LibraryPage = () => {
                                 {...exerciseForm.getInputProps('muscleGroup')}
                             />
                         </Group>
-                        
-                        <Textarea 
-                            label={t('trainer.library.exerciseForm.description')} 
+
+                        <Textarea
+                            label={t('trainer.library.exerciseForm.description')}
                             minRows={3}
-                            {...exerciseForm.getInputProps('description')} 
+                            {...exerciseForm.getInputProps('description')}
                         />
 
                         <Divider label={t('trainer.library.exerciseForm.visibility')} labelPosition="left" />
@@ -2218,18 +2218,18 @@ export const LibraryPage = () => {
                             }}
                         >
                             <Stack gap="xs">
-                                <Radio 
-                                    value="trainer" 
+                                <Radio
+                                    value="trainer"
                                     label={t('trainer.library.exerciseForm.visibilityTrainer')}
                                     description={t('trainer.library.exerciseForm.visibilityTrainerDescription')}
                                 />
-                                <Radio 
-                                    value="all" 
+                                <Radio
+                                    value="all"
                                     label={t('trainer.library.exerciseForm.visibilityAll')}
                                     description={t('trainer.library.exerciseForm.visibilityAllDescription')}
                                 />
-                                <Radio 
-                                    value="client" 
+                                <Radio
+                                    value="client"
                                     label={t('trainer.library.exerciseForm.visibilityClient')}
                                     description={t('trainer.library.exerciseForm.visibilityClientDescription')}
                                 />
@@ -2247,29 +2247,29 @@ export const LibraryPage = () => {
                         )}
 
                         <Divider label={t('trainer.library.exerciseForm.startingPosition')} labelPosition="left" />
-                        
-                        <Textarea 
+
+                        <Textarea
                             label={t('trainer.library.exerciseForm.startingPosition')}
                             placeholder={t('trainer.library.exerciseForm.startingPositionPlaceholder')}
                             minRows={4}
-                            {...exerciseForm.getInputProps('startingPosition')} 
+                            {...exerciseForm.getInputProps('startingPosition')}
                         />
 
-                        <Textarea 
+                        <Textarea
                             label={t('trainer.library.exerciseForm.executionInstructions')}
                             placeholder={t('trainer.library.exerciseForm.executionInstructionsPlaceholder')}
                             minRows={6}
                             required
-                            {...exerciseForm.getInputProps('executionInstructions')} 
+                            {...exerciseForm.getInputProps('executionInstructions')}
                         />
 
                         <Divider label={t('trainer.library.exerciseForm.video')} labelPosition="left" />
 
-                        <TextInput 
+                        <TextInput
                             label={t('trainer.library.exerciseForm.videoUrl')}
                             placeholder={t('trainer.library.exerciseForm.videoUrlPlaceholder')}
                             leftSection={<IconVideo size={16} />}
-                            {...exerciseForm.getInputProps('videoUrl')} 
+                            {...exerciseForm.getInputProps('videoUrl')}
                         />
 
                         {exerciseForm.values.videoUrl && exerciseForm.values.videoUrl.trim() && (
@@ -2279,9 +2279,9 @@ export const LibraryPage = () => {
                                         <Text size="sm" fw={500}>
                                             {t('trainer.library.exerciseForm.videoPreview')}
                                         </Text>
-                                        <Anchor 
-                                            href={exerciseForm.values.videoUrl} 
-                                            target="_blank" 
+                                        <Anchor
+                                            href={exerciseForm.values.videoUrl}
+                                            target="_blank"
                                             size="xs"
                                             style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
                                         >
@@ -2289,10 +2289,10 @@ export const LibraryPage = () => {
                                             {t('trainer.library.exerciseForm.openInNewTab')}
                                         </Anchor>
                                     </Group>
-                                    <div style={{ 
-                                        position: 'relative', 
-                                        paddingBottom: '56.25%', 
-                                        height: 0, 
+                                    <div style={{
+                                        position: 'relative',
+                                        paddingBottom: '56.25%',
+                                        height: 0,
                                         overflow: 'hidden',
                                         borderRadius: '8px',
                                         backgroundColor: 'var(--mantine-color-gray-2)',
@@ -2302,14 +2302,14 @@ export const LibraryPage = () => {
                                         {(() => {
                                             const url = exerciseForm.values.videoUrl.trim()
                                             if (!url) return null
-                                            
+
                                             const getYouTubeVideoId = (url: string): string | null => {
                                                 const patterns = [
                                                     /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
                                                     /youtube\.com\/embed\/([^&\n?#]+)/,
                                                     /youtube\.com\/v\/([^&\n?#]+)/,
                                                 ]
-                                                
+
                                                 for (const pattern of patterns) {
                                                     const match = url.match(pattern)
                                                     if (match && match[1]) {
@@ -2318,13 +2318,13 @@ export const LibraryPage = () => {
                                                 }
                                                 return null
                                             }
-                                            
+
                                             const getVimeoVideoId = (url: string): string | null => {
                                                 const patterns = [
                                                     /vimeo\.com\/(\d+)/,
                                                     /vimeo\.com\/video\/(\d+)/,
                                                 ]
-                                                
+
                                                 for (const pattern of patterns) {
                                                     const match = url.match(pattern)
                                                     if (match && match[1]) {
@@ -2333,14 +2333,14 @@ export const LibraryPage = () => {
                                                 }
                                                 return null
                                             }
-                                            
+
                                             const getRutubeVideoId = (url: string): string | null => {
                                                 const patterns = [
                                                     /rutube\.ru\/video\/([^\/\?\n]+)/,
                                                     /rutube\.ru\/play\/embed\/([^\/\?\n]+)/,
                                                     /rutube\.ru\/video\/embed\/([^\/\?\n]+)/,
                                                 ]
-                                                
+
                                                 for (const pattern of patterns) {
                                                     const match = url.match(pattern)
                                                     if (match && match[1]) {
@@ -2349,7 +2349,7 @@ export const LibraryPage = () => {
                                                 }
                                                 return null
                                             }
-                                            
+
                                             const youtubeVideoId = getYouTubeVideoId(url)
                                             if (youtubeVideoId) {
                                                 return (
@@ -2371,7 +2371,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             const vimeoVideoId = getVimeoVideoId(url)
                                             if (vimeoVideoId) {
                                                 return (
@@ -2393,7 +2393,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             const rutubeVideoId = getRutubeVideoId(url)
                                             if (rutubeVideoId) {
                                                 return (
@@ -2415,7 +2415,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             // Проверяем, является ли URL прямой ссылкой на изображение (включая GIF)
                                             const isImageUrl = /\.(gif|jpg|jpeg|png|webp|svg|bmp|ico)(\?.*)?$/i.test(url)
                                             if (isImageUrl) {
@@ -2442,7 +2442,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             // Проверяем, является ли URL прямой ссылкой на видео файл
                                             const isDirectVideoUrl = /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv|m4v|3gp)(\?.*)?$/i.test(url)
                                             if (isDirectVideoUrl) {
@@ -2468,7 +2468,7 @@ export const LibraryPage = () => {
                                                     </video>
                                                 )
                                             }
-                                            
+
                                             return (
                                                 <div style={{
                                                     position: 'absolute',
@@ -2490,9 +2490,9 @@ export const LibraryPage = () => {
                                                     <Text size="xs" c="dimmed" ta="center">
                                                         {t('trainer.library.exerciseForm.videoUnsupported')}
                                                     </Text>
-                                                    <Button 
+                                                    <Button
                                                         component="a"
-                                                        href={url} 
+                                                        href={url}
                                                         target="_blank"
                                                         variant="light"
                                                         size="sm"
@@ -2510,11 +2510,11 @@ export const LibraryPage = () => {
 
                         <Divider label={t('trainer.library.exerciseForm.notes')} labelPosition="left" />
 
-                        <Textarea 
+                        <Textarea
                             label={t('trainer.library.exerciseForm.notes')}
                             placeholder={t('trainer.library.exerciseForm.notesPlaceholder')}
                             minRows={4}
-                            {...exerciseForm.getInputProps('notes')} 
+                            {...exerciseForm.getInputProps('notes')}
                         />
 
                         <Group justify="flex-end" mt="xl" mb="md">
@@ -2544,18 +2544,18 @@ export const LibraryPage = () => {
                                     {viewingExercise.muscleGroup === 'chest'
                                         ? t('trainer.library.muscleChest')
                                         : viewingExercise.muscleGroup === 'back'
-                                        ? t('trainer.library.muscleBack')
-                                        : viewingExercise.muscleGroup === 'shoulders'
-                                        ? t('trainer.library.muscleShoulders')
-                                        : viewingExercise.muscleGroup === 'arms'
-                                        ? t('trainer.library.muscleArms')
-                                        : viewingExercise.muscleGroup === 'legs'
-                                        ? t('trainer.library.muscleLegs')
-                                        : viewingExercise.muscleGroup === 'core'
-                                        ? t('trainer.library.muscleCore')
-                                        : viewingExercise.muscleGroup === 'cardio'
-                                        ? t('trainer.library.muscleCardio')
-                                        : t('trainer.library.muscleFullBody')}
+                                            ? t('trainer.library.muscleBack')
+                                            : viewingExercise.muscleGroup === 'shoulders'
+                                                ? t('trainer.library.muscleShoulders')
+                                                : viewingExercise.muscleGroup === 'arms'
+                                                    ? t('trainer.library.muscleArms')
+                                                    : viewingExercise.muscleGroup === 'legs'
+                                                        ? t('trainer.library.muscleLegs')
+                                                        : viewingExercise.muscleGroup === 'core'
+                                                            ? t('trainer.library.muscleCore')
+                                                            : viewingExercise.muscleGroup === 'cardio'
+                                                                ? t('trainer.library.muscleCardio')
+                                                                : t('trainer.library.muscleFullBody')}
                                 </Badge>
                                 {viewingExercise.equipment.length > 0 && (
                                     <Group gap="xs">
@@ -2568,8 +2568,8 @@ export const LibraryPage = () => {
                                 )}
                             </Group>
                             <Group gap="xs">
-                                <Button 
-                                    variant="light" 
+                                <Button
+                                    variant="light"
                                     leftSection={<IconEdit size={16} />}
                                     onClick={() => {
                                         closeViewExerciseModal()
@@ -2620,10 +2620,10 @@ export const LibraryPage = () => {
                                     <Text fw={600} size="sm" c="dimmed" tt="uppercase">
                                         {t('trainer.library.exerciseForm.video')}
                                     </Text>
-                                    <div style={{ 
-                                        position: 'relative', 
-                                        paddingBottom: '56.25%', 
-                                        height: 0, 
+                                    <div style={{
+                                        position: 'relative',
+                                        paddingBottom: '56.25%',
+                                        height: 0,
                                         overflow: 'hidden',
                                         borderRadius: '8px',
                                         backgroundColor: 'var(--mantine-color-gray-2)',
@@ -2633,14 +2633,14 @@ export const LibraryPage = () => {
                                         {(() => {
                                             const url = viewingExercise.videoUrl.trim()
                                             if (!url) return null
-                                            
+
                                             const getYouTubeVideoId = (url: string): string | null => {
                                                 const patterns = [
                                                     /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
                                                     /youtube\.com\/embed\/([^&\n?#]+)/,
                                                     /youtube\.com\/v\/([^&\n?#]+)/,
                                                 ]
-                                                
+
                                                 for (const pattern of patterns) {
                                                     const match = url.match(pattern)
                                                     if (match && match[1]) {
@@ -2649,13 +2649,13 @@ export const LibraryPage = () => {
                                                 }
                                                 return null
                                             }
-                                            
+
                                             const getVimeoVideoId = (url: string): string | null => {
                                                 const patterns = [
                                                     /vimeo\.com\/(\d+)/,
                                                     /vimeo\.com\/video\/(\d+)/,
                                                 ]
-                                                
+
                                                 for (const pattern of patterns) {
                                                     const match = url.match(pattern)
                                                     if (match && match[1]) {
@@ -2664,14 +2664,14 @@ export const LibraryPage = () => {
                                                 }
                                                 return null
                                             }
-                                            
+
                                             const getRutubeVideoId = (url: string): string | null => {
                                                 const patterns = [
                                                     /rutube\.ru\/video\/([^\/\?\n]+)/,
                                                     /rutube\.ru\/play\/embed\/([^\/\?\n]+)/,
                                                     /rutube\.ru\/video\/embed\/([^\/\?\n]+)/,
                                                 ]
-                                                
+
                                                 for (const pattern of patterns) {
                                                     const match = url.match(pattern)
                                                     if (match && match[1]) {
@@ -2680,7 +2680,7 @@ export const LibraryPage = () => {
                                                 }
                                                 return null
                                             }
-                                            
+
                                             const youtubeVideoId = getYouTubeVideoId(url)
                                             if (youtubeVideoId) {
                                                 return (
@@ -2702,7 +2702,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             const vimeoVideoId = getVimeoVideoId(url)
                                             if (vimeoVideoId) {
                                                 return (
@@ -2724,7 +2724,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             const rutubeVideoId = getRutubeVideoId(url)
                                             if (rutubeVideoId) {
                                                 return (
@@ -2746,7 +2746,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             // Проверяем, является ли URL прямой ссылкой на изображение (включая GIF)
                                             const isImageUrl = /\.(gif|jpg|jpeg|png|webp|svg|bmp|ico)(\?.*)?$/i.test(url)
                                             if (isImageUrl) {
@@ -2773,7 +2773,7 @@ export const LibraryPage = () => {
                                                     />
                                                 )
                                             }
-                                            
+
                                             // Проверяем, является ли URL прямой ссылкой на видео файл
                                             const isDirectVideoUrl = /\.(mp4|webm|ogg|mov|avi|wmv|flv|mkv|m4v|3gp)(\?.*)?$/i.test(url)
                                             if (isDirectVideoUrl) {
@@ -2799,7 +2799,7 @@ export const LibraryPage = () => {
                                                     </video>
                                                 )
                                             }
-                                            
+
                                             return (
                                                 <div style={{
                                                     position: 'absolute',
@@ -2818,9 +2818,9 @@ export const LibraryPage = () => {
                                                     <Text size="sm" c="dimmed" ta="center">
                                                         {t('trainer.library.exerciseForm.videoPreview')}
                                                     </Text>
-                                                    <Button 
+                                                    <Button
                                                         component="a"
-                                                        href={url} 
+                                                        href={url}
                                                         target="_blank"
                                                         variant="light"
                                                         size="sm"
@@ -2851,7 +2851,7 @@ export const LibraryPage = () => {
                             <Button variant="subtle" onClick={closeViewExerciseModal}>
                                 {t('common.close')}
                             </Button>
-                            <Button 
+                            <Button
                                 leftSection={<IconEdit size={16} />}
                                 onClick={() => {
                                     closeViewExerciseModal()
@@ -2873,7 +2873,7 @@ export const LibraryPage = () => {
             >
                 <form onSubmit={workoutExerciseForm.onSubmit((values) => {
                     if (!currentBlockType || !values.exerciseId) return
-                    
+
                     const exerciseData = {
                         exerciseId: values.exerciseId,
                         sets: values.sets,
@@ -2883,7 +2883,7 @@ export const LibraryPage = () => {
                         weight: values.weight,
                         notes: values.notes,
                     }
-                    
+
                     if (editingWorkoutExercise) {
                         const currentBlock = workoutForm.values[editingWorkoutExercise.blockType]
                         const newBlock = [...currentBlock]
@@ -2893,7 +2893,7 @@ export const LibraryPage = () => {
                         const currentBlock = workoutForm.values[currentBlockType]
                         workoutForm.setFieldValue(currentBlockType, [...currentBlock, exerciseData])
                     }
-                    
+
                     closeAddExerciseModal()
                     workoutExerciseForm.reset()
                     setCurrentBlockType(null)
@@ -2928,15 +2928,16 @@ export const LibraryPage = () => {
                         </Group>
                         <Group grow>
                             <NumberInput
-                                label={t('program.rest')}
+                                label={`${t('program.rest')} (${t('program.minutesShort')})`}
                                 min={0}
-                                rightSection={<Text size="xs">сек</Text>}
+                                rightSection={<Text size="xs">{t('program.minutesShort')}</Text>}
                                 {...workoutExerciseForm.getInputProps('rest')}
                             />
                             {currentBlockType === 'main' && (
                                 <NumberInput
                                     label={t('program.weight')}
                                     min={0}
+                                    decimalSeparator=","
                                     rightSection={<Text size="xs">кг</Text>}
                                     {...workoutExerciseForm.getInputProps('weight')}
                                 />
@@ -3077,17 +3078,17 @@ export const LibraryPage = () => {
                             }}
                         />
                         <NumberInput
-                            label={t('program.rest')}
+                            label={`${t('program.rest')} (${t('program.minutesShort')})`}
                             placeholder={t('program.restPlaceholder')}
-                            value={programExerciseForm.rest ? Number(programExerciseForm.rest.replace(/\s*сек\s*/g, '')) : undefined}
+                            value={programExerciseForm.rest ? Number(programExerciseForm.rest.replace(/\s*(сек|sec|мин|min)\s*/g, '')) : undefined}
                             onChange={(value) =>
                                 setProgramExerciseForm((state) => ({
                                     ...state,
-                                    rest: value ? `${value} ${t('program.secondsShort')}` : undefined,
+                                    rest: value ? `${value} ${t('program.minutesShort')}` : undefined,
                                 }))
                             }
                             min={0}
-                            rightSection={<Text size="xs">сек</Text>}
+                            rightSection={<Text size="xs">{t('program.minutesShort')}</Text>}
                         />
                     </Group>
                     <TextInput

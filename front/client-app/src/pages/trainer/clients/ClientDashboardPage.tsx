@@ -30,6 +30,7 @@ import { ClientProgramContent } from './ClientProgramPage'
 import { ClientMetricsContent } from './ClientMetricsPage'
 import { ClientNotesContent } from './ClientNotesPage'
 import { NutritionContent } from '../../client/nutrition/NutritionPage'
+import { TrainerCalendarContent } from '../calendar/TrainerCalendarPage'
 
 const GOALS_MAP: Record<string, string> = {
     weight_loss: 'Похудение',
@@ -285,6 +286,9 @@ export const ClientDashboardPage = () => {
                     </Tabs.Tab>
                     <Tabs.Tab value="training" leftSection={<IconBarbell size={16} />}>
                         {t('common.program')}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="calendar" leftSection={<IconCalendar size={16} />}>
+                        Календарь
                     </Tabs.Tab>
                     <Tabs.Tab value="nutrition" leftSection={<IconApple size={16} />}>
                         Питание
@@ -570,6 +574,10 @@ export const ClientDashboardPage = () => {
                         </SimpleGrid>
                         <ClientProgramContent embedded />
                     </Stack>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="calendar" pt="md">
+                    <TrainerCalendarContent embedded clientId={clientId} />
                 </Tabs.Panel>
 
                 <Tabs.Panel value="nutrition" pt="md">

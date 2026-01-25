@@ -191,7 +191,7 @@ export const FinancesPage = () => {
     const monthlyRevenueData = useMemo(() => {
         const monthsMap = new Map<string, number>()
         const now = dayjs()
-        
+
         for (let i = 5; i >= 0; i--) {
             const month = now.subtract(i, 'month')
             const key = month.format('YYYY-MM')
@@ -234,7 +234,7 @@ export const FinancesPage = () => {
 
         return Array.from(clientMap.entries())
             .map(([name, revenue]) => ({
-                name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+                name: name.length > 30 ? name.substring(0, 30) + '...' : name,
                 revenue: Math.round(revenue),
             }))
             .sort((a, b) => b.revenue - a.revenue)

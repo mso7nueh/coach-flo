@@ -23,16 +23,16 @@ import { useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
 import {
-    LineChart,
-    Line,
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    ReferenceLine,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
@@ -143,7 +143,7 @@ export const MetricsPage = () => {
         // Не показываем уведомление здесь, так как ошибки обрабатываются в thunks
       }
     }
-    
+
     loadMetrics()
   }, [dispatch])
 
@@ -164,7 +164,7 @@ export const MetricsPage = () => {
           // Для 'all' загружаем за последний год (или можно убрать фильтр полностью)
           startDate = dayjs().subtract(365, 'days').toISOString()
         }
-        
+
         await Promise.all([
           dispatch(fetchBodyMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
           dispatch(fetchExerciseMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
@@ -224,7 +224,7 @@ export const MetricsPage = () => {
     const minValue = Math.min(...values)
     const maxValue = Math.max(...values)
     const goal = bodyMetricGoals[selectedMetric.id]
-    
+
     if (goal !== undefined && goal !== null) {
       const allValues = [...values, goal]
       const allMin = Math.min(...allValues)
@@ -236,7 +236,7 @@ export const MetricsPage = () => {
       const domainMax = center + range / 2 + padding
       return [domainMin, domainMax]
     }
-    
+
     const range = maxValue - minValue || 1
     const padding = Math.max(range * 0.15, (maxValue - minValue) * 0.1)
     return [Math.max(0, minValue - padding), maxValue + padding]
@@ -307,7 +307,7 @@ export const MetricsPage = () => {
       const sortedByDate = [...entries].sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
       const startValue = sortedByDate[0]
       const latestEntries = [...entries].sort((a, b) => dayjs(b.recordedAt).diff(dayjs(a.recordedAt)))
-      
+
       return {
         metric,
         latest: latestEntries[0],
@@ -420,7 +420,7 @@ export const MetricsPage = () => {
         }
         return Promise.resolve()
       })
-    
+
     try {
       await Promise.all(promises)
       setBulkForm({})
@@ -480,14 +480,14 @@ export const MetricsPage = () => {
           <Title order={2}>{t('metricsPage.bodyMetrics')}</Title>
         </Stack>
         <Group gap="md">
-        <SegmentedControl
-          value={period}
-          onChange={(value) => dispatch(setMetricsPeriod(value as typeof period))}
-          data={periodSegments.map((segment) => ({
-            label: t(`metricsPage.period.${segment.value}`),
-            value: segment.value,
-          }))}
-        />
+          <SegmentedControl
+            value={period}
+            onChange={(value) => dispatch(setMetricsPeriod(value as typeof period))}
+            data={periodSegments.map((segment) => ({
+              label: t(`metricsPage.period.${segment.value}`),
+              value: segment.value,
+            }))}
+          />
           <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openBulkModal}>
             {t('metricsPage.bulkUpdate')}
           </Button>
@@ -530,69 +530,69 @@ export const MetricsPage = () => {
                       </Card>
                     ) : (
                       bodyMetrics.map((metric) => {
-                      const isSelected = metric.id === selectedMetricId
-                      const metricData = latestBodyValues.find((v) => v.metric.id === metric.id)
-                      const latest = metricData?.latest
-                      const start = metricData?.start
-                      const goal = bodyMetricGoals[metric.id]
-                      return (
-                        <Card
-                          key={metric.id}
-                          onClick={() => setSelectedMetricId(metric.id)}
-                          padding="sm"
-                          withBorder
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              setSelectedMetricId(metric.id)
-                            }
-                          }}
-                          style={{
-                            borderColor: isSelected ? 'var(--mantine-color-violet-3)' : 'var(--mantine-color-gray-2)',
-                            backgroundColor: isSelected ? 'var(--mantine-color-violet-0)' : 'var(--mantine-color-white)',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Stack gap={4}>
-                    <Group justify="space-between">
-                              <Text fw={600} size="sm">
-                                {metric.label}
+                        const isSelected = metric.id === selectedMetricId
+                        const metricData = latestBodyValues.find((v) => v.metric.id === metric.id)
+                        const latest = metricData?.latest
+                        const start = metricData?.start
+                        const goal = bodyMetricGoals[metric.id]
+                        return (
+                          <Card
+                            key={metric.id}
+                            onClick={() => setSelectedMetricId(metric.id)}
+                            padding="sm"
+                            withBorder
+                            tabIndex={0}
+                            role="button"
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                setSelectedMetricId(metric.id)
+                              }
+                            }}
+                            style={{
+                              borderColor: isSelected ? 'var(--mantine-color-violet-3)' : 'var(--mantine-color-gray-2)',
+                              backgroundColor: isSelected ? 'var(--mantine-color-violet-0)' : 'var(--mantine-color-white)',
+                              transition: 'all 0.2s',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Stack gap={4}>
+                              <Group justify="space-between">
+                                <Text fw={600} size="sm">
+                                  {metric.label}
+                                </Text>
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenBodyGoalModal(metric.id)
+                                  }}
+                                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
+                                >
+                                  <IconTarget size={14} />
+                                </div>
+                              </Group>
+                              <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
+                                {latest ? `${latest.value.toFixed(2)} ${metric.unit}` : `— ${metric.unit}`}
                               </Text>
-                              <div
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleOpenBodyGoalModal(metric.id)
-                                }}
-                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                              >
-                                <IconTarget size={14} />
-                              </div>
-                            </Group>
-                            <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
-                              {latest ? `${latest.value.toFixed(2)} ${metric.unit}` : `— ${metric.unit}`}
-                            </Text>
-                            {start && (
-                              <Text size="xs" c="dimmed">
-                                {t('metricsPage.startValue')}: {start.value.toFixed(2)} {metric.unit}
-                              </Text>
-                            )}
-                            {goal && (
-                              <Badge variant="dot" size="xs" color="violet">
-                                {t('metricsPage.goal')}: {goal.toFixed(2)} {metric.unit}
-                              </Badge>
-                            )}
-                            {latest && (
-                              <Text size="xs" c="dimmed">
-                                {dayjs(latest.recordedAt).format('D MMM YYYY')}
-                              </Text>
-                            )}
-                          </Stack>
-                        </Card>
-                      )
-                    }))}
+                              {start && (
+                                <Text size="xs" c="dimmed">
+                                  {t('metricsPage.startValue')}: {start.value.toFixed(2)} {metric.unit}
+                                </Text>
+                              )}
+                              {goal && (
+                                <Badge variant="dot" size="xs" color="violet">
+                                  {t('metricsPage.goal')}: {goal.toFixed(2)} {metric.unit}
+                                </Badge>
+                              )}
+                              {latest && (
+                                <Text size="xs" c="dimmed">
+                                  {dayjs(latest.recordedAt).format('D MMM YYYY')}
+                                </Text>
+                              )}
+                            </Stack>
+                          </Card>
+                        )
+                      }))}
                   </Stack>
                 </ScrollArea>
               </Stack>
@@ -637,9 +637,9 @@ export const MetricsPage = () => {
                             const existingEntry = bodyMetricEntries
                               .filter((entry) => entry.metricId === selectedMetric.id)
                               .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(today), 'day'))
-                            
+
                             const latestEntry = latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.latest
-                            
+
                             if (existingEntry) {
                               setBodyForm({
                                 metricId: selectedMetric.id,
@@ -662,12 +662,12 @@ export const MetricsPage = () => {
                             openBodyModal()
                           }}
                         >
-                        {bodyMetricEntries
-                          .filter((entry) => entry.metricId === selectedMetric.id)
-                          .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(), 'day'))
-                          ? t('metricsPage.updateToday')
-                          : t('metricsPage.addToday')}
-                      </Button>
+                          {bodyMetricEntries
+                            .filter((entry) => entry.metricId === selectedMetric.id)
+                            .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(), 'day'))
+                            ? t('metricsPage.updateToday')
+                            : t('metricsPage.addToday')}
+                        </Button>
                       </Group>
                     </Group>
                     {chartData.length > 0 ? (
@@ -762,7 +762,7 @@ export const MetricsPage = () => {
                       <Stack gap="md" align="center" py="xl">
                         <Text c="dimmed" size="lg">
                           {t('metricsPage.noData')}
-                    </Text>
+                        </Text>
                         <Button leftSection={<IconPlus size={16} />} onClick={openBodyModal}>
                           {t('metricsPage.addValue')}
                         </Button>
@@ -772,8 +772,8 @@ export const MetricsPage = () => {
                 ) : (
                   <Text c="dimmed">{t('metricsPage.selectMetric')}</Text>
                 )}
-                  </Stack>
-                </Card>
+              </Stack>
+            </Card>
           </Group>
         </Tabs.Panel>
 
@@ -807,128 +807,128 @@ export const MetricsPage = () => {
                       </Card>
                     ) : (
                       exerciseMetrics.map((exercise) => {
-                      const isSelected = exercise.id === selectedExerciseId
-                      const summary = exerciseSummaries.find((s) => s.exercise.id === exercise.id)
-                      const todayEntry = exerciseMetricEntries
-                        .filter((entry) => entry.exerciseId === exercise.id)
-                        .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
-                      const entries = exerciseMetricEntries
-                        .filter((entry) => entry.exerciseId === exercise.id)
-                        .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
-                      const startValue = entries[0]
-                      const goals = exerciseMetricGoals[exercise.id]
-                      
-                      return (
-                        <UnstyledButton
-                          key={exercise.id}
-                          onClick={() => setSelectedExerciseId(exercise.id)}
-                          style={{
-                            padding: '12px',
-                            borderRadius: '8px',
-                            backgroundColor: isSelected ? 'var(--mantine-color-violet-0)' : 'transparent',
-                            border: `1px solid ${isSelected ? 'var(--mantine-color-violet-3)' : 'var(--mantine-color-gray-2)'}`,
-                            transition: 'all 0.2s',
-                          }}
-                        >
-                          <Stack gap={4}>
-                            <Group justify="space-between" align="flex-start">
-                              <Group gap={4}>
-                                <Text fw={600} size="sm">
-                                  {exercise.label}
-                                </Text>
-                                {todayEntry && (
-                                  <Badge size="xs" variant="dot" color="green">
-                                    {t('metricsPage.today')}
+                        const isSelected = exercise.id === selectedExerciseId
+                        const summary = exerciseSummaries.find((s) => s.exercise.id === exercise.id)
+                        const todayEntry = exerciseMetricEntries
+                          .filter((entry) => entry.exerciseId === exercise.id)
+                          .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
+                        const entries = exerciseMetricEntries
+                          .filter((entry) => entry.exerciseId === exercise.id)
+                          .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
+                        const startValue = entries[0]
+                        const goals = exerciseMetricGoals[exercise.id]
+
+                        return (
+                          <UnstyledButton
+                            key={exercise.id}
+                            onClick={() => setSelectedExerciseId(exercise.id)}
+                            style={{
+                              padding: '12px',
+                              borderRadius: '8px',
+                              backgroundColor: isSelected ? 'var(--mantine-color-violet-0)' : 'transparent',
+                              border: `1px solid ${isSelected ? 'var(--mantine-color-violet-3)' : 'var(--mantine-color-gray-2)'}`,
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            <Stack gap={4}>
+                              <Group justify="space-between" align="flex-start">
+                                <Group gap={4}>
+                                  <Text fw={600} size="sm">
+                                    {exercise.label}
+                                  </Text>
+                                  {todayEntry && (
+                                    <Badge size="xs" variant="dot" color="green">
+                                      {t('metricsPage.today')}
+                                    </Badge>
+                                  )}
+                                </Group>
+                                <Group gap="xs">
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleOpenExerciseGoalModal(exercise.id)
+                                    }}
+                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
+                                  >
+                                    <IconTarget size={14} />
+                                  </div>
+                                  <Badge size="xs" variant="light">
+                                    {exercise.muscleGroup}
                                   </Badge>
-                                )}
+                                </Group>
                               </Group>
-                              <Group gap="xs">
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleOpenExerciseGoalModal(exercise.id)
-                                  }}
-                                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                                >
-                                  <IconTarget size={14} />
-                                </div>
-                                <Badge size="xs" variant="light">
-                                  {exercise.muscleGroup}
-                                </Badge>
-                              </Group>
-                            </Group>
-                            <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
-                              {summary?.latest ? `${summary.latest.weight.toFixed(2)} кг` : '— кг'}
-                          </Text>
-                            {startValue && (
-                              <Text size="xs" c="dimmed">
-                                {t('metricsPage.startValue')}: {startValue.weight.toFixed(2)} кг
+                              <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
+                                {summary?.latest ? `${summary.latest.weight.toFixed(2)} кг` : '— кг'}
                               </Text>
-                            )}
-                            {goals?.weight && (
-                              <Badge variant="dot" size="xs" color="violet">
-                                {t('metricsPage.goal')}: {goals.weight.toFixed(2)} кг
-                              </Badge>
-                            )}
-                            {summary?.latest && (
-                              <Group justify="space-between" align="center">
+                              {startValue && (
                                 <Text size="xs" c="dimmed">
-                                  {dayjs(summary.latest.date).format('D MMM YYYY')}
+                                  {t('metricsPage.startValue')}: {startValue.weight.toFixed(2)} кг
                                 </Text>
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    const today = new Date()
-                                    if (todayEntry) {
-                                      setExerciseForm({
-                                        exerciseId: exercise.id,
-                                        date: today,
-                                        weight: todayEntry.weight,
-                                        repetitions: todayEntry.repetitions,
-                                        sets: todayEntry.sets,
-                                      })
-                                    } else if (summary.latest) {
-                                      setExerciseForm({
-                                        exerciseId: exercise.id,
-                                        date: today,
-                                        weight: summary.latest.weight,
-                                        repetitions: summary.latest.repetitions,
-                                        sets: summary.latest.sets,
-                                      })
-                                    } else {
-                                      setExerciseForm({
-                                        exerciseId: exercise.id,
-                                        date: today,
-                                        weight: 0,
-                                        repetitions: 0,
-                                        sets: 1,
-                                      })
-                                    }
-                                    openExerciseModal()
-                                  }}
-                                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                                >
-                                  <IconPlus size={12} />
-                                </div>
-                              </Group>
-                            )}
-                            {summary && summary.change !== 0 && (
-                              <Text size="xs" c={summary.change >= 0 ? 'green.7' : 'red.7'} fw={600}>
-                                {summary.change > 0 ? '+' : ''}
-                                {summary.change.toFixed(2)} кг
-                              </Text>
-                            )}
-                          </Stack>
-                        </UnstyledButton>
-                      )
-                    }))}
+                              )}
+                              {goals?.weight && (
+                                <Badge variant="dot" size="xs" color="violet">
+                                  {t('metricsPage.goal')}: {goals.weight.toFixed(2)} кг
+                                </Badge>
+                              )}
+                              {summary?.latest && (
+                                <Group justify="space-between" align="center">
+                                  <Text size="xs" c="dimmed">
+                                    {dayjs(summary.latest.date).format('D MMM YYYY')}
+                                  </Text>
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const today = new Date()
+                                      if (todayEntry) {
+                                        setExerciseForm({
+                                          exerciseId: exercise.id,
+                                          date: today,
+                                          weight: todayEntry.weight,
+                                          repetitions: todayEntry.repetitions,
+                                          sets: todayEntry.sets,
+                                        })
+                                      } else if (summary.latest) {
+                                        setExerciseForm({
+                                          exerciseId: exercise.id,
+                                          date: today,
+                                          weight: summary.latest.weight,
+                                          repetitions: summary.latest.repetitions,
+                                          sets: summary.latest.sets,
+                                        })
+                                      } else {
+                                        setExerciseForm({
+                                          exerciseId: exercise.id,
+                                          date: today,
+                                          weight: 0,
+                                          repetitions: 0,
+                                          sets: 1,
+                                        })
+                                      }
+                                      openExerciseModal()
+                                    }}
+                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
+                                  >
+                                    <IconPlus size={12} />
+                                  </div>
+                                </Group>
+                              )}
+                              {summary && summary.change !== 0 && (
+                                <Text size="xs" c={summary.change >= 0 ? 'green.7' : 'red.7'} fw={600}>
+                                  {summary.change > 0 ? '+' : ''}
+                                  {summary.change.toFixed(2)} кг
+                                </Text>
+                              )}
+                            </Stack>
+                          </UnstyledButton>
+                        )
+                      }))}
                   </Stack>
                 </ScrollArea>
               </Stack>
             </Card>
 
             <Card withBorder style={{ flex: 1 }} padding="xl">
-          <Stack gap="lg">
+              <Stack gap="lg">
                 {selectedExercise ? (
                   <>
                     <Group justify="space-between" align="center">
@@ -945,12 +945,12 @@ export const MetricsPage = () => {
                         {exerciseMetricEntries
                           .filter((entry) => entry.exerciseId === selectedExercise.id)
                           .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0] && (
-                          <Badge variant="light" color="gray">
-                            {t('metricsPage.startValue')}: {exerciseMetricEntries
-                              .filter((entry) => entry.exerciseId === selectedExercise.id)
-                              .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0].weight.toFixed(2)} кг
-                          </Badge>
-                        )}
+                            <Badge variant="light" color="gray">
+                              {t('metricsPage.startValue')}: {exerciseMetricEntries
+                                .filter((entry) => entry.exerciseId === selectedExercise.id)
+                                .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))[0].weight.toFixed(2)} кг
+                            </Badge>
+                          )}
                       </Group>
                       <Group gap="xs">
                         <Button
@@ -970,9 +970,9 @@ export const MetricsPage = () => {
                             const existingEntry = exerciseMetricEntries
                               .filter((entry) => entry.exerciseId === selectedExercise.id)
                               .find((entry) => dayjs(entry.date).isSame(dayjs(today), 'day'))
-                            
+
                             const summary = exerciseSummaries.find((s) => s.exercise.id === selectedExercise.id)
-                            
+
                             if (existingEntry) {
                               setExerciseForm({
                                 exerciseId: selectedExercise.id,
@@ -1000,13 +1000,13 @@ export const MetricsPage = () => {
                             }
                             openExerciseModal()
                           }}
-                      >
-                        {exerciseMetricEntries
-                          .filter((entry) => entry.exerciseId === selectedExercise.id)
-                          .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
-                          ? t('metricsPage.updateToday')
-                          : t('metricsPage.addToday')}
-                      </Button>
+                        >
+                          {exerciseMetricEntries
+                            .filter((entry) => entry.exerciseId === selectedExercise.id)
+                            .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
+                            ? t('metricsPage.updateToday')
+                            : t('metricsPage.addToday')}
+                        </Button>
                       </Group>
                     </Group>
                     {exerciseChartDisplayData.length > 0 ? (
@@ -1023,131 +1023,131 @@ export const MetricsPage = () => {
                             ]}
                           />
                         </Group>
-                      <ResponsiveContainer width="100%" height={400}>
-                        <LineChart data={exerciseChartDisplayData} margin={{ top: 10, right: 40, left: 0, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="exerciseValueGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#667eea" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="#667eea" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" vertical={false} />
-                          <XAxis
-                            dataKey="date"
-                            stroke="#6c757d"
-                            style={{ fontSize: '12px', fontFamily: 'inherit' }}
-                            tickLine={false}
-                            axisLine={false}
-                          />
-                          <YAxis
-                            stroke="#667eea"
-                            style={{ fontSize: '12px', fontFamily: 'inherit' }}
-                            tickLine={false}
-                            axisLine={false}
-                            width={70}
-                            domain={exerciseChartDomain}
-                            tickFormatter={(value) =>
-                              value.toLocaleString(undefined, {
-                                maximumFractionDigits: currentModeConfig.fractionDigits,
-                              })
-                            }
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'white',
-                              border: 'none',
-                              borderRadius: '12px',
-                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                              padding: '12px',
-                              fontFamily: 'inherit',
-                            }}
-                            labelStyle={{
-                              color: '#495057',
-                              fontWeight: 600,
-                              marginBottom: '8px',
-                              fontSize: '13px',
-                            }}
-                            itemStyle={{
-                              color: '#212529',
-                              padding: '4px 0',
-                              fontSize: '13px',
-                            }}
-                            formatter={(value: number) => [
-                              `${value.toFixed(currentModeConfig.fractionDigits)} ${currentModeConfig.unit}`,
-                              currentModeConfig.label,
-                            ]}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="value"
-                            stroke="#667eea"
-                            strokeWidth={3}
-                            dot={{ r: 5, fill: '#667eea', strokeWidth: 2, stroke: 'white' }}
-                            activeDot={{ r: 7, strokeWidth: 2, stroke: '#667eea', fill: 'white' }}
-                            animationDuration={800}
-                            animationEasing="ease-out"
-                            name="value"
-                          />
-                          <Line
-                            type="natural"
-                            dataKey="value"
-                            stroke="#667eea"
-                            strokeOpacity={0}
-                            fill="url(#exerciseValueGradient)"
-                            dot={false}
-                            legendType="none"
-                          />
-                          {exerciseChartMode === 'weight' && exerciseMetricGoals[selectedExercise.id]?.weight && (
-                            <ReferenceLine
-                              y={exerciseMetricGoals[selectedExercise.id]?.weight}
-                              stroke="#7c3aed"
-                              strokeWidth={2}
-                              strokeDasharray="6 4"
-                              strokeOpacity={0.7}
-                              label={{
-                                value: `${t('metricsPage.exerciseChart.goal.weight')}: ${exerciseMetricGoals[selectedExercise.id]?.weight?.toFixed(2)} ${currentModeConfig.unit}`,
-                                position: 'insideTopRight',
-                                fill: '#7c3aed',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                offset: 5,
+                        <ResponsiveContainer width="100%" height={400}>
+                          <LineChart data={exerciseChartDisplayData} margin={{ top: 10, right: 40, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="exerciseValueGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#667eea" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#667eea" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" vertical={false} />
+                            <XAxis
+                              dataKey="date"
+                              stroke="#6c757d"
+                              style={{ fontSize: '12px', fontFamily: 'inherit' }}
+                              tickLine={false}
+                              axisLine={false}
+                            />
+                            <YAxis
+                              stroke="#667eea"
+                              style={{ fontSize: '12px', fontFamily: 'inherit' }}
+                              tickLine={false}
+                              axisLine={false}
+                              width={70}
+                              domain={exerciseChartDomain}
+                              tickFormatter={(value) =>
+                                value.toLocaleString(undefined, {
+                                  maximumFractionDigits: currentModeConfig.fractionDigits,
+                                })
+                              }
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'white',
+                                border: 'none',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                                padding: '12px',
+                                fontFamily: 'inherit',
                               }}
-                            />
-                          )}
-                          {exerciseChartMode === 'reps' && exerciseMetricGoals[selectedExercise.id]?.repetitions && (
-                            <ReferenceLine
-                              y={exerciseMetricGoals[selectedExercise.id]?.repetitions ?? 0}
-                              stroke="#7c3aed"
-                              strokeWidth={2}
-                              strokeDasharray="6 4"
-                              strokeOpacity={0.7}
-                              label={{
-                                value: `${t('metricsPage.exerciseChart.goal.reps')}: ${exerciseMetricGoals[selectedExercise.id]?.repetitions} ${currentModeConfig.unit}`,
-                                position: 'insideTopRight',
-                                fill: '#7c3aed',
-                                fontSize: 11,
+                              labelStyle={{
+                                color: '#495057',
                                 fontWeight: 600,
-                                offset: 5,
+                                marginBottom: '8px',
+                                fontSize: '13px',
                               }}
+                              itemStyle={{
+                                color: '#212529',
+                                padding: '4px 0',
+                                fontSize: '13px',
+                              }}
+                              formatter={(value: number) => [
+                                `${value.toFixed(currentModeConfig.fractionDigits)} ${currentModeConfig.unit}`,
+                                currentModeConfig.label,
+                              ]}
                             />
-                          )}
-                          {exerciseChartDisplayData[0] && (
-                            <ReferenceLine
-                              y={exerciseChartDisplayData[0].value}
-                              stroke="#94a3b8"
-                              strokeWidth={1.5}
-                              strokeDasharray="3 3"
-                              strokeOpacity={0.5}
+                            <Line
+                              type="monotone"
+                              dataKey="value"
+                              stroke="#667eea"
+                              strokeWidth={3}
+                              dot={{ r: 5, fill: '#667eea', strokeWidth: 2, stroke: 'white' }}
+                              activeDot={{ r: 7, strokeWidth: 2, stroke: '#667eea', fill: 'white' }}
+                              animationDuration={800}
+                              animationEasing="ease-out"
+                              name="value"
                             />
-                          )}
-                        </LineChart>
-                      </ResponsiveContainer>
+                            <Line
+                              type="natural"
+                              dataKey="value"
+                              stroke="#667eea"
+                              strokeOpacity={0}
+                              fill="url(#exerciseValueGradient)"
+                              dot={false}
+                              legendType="none"
+                            />
+                            {exerciseChartMode === 'weight' && exerciseMetricGoals[selectedExercise.id]?.weight && (
+                              <ReferenceLine
+                                y={exerciseMetricGoals[selectedExercise.id]?.weight}
+                                stroke="#7c3aed"
+                                strokeWidth={2}
+                                strokeDasharray="6 4"
+                                strokeOpacity={0.7}
+                                label={{
+                                  value: `${t('metricsPage.exerciseChart.goal.weight')}: ${exerciseMetricGoals[selectedExercise.id]?.weight?.toFixed(2)} ${currentModeConfig.unit}`,
+                                  position: 'insideTopRight',
+                                  fill: '#7c3aed',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  offset: 5,
+                                }}
+                              />
+                            )}
+                            {exerciseChartMode === 'reps' && exerciseMetricGoals[selectedExercise.id]?.repetitions && (
+                              <ReferenceLine
+                                y={exerciseMetricGoals[selectedExercise.id]?.repetitions ?? 0}
+                                stroke="#7c3aed"
+                                strokeWidth={2}
+                                strokeDasharray="6 4"
+                                strokeOpacity={0.7}
+                                label={{
+                                  value: `${t('metricsPage.exerciseChart.goal.reps')}: ${exerciseMetricGoals[selectedExercise.id]?.repetitions} ${currentModeConfig.unit}`,
+                                  position: 'insideTopRight',
+                                  fill: '#7c3aed',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  offset: 5,
+                                }}
+                              />
+                            )}
+                            {exerciseChartDisplayData[0] && (
+                              <ReferenceLine
+                                y={exerciseChartDisplayData[0].value}
+                                stroke="#94a3b8"
+                                strokeWidth={1.5}
+                                strokeDasharray="3 3"
+                                strokeOpacity={0.5}
+                              />
+                            )}
+                          </LineChart>
+                        </ResponsiveContainer>
                       </Stack>
                     ) : (
                       <Stack gap="md" align="center" py="xl">
                         <Text c="dimmed" size="lg">
                           {t('metricsPage.noData')}
-                    </Text>
+                        </Text>
                         <Button leftSection={<IconPlus size={16} />} onClick={openExerciseModal}>
                           {t('metricsPage.addValue')}
                         </Button>
@@ -1157,8 +1157,8 @@ export const MetricsPage = () => {
                 ) : (
                   <Text c="dimmed">{t('metricsPage.selectExercise')}</Text>
                 )}
-                  </Stack>
-                </Card>
+              </Stack>
+            </Card>
           </Group>
         </Tabs.Panel>
       </Tabs>
@@ -1214,6 +1214,7 @@ export const MetricsPage = () => {
             onChange={(value) => setBodyForm((state) => ({ ...state, value: Number(value) || 0 }))}
             min={0}
             step={0.1}
+            decimalSeparator=","
             required
             leftSection={<IconActivity size={16} />}
             suffix={` ${bodyMetrics.find((m) => m.id === bodyForm.metricId)?.unit ?? ''}`}
@@ -1225,9 +1226,9 @@ export const MetricsPage = () => {
             </Button>
             <Button onClick={handleAddBodyMetric} disabled={!bodyForm.metricId || !bodyForm.recordedAt || bodyForm.value <= 0}>
               {t('common.save')}
-                </Button>
-              </Group>
-                        </Stack>
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
 
       <Modal opened={exerciseModalOpened} onClose={closeExerciseModal} title={t('metricsPage.addExerciseValue')} size="md">
@@ -1250,8 +1251,8 @@ export const MetricsPage = () => {
                 <Text fw={600}>{selectedExerciseForModal?.label ?? t('metricsPage.exercise')}</Text>
                 <Text size="xs" c="white" style={{ opacity: 0.85 }}>
                   {t('metricsPage.addExerciseValue')}
-                            </Text>
-                          </Stack>
+                </Text>
+              </Stack>
             </Group>
           </Card>
           <Select
@@ -1282,6 +1283,7 @@ export const MetricsPage = () => {
               onChange={(value) => setExerciseForm((state) => ({ ...state, weight: Number(value) || 0 }))}
               min={0}
               step={0.5}
+              decimalSeparator=","
               required
               leftSection={<IconActivity size={16} />}
               suffix=" кг"
@@ -1340,8 +1342,8 @@ export const MetricsPage = () => {
                 <Text fw={600}>{t('metricsPage.bulkUpdate')}</Text>
                 <Text size="xs" c="white" style={{ opacity: 0.85 }}>
                   {t('metricsPage.bulkUpdateDescription')}
-                            </Text>
-                          </Stack>
+                </Text>
+              </Stack>
             </Group>
           </Card>
           <Text size="sm" c="dimmed">
@@ -1430,7 +1432,7 @@ export const MetricsPage = () => {
             </Button>
             <Button onClick={handleSaveExerciseGoal}>{t('common.save')}</Button>
           </Group>
-          </Stack>
+        </Stack>
       </Modal>
 
       <Modal opened={createBodyMetricModalOpened} onClose={closeCreateBodyMetricModal} title={t('metricsPage.createMetric')} size="md">

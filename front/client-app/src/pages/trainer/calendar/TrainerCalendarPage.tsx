@@ -95,11 +95,16 @@ const buildFormState = (clientId?: string): WorkoutFormState => ({
 
 const hours = Array.from({ length: 24 }, (_, i) => i)
 
-export const TrainerCalendarPage = () => {
+interface TrainerCalendarContentProps {
+    embedded?: boolean
+    clientId?: string
+}
+
+export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCalendarContentProps) => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const [searchParams] = useSearchParams()
-    const clientIdFromUrl = searchParams.get('clientId')
+    const clientIdFromUrl = clientId || searchParams.get('clientId')
 
     const { workouts, view, currentDate, selectedClientIds } = useAppSelector((state) => state.trainerCalendar)
     const { clients } = useAppSelector((state) => state.clients)
@@ -109,6 +114,13 @@ export const TrainerCalendarPage = () => {
     const [formState, setFormState] = useState<WorkoutFormState>(() => buildFormState(clientIdFromUrl || undefined))
     const [activeDragWorkout, setActiveDragWorkout] = useState<TrainerWorkout | null>(null)
     const [dragOverDay, setDragOverDay] = useState<string | null>(null)
+
+    // Если передан clientId (в режиме embedded), устанавливаем его в фильтр
+    useEffect(() => {
+        if (clientId && (!selectedClientIds.includes(clientId) || selectedClientIds.length !== 1)) {
+            dispatch(setSelectedClients([clientId]))
+        }
+    }, [clientId, dispatch]) // selectedClientIds intentionally omitted to avoid loops
 
     // Загружаем клиентов и шаблоны тренировок при монтировании компонента
     useEffect(() => {
@@ -134,7 +146,7 @@ export const TrainerCalendarPage = () => {
                     }))
                     dispatch(setClients(mappedClients))
                 }
-                
+
                 // Загружаем шаблоны тренировок, если их еще нет
                 if (libraryWorkouts.length === 0) {
                     await dispatch(fetchWorkoutTemplates())
@@ -149,7 +161,7 @@ export const TrainerCalendarPage = () => {
     // Загружаем тренировки при открытии календаря и при изменении периода
     useEffect(() => {
         const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
-        const endDate = view === 'week' 
+        const endDate = view === 'week'
             ? startDate.endOf('isoWeek').add(1, 'week') // Для недели загружаем на неделю вперед
             : startDate.endOf('day').add(7, 'days') // Для дня загружаем на неделю вперед
         dispatch(fetchTrainerWorkouts({
@@ -194,7 +206,7 @@ export const TrainerCalendarPage = () => {
         const defaultTime = hour !== undefined ? `${hour.toString().padStart(2, '0')}:00` : '18:00'
         const defaultEndTime = hour !== undefined ? `${(hour + 1).toString().padStart(2, '0')}:00` : '19:00'
         setFormState({
-            ...buildFormState(clientIdFromUrl || undefined),
+            ...buildFormState(clientId || clientIdFromUrl || undefined),
             date: day.toDate(),
             startTime: defaultTime,
             endTime: defaultEndTime,
@@ -233,6 +245,7 @@ export const TrainerCalendarPage = () => {
                     title: t('common.success'),
                     message: t('calendar.workoutUpdated'),
                     color: 'green',
+                    icon: <IconCalendarEvent size={16} />
                 })
             } else {
                 await dispatch(createTrainerWorkout(workoutData)).unwrap()
@@ -240,11 +253,12 @@ export const TrainerCalendarPage = () => {
                     title: t('common.success'),
                     message: t('calendar.workoutCreated'),
                     color: 'green',
+                    icon: <IconCalendarEvent size={16} />
                 })
             }
             // Перезагружаем тренировки после создания/обновления
             const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
-            const endDate = view === 'week' 
+            const endDate = view === 'week'
                 ? startDate.endOf('isoWeek').add(1, 'week')
                 : startDate.endOf('day').add(7, 'days')
             dispatch(fetchTrainerWorkouts({
@@ -253,7 +267,7 @@ export const TrainerCalendarPage = () => {
                 client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined,
             }))
             close()
-            setFormState(buildFormState())
+            setFormState(buildFormState(clientId || clientIdFromUrl || undefined))
         } catch (error: any) {
             notifications.show({
                 title: t('common.error'),
@@ -274,7 +288,7 @@ export const TrainerCalendarPage = () => {
                 })
                 // Перезагружаем тренировки после удаления
                 const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
-                const endDate = view === 'week' 
+                const endDate = view === 'week'
                     ? startDate.endOf('isoWeek').add(1, 'week')
                     : startDate.endOf('day').add(7, 'days')
                 dispatch(fetchTrainerWorkouts({
@@ -346,7 +360,7 @@ export const TrainerCalendarPage = () => {
 
         dispatch(moveWorkout({ id: droppedWorkoutId, targetDate: targetDateISO }))
         handleDragEnd()
-        
+
         setFormState({
             ...buildFormState(workout.clientId),
             id: workout.id,
@@ -364,12 +378,14 @@ export const TrainerCalendarPage = () => {
 
     return (
         <Stack gap="lg">
-            <Group justify="space-between">
-                <Title order={2}>{t('trainer.calendar.title')}</Title>
-                <Button leftSection={<IconPlus size={16} />} onClick={() => handleCreateWorkout(startDate)}>
-                    {t('trainer.calendar.createWorkout')}
-                </Button>
-            </Group>
+            {!embedded && (
+                <Group justify="space-between">
+                    <Title order={2}>{t('trainer.calendar.title')}</Title>
+                    <Button leftSection={<IconPlus size={16} />} onClick={() => handleCreateWorkout(startDate)}>
+                        {t('trainer.calendar.createWorkout')}
+                    </Button>
+                </Group>
+            )}
 
             <Card withBorder padding="md">
                 <Stack gap="md">
@@ -400,15 +416,22 @@ export const TrainerCalendarPage = () => {
                                     : startDate.format('D MMM YYYY')}
                             </Text>
                         </Group>
-                        <MultiSelect
-                            placeholder={t('trainer.calendar.filterClients')}
-                            data={clients.map((c) => ({ value: c.id, label: c.fullName }))}
-                            value={selectedClientIds}
-                            onChange={(value) => dispatch(setSelectedClients(value))}
-                            clearable
-                            leftSection={<IconUsers size={16} />}
-                            style={{ width: 300 }}
-                        />
+                        {!embedded && (
+                            <MultiSelect
+                                placeholder={t('trainer.calendar.filterClients')}
+                                data={clients.map((c) => ({ value: c.id, label: c.fullName }))}
+                                value={selectedClientIds}
+                                onChange={(value) => dispatch(setSelectedClients(value))}
+                                clearable
+                                leftSection={<IconUsers size={16} />}
+                                style={{ width: 300 }}
+                            />
+                        )}
+                        {embedded && (
+                            <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => handleCreateWorkout(startDate)}>
+                                {t('trainer.calendar.createWorkout')}
+                            </Button>
+                        )}
                     </Group>
 
                     <ScrollArea h={600}>
@@ -591,6 +614,7 @@ export const TrainerCalendarPage = () => {
                         searchable
                         value={formState.clientId}
                         onChange={(value) => setFormState({ ...formState, clientId: value || '' })}
+                        disabled={!!clientId} // Disable selection if clientId is fixed (embedded mode)
                     />
                     <TextInput
                         label={t('trainer.calendar.workoutTitle')}
@@ -666,5 +690,9 @@ export const TrainerCalendarPage = () => {
             </Modal>
         </Stack>
     )
+}
+
+export const TrainerCalendarPage = () => {
+    return <TrainerCalendarContent />
 }
 
