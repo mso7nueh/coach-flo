@@ -2,9 +2,7 @@ import axios, { type AxiosInstance } from 'axios'
 
 // В режиме разработки используем прокси Vite (пустая строка = относительный путь)
 // В продакшне используем полный URL
-const API_BASE_URL = import.meta.env.DEV
-  ? '' // Используем прокси в dev режиме
-  : (import.meta.env.VITE_API_URL || 'http://103.88.243.123:8000')
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 export type AttendanceStatus = 'scheduled' | 'completed' | 'cancelled' | 'missed'
 
