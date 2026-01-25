@@ -142,7 +142,12 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
 
             // Создаем новую программу для клиента
             const newProgram = await dispatch(
-                createProgram({ title: trainerProgram.title, description: trainerProgram.description, owner: 'client' })
+                createProgram({
+                    title: trainerProgram.title,
+                    description: trainerProgram.description,
+                    owner: 'client',
+                    userId: clientId
+                })
             ).unwrap()
 
             // Копируем все дни программы
