@@ -33,7 +33,7 @@ services:
     routes:
       - type: rewrite
         source: /api/*
-        destination: http://103.88.243.123:8000/api/*
+        destination: http://103.88.243.123/api/*
       - type: rewrite
         source: /*
         destination: /index.html
