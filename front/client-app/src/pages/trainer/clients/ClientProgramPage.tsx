@@ -20,7 +20,7 @@ import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useEffect, useState } from 'react'
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react'
-import { fetchPrograms, fetchProgramDays, selectProgram, createProgram, createProgramDay } from '@/app/store/slices/programSlice'
+import { fetchPrograms, fetchProgramDays, selectProgram, selectProgramDay, createProgram, createProgramDay } from '@/app/store/slices/programSlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
 import { useDisclosure } from '@mantine/hooks'
@@ -123,6 +123,21 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
 
             const trainerProgramDays = await apiClient.getProgramDays(selectedTrainerProgramId)
 
+            // Проверяем, нет ли уже такой программы у клиента
+            const existingProgram = clientPrograms.find((p) => p.title === trainerProgram.title)
+            if (existingProgram) {
+                dispatch(selectProgram(existingProgram.id))
+                dispatch(fetchProgramDays(existingProgram.id))
+                notifications.show({
+                    title: t('common.info'),
+                    message: t('trainer.clients.programAlreadyAssigned'),
+                    color: 'blue',
+                })
+                closeSelectProgramModal()
+                setSelectedTrainerProgramId(null)
+                return
+            }
+
             // Создаем новую программу для клиента
             const newProgram = await dispatch(
                 createProgram({ title: trainerProgram.title, description: trainerProgram.description, owner: 'client' })
@@ -144,7 +159,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                     })),
                 }))
 
-                await dispatch(
+                const createdDay = await dispatch(
                     createProgramDay({
                         name: day.name,
                         programId: newProgram.id,
@@ -152,6 +167,11 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                         sourceTemplateId: day.source_template_id || undefined,
                     })
                 ).unwrap()
+
+                // При создании первого дня сразу выбираем его для отображения
+                if (day === trainerProgramDays[0]) {
+                    dispatch(selectProgramDay(createdDay.day.id))
+                }
             }
 
             // Перезагружаем программы клиента и выбираем новую
@@ -251,6 +271,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                                         cursor: 'pointer',
                                                         backgroundColor: selectedDay?.id === day.id ? 'var(--mantine-color-violet-0)' : undefined,
                                                     }}
+                                                    onClick={() => dispatch(selectProgramDay(day.id))}
                                                 >
                                                     <Text fw={selectedDay?.id === day.id ? 600 : 500}>{day.name}</Text>
                                                     <Text size="xs" c="dimmed">
