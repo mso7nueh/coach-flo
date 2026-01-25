@@ -76,8 +76,8 @@ async def upload_progress_photo(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # Generate URL for the photo
-    photo_url = f"{BASE_URL}/uploads/progress_photos/{current_user.id}/{filename}"
+    # Generate URL for the photo (relative)
+    photo_url = f"/uploads/progress_photos/{current_user.id}/{filename}"
     
     # Parse date
     try:
