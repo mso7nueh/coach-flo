@@ -137,6 +137,14 @@ export const DashboardPage = () => {
             setQuickLogValue('')
             setQuickLogDate(new Date())
             openQuickLog()
+        } else {
+            console.error(`Metric not found for ID: ${metricId}`)
+            console.log('Available metrics:', bodyMetrics)
+            notifications.show({
+                title: t('common.error'),
+                message: t('dashboard.errors.metricNotFound', { metric: t(`dashboard.bodyOverview.${metricId}`) }),
+                color: 'red',
+            })
         }
     }
 
