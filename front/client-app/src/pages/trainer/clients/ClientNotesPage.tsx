@@ -25,7 +25,7 @@ import { apiClient } from '@/shared/api/client'
 import { notifications } from '@mantine/notifications'
 import { useDisclosure } from '@mantine/hooks'
 
-export const ClientNotesPage = () => {
+export const ClientNotesContent = ({ embedded = false }: { embedded?: boolean }) => {
     const { t } = useTranslation()
     const { clientId } = useParams<{ clientId: string }>()
     const navigate = useNavigate()
@@ -34,11 +34,11 @@ export const ClientNotesPage = () => {
     const { trainerNotes } = useAppSelector((state) => state.dashboard)
     const [isLoadingClients, setIsLoadingClients] = useState(false)
     const [isLoadingNotes, setIsLoadingNotes] = useState(false)
-    
+
     const [createModalOpened, { open: openCreateModal, close: closeCreateModal }] = useDisclosure(false)
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false)
     const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] = useDisclosure(false)
-    
+
     const [noteForm, setNoteForm] = useState({ title: '', content: '' })
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
     const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
@@ -80,7 +80,7 @@ export const ClientNotesPage = () => {
     // Загружаем заметки для клиента
     useEffect(() => {
         if (!clientId) return
-        
+
         const loadNotes = async () => {
             setIsLoadingNotes(true)
             try {
@@ -105,7 +105,7 @@ export const ClientNotesPage = () => {
                 setIsLoadingNotes(false)
             }
         }
-        
+
         loadNotes()
     }, [dispatch, clientId])
 
@@ -132,7 +132,7 @@ export const ClientNotesPage = () => {
 
     const handleCreateNote = async () => {
         if (!clientId || !noteForm.title.trim()) return
-        
+
         try {
             await dispatch(
                 createNoteApi({
@@ -141,16 +141,16 @@ export const ClientNotesPage = () => {
                     content: noteForm.content.trim() || undefined,
                 })
             ).unwrap()
-            
+
             notifications.show({
                 title: t('common.success'),
                 message: t('trainer.clients.noteCreated'),
                 color: 'green',
             })
-            
+
             setNoteForm({ title: '', content: '' })
             closeCreateModal()
-            
+
             // Перезагружаем заметки
             const notesData = await apiClient.getTrainerClientNotes(clientId)
             const mappedNotes = notesData.map((note: any) => ({
@@ -181,7 +181,7 @@ export const ClientNotesPage = () => {
 
     const handleUpdateNote = async () => {
         if (!editingNoteId || !noteForm.title.trim()) return
-        
+
         try {
             await dispatch(
                 updateNoteApi({
@@ -190,17 +190,17 @@ export const ClientNotesPage = () => {
                     content: noteForm.content.trim() || undefined,
                 })
             ).unwrap()
-            
+
             notifications.show({
                 title: t('common.success'),
                 message: t('trainer.clients.noteUpdated'),
                 color: 'green',
             })
-            
+
             setNoteForm({ title: '', content: '' })
             setEditingNoteId(null)
             closeEditModal()
-            
+
             // Перезагружаем заметки
             const notesData = await apiClient.getTrainerClientNotes(clientId!)
             const mappedNotes = notesData.map((note: any) => ({
@@ -230,19 +230,19 @@ export const ClientNotesPage = () => {
 
     const confirmDeleteNote = async () => {
         if (!deletingNoteId) return
-        
+
         try {
             await dispatch(deleteNoteApi(deletingNoteId)).unwrap()
-            
+
             notifications.show({
                 title: t('common.success'),
                 message: t('trainer.clients.noteDeleted'),
                 color: 'green',
             })
-            
+
             setDeletingNoteId(null)
             closeDeleteModal()
-            
+
             // Перезагружаем заметки
             const notesData = await apiClient.getTrainerClientNotes(clientId!)
             const mappedNotes = notesData.map((note: any) => ({
@@ -267,24 +267,36 @@ export const ClientNotesPage = () => {
 
     return (
         <Stack gap="lg">
-            <Breadcrumbs>
-                <Anchor component={Link} to="/trainer/clients">
-                    {t('trainer.clients.title')}
-                </Anchor>
-                <Anchor component={Link} to={`/trainer/clients/${clientId}`}>
-                    {client?.fullName}
-                </Anchor>
-                <Text>{t('dashboard.notesTitle')}</Text>
-            </Breadcrumbs>
+            {!embedded && (
+                <>
+                    <Breadcrumbs>
+                        <Anchor component={Link} to="/trainer/clients">
+                            {t('trainer.clients.title')}
+                        </Anchor>
+                        <Anchor component={Link} to={`/trainer/clients/${clientId}`}>
+                            {client?.fullName}
+                        </Anchor>
+                        <Text>{t('dashboard.notesTitle')}</Text>
+                    </Breadcrumbs>
 
-            <Group justify="space-between">
-                <Title order={2}>
-                    {t('dashboard.notesTitle')} - {client?.fullName}
-                </Title>
-                <Button leftSection={<IconPlus size={16} />} onClick={openCreateModal}>
-                    {t('common.add')}
-                </Button>
-            </Group>
+                    <Group justify="space-between">
+                        <Title order={2}>
+                            {t('dashboard.notesTitle')} - {client?.fullName}
+                        </Title>
+                        <Button leftSection={<IconPlus size={16} />} onClick={openCreateModal}>
+                            {t('common.add')}
+                        </Button>
+                    </Group>
+                </>
+            )}
+
+            {embedded && (
+                <Group justify="flex-end">
+                    <Button leftSection={<IconPlus size={16} />} onClick={openCreateModal}>
+                        {t('common.add')}
+                    </Button>
+                </Group>
+            )}
 
             {clientNotes.length === 0 ? (
                 <Card withBorder padding="md">
@@ -400,4 +412,8 @@ export const ClientNotesPage = () => {
             </Modal>
         </Stack>
     )
+}
+
+export const ClientNotesPage = () => {
+    return <ClientNotesContent />
 }

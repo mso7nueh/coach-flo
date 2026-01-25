@@ -27,7 +27,7 @@ import { useDisclosure } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 import type { ProgramBlockInput } from '@/app/store/slices/programSlice'
 
-export const ClientProgramPage = () => {
+export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean }) => {
     const { t } = useTranslation()
     const { clientId } = useParams<{ clientId: string }>()
     const navigate = useNavigate()
@@ -198,24 +198,36 @@ export const ClientProgramPage = () => {
 
     return (
         <Stack gap="lg">
-            <Breadcrumbs>
-                <Anchor component={Link} to="/trainer/clients">
-                    {t('trainer.clients.title')}
-                </Anchor>
-                <Anchor component={Link} to={`/trainer/clients/${clientId}`}>
-                    {client.fullName}
-                </Anchor>
-                <Text>{t('common.program')}</Text>
-            </Breadcrumbs>
+            {!embedded && (
+                <>
+                    <Breadcrumbs>
+                        <Anchor component={Link} to="/trainer/clients">
+                            {t('trainer.clients.title')}
+                        </Anchor>
+                        <Anchor component={Link} to={`/trainer/clients/${clientId}`}>
+                            {client.fullName}
+                        </Anchor>
+                        <Text>{t('common.program')}</Text>
+                    </Breadcrumbs>
 
-            <Group justify="space-between">
-                <Title order={2}>
-                    {t('common.program')} - {client.fullName}
-                </Title>
-                <Button leftSection={<IconPlus size={16} />} onClick={openSelectProgramModal}>
-                    {t('trainer.clients.selectProgram')}
-                </Button>
-            </Group>
+                    <Group justify="space-between">
+                        <Title order={2}>
+                            {t('common.program')} - {client.fullName}
+                        </Title>
+                        <Button leftSection={<IconPlus size={16} />} onClick={openSelectProgramModal}>
+                            {t('trainer.clients.selectProgram')}
+                        </Button>
+                    </Group>
+                </>
+            )}
+
+            {embedded && (
+                <Group justify="flex-end">
+                    <Button leftSection={<IconPlus size={16} />} onClick={openSelectProgramModal}>
+                        {t('trainer.clients.selectProgram')}
+                    </Button>
+                </Group>
+            )}
 
             <Card withBorder padding="md">
                 <Stack gap="md">
@@ -395,5 +407,9 @@ export const ClientProgramPage = () => {
             </Modal>
         </Stack>
     )
+}
+
+export const ClientProgramPage = () => {
+    return <ClientProgramContent />
 }
 

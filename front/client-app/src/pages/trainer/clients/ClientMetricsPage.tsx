@@ -43,7 +43,7 @@ const periodSegments = [
     { label: 'All', value: 'all' },
 ]
 
-export const ClientMetricsPage = () => {
+export const ClientMetricsContent = ({ embedded = false }: { embedded?: boolean }) => {
     const { t } = useTranslation()
     const { clientId } = useParams<{ clientId: string }>()
     const navigate = useNavigate()
@@ -273,21 +273,25 @@ export const ClientMetricsPage = () => {
 
     return (
         <Stack gap="lg">
-            <Breadcrumbs>
-                <Anchor component={Link} to="/trainer/clients">
-                    {t('trainer.clients.title')}
-                </Anchor>
-                <Anchor component={Link} to={`/trainer/clients/${clientId}`}>
-                    {client.fullName}
-                </Anchor>
-                <Text>{t('common.metrics')}</Text>
-            </Breadcrumbs>
+            {!embedded && (
+                <>
+                    <Breadcrumbs>
+                        <Anchor component={Link} to="/trainer/clients">
+                            {t('trainer.clients.title')}
+                        </Anchor>
+                        <Anchor component={Link} to={`/trainer/clients/${clientId}`}>
+                            {client.fullName}
+                        </Anchor>
+                        <Text>{t('common.metrics')}</Text>
+                    </Breadcrumbs>
 
-            <Group justify="space-between">
-                <Title order={2}>
-                    {t('common.metrics')} - {client.fullName}
-                </Title>
-            </Group>
+                    <Group justify="space-between">
+                        <Title order={2}>
+                            {t('common.metrics')} - {client.fullName}
+                        </Title>
+                    </Group>
+                </>
+            )}
 
             <Card withBorder padding="md">
                 <Stack gap="md">
@@ -423,5 +427,9 @@ export const ClientMetricsPage = () => {
             </Card>
         </Stack>
     )
+}
+
+export const ClientMetricsPage = () => {
+    return <ClientMetricsContent />
 }
 
