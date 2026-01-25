@@ -22,6 +22,7 @@ import {
     IconCurrencyRubel,
     IconApple,
     IconCreditCard,
+    IconBell,
 } from '@tabler/icons-react'
 
 export const AppLayout = () => {
@@ -48,6 +49,7 @@ export const AppLayout = () => {
         { to: '/trainer/clients', label: t('common.clients'), icon: IconUsersGroup },
         { to: '/trainer/library', label: t('common.library'), icon: IconLibrary },
         { to: '/trainer/calendar', label: t('common.trainerCalendar'), icon: IconCalendarStats },
+        { to: '/trainer/notifications', label: t('notificationsPage.title'), icon: IconBell },
         { to: '/trainer/finances', label: t('common.finances'), icon: IconCurrencyRubel },
         { to: '/trainer/subscription', label: 'Подписка', icon: IconCreditCard },
     ]

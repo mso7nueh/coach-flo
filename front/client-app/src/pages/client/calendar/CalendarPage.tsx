@@ -371,13 +371,8 @@ export const CalendarPage = () => {
         return getTrainerSlotsForDay(workout.trainerId, day.toDate()).length === 0
     }
 
-    const handleDayDragOver = (event: DragEvent<HTMLDivElement>, isBlocked: boolean) => {
+    const handleDayDragOver = (event: DragEvent<HTMLDivElement>) => {
         if (!activeDragWorkout) {
-            return
-        }
-        if (isBlocked) {
-            event.dataTransfer.dropEffect = 'none'
-            setDragError(t('calendar.trainerDayBlocked'))
             return
         }
         event.preventDefault()
@@ -395,10 +390,6 @@ export const CalendarPage = () => {
             return
         }
         const targetDateISO = day.startOf('day').toISOString()
-        if (isDayBlockedForWorkout(workout, day)) {
-            setDragError(t('calendar.trainerDayBlocked'))
-            return
-        }
         const sourceStart = dayjs(workout.start)
         const duration = dayjs(workout.end).diff(sourceStart, 'minute')
         const updatedStart = day.clone().hour(sourceStart.hour()).minute(sourceStart.minute()).second(0)
@@ -447,17 +438,7 @@ export const CalendarPage = () => {
                 </Button>
             </Group>
 
-            {dragError && (
-                <Alert
-                    color="red"
-                    variant="light"
-                    withCloseButton
-                    onClose={() => setDragError(null)}
-                    title={t('calendar.dragRestrictedTitle')}
-                >
-                    {dragError}
-                </Alert>
-            )}
+            {/* Удалено предупреждение о блокировке переноса */}
 
             {activeDragWorkout && highlightedDates.length > 0 && (
                 <Alert
@@ -514,14 +495,12 @@ export const CalendarPage = () => {
                             const isCurrentDay = isToday(day)
                             const dayKey = day.startOf('day').toISOString()
                             const isHighlightedAsAvailable = highlightedDates.includes(dayKey)
-                            const isBlockedForDrag = isTrainerDrag && !isHighlightedAsAvailable && Boolean(activeDragWorkout?.withTrainer && activeDragWorkout?.format === 'offline')
+                            const isBlockedForDrag = false
                             const dayBackgroundColor = isCurrentDay
                                 ? 'var(--mantine-color-violet-0)'
-                                : isBlockedForDrag
-                                    ? 'var(--mantine-color-red-0)'
-                                    : isHighlightedAsAvailable
-                                        ? 'var(--mantine-color-violet-0)'
-                                        : 'white'
+                                : isHighlightedAsAvailable
+                                    ? 'var(--mantine-color-violet-0)'
+                                    : 'white'
 
                             return (
                                 <div
@@ -529,22 +508,19 @@ export const CalendarPage = () => {
                                     style={{
                                         borderRight:
                                             index % 7 !== 6
-                                                ? `1px solid ${
-                                                      isHighlightedAsAvailable
-                                                          ? 'var(--mantine-color-violet-4)'
-                                                          : 'var(--mantine-color-gray-3)'
-                                                  }`
+                                                ? `1px solid ${isHighlightedAsAvailable
+                                                    ? 'var(--mantine-color-violet-4)'
+                                                    : 'var(--mantine-color-gray-3)'
+                                                }`
                                                 : 'none',
                                         borderLeft: isFirstDay
-                                            ? `1px solid ${
-                                                  isHighlightedAsAvailable
-                                                      ? 'var(--mantine-color-violet-4)'
-                                                      : 'var(--mantine-color-gray-3)'
-                                              }`
+                                            ? `1px solid ${isHighlightedAsAvailable
+                                                ? 'var(--mantine-color-violet-4)'
+                                                : 'var(--mantine-color-gray-3)'
+                                            }`
                                             : 'none',
-                                        borderBottom: `1px solid ${
-                                            isHighlightedAsAvailable ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)'
-                                        }`,
+                                        borderBottom: `1px solid ${isHighlightedAsAvailable ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)'
+                                            }`,
                                         padding: '8px 4px',
                                         minHeight: '120px',
                                         backgroundColor: dayBackgroundColor,
@@ -561,8 +537,8 @@ export const CalendarPage = () => {
                                             openCreateModal(day.toDate())
                                         }
                                     }}
-                                    onDragOver={(event) => handleDayDragOver(event, isBlockedForDrag)}
-                                    onDragEnter={(event) => handleDayDragOver(event, isBlockedForDrag)}
+                                    onDragOver={(event) => handleDayDragOver(event)}
+                                    onDragEnter={(event) => handleDayDragOver(event)}
                                     onDragLeave={() => setDragError(null)}
                                     onDrop={(event) => handleDropOnDay(event, day)}
                                 >

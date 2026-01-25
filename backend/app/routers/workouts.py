@@ -294,6 +294,23 @@ async def update_workout(
     
     db.commit()
     db.refresh(workout)
+    
+    # Создаем уведомление для тренера, если клиент перенес тренировку
+    if current_user.role == models.UserRole.CLIENT and workout.trainer_id:
+        # Проверяем, изменилось ли время
+        if "start" in update_data or "end" in update_data:
+            notification = models.Notification(
+                id=str(uuid.uuid4()),
+                user_id=workout.trainer_id,
+                sender_id=current_user.id,
+                type="workout_rescheduled",
+                title=f"Клиент {current_user.full_name} перенес тренировку",
+                content=f"Тренировка '{workout.title}' перенесена на {workout.start.strftime('%d.%m.%Y %H:%M')}",
+                link=f"/clients/{current_user.id}/calendar?workout_id={workout.id}"
+            )
+            db.add(notification)
+            db.commit()
+            
     return workout
 
 

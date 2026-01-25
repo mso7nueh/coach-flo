@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.database import engine, Base
 from app.routers import (
     auth, onboarding, users, workouts, programs, metrics,
-    nutrition, finances, clients, exercises, notes, dashboard, settings, library, progress_photos
+    nutrition, finances, clients, exercises, notes, dashboard, settings, library, progress_photos, notifications
 )
 import logging
 import os
@@ -168,6 +168,7 @@ app.include_router(settings.router, prefix="/api/users/me/settings", tags=["sett
 app.include_router(library.router, prefix="/api/library", tags=["library"])
 app.include_router(library.router, prefix="/api/library", tags=["library"])
 app.include_router(progress_photos.router, prefix="/api/progress-photos", tags=["progress-photos"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 from app.routers import payments
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 

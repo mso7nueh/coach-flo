@@ -1,8 +1,10 @@
 import {
     ActionIcon,
+    Avatar,
     Badge,
     Button,
     Card,
+    Drawer,
     Group,
     Modal,
     MultiSelect,
@@ -32,6 +34,7 @@ import {
     IconPlus,
     IconTrash,
     IconUsers,
+    IconListDetails,
 } from '@tabler/icons-react'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
@@ -111,6 +114,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
     const { workouts: libraryWorkouts } = useAppSelector((state) => state.library)
 
     const [modalOpened, { open, close }] = useDisclosure(false)
+    const [logOpened, setLogOpened] = useState(false)
     const [formState, setFormState] = useState<WorkoutFormState>(() => buildFormState(clientIdFromUrl || undefined))
     const [activeDragWorkout, setActiveDragWorkout] = useState<TrainerWorkout | null>(null)
     const [dragOverDay, setDragOverDay] = useState<string | null>(null)
@@ -416,22 +420,27 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                     : startDate.format('D MMM YYYY')}
                             </Text>
                         </Group>
-                        {!embedded && (
-                            <MultiSelect
-                                placeholder={t('trainer.calendar.filterClients')}
-                                data={clients.map((c) => ({ value: c.id, label: c.fullName }))}
-                                value={selectedClientIds}
-                                onChange={(value) => dispatch(setSelectedClients(value))}
-                                clearable
-                                leftSection={<IconUsers size={16} />}
-                                style={{ width: 300 }}
-                            />
-                        )}
-                        {embedded && (
-                            <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => handleCreateWorkout(startDate)}>
-                                {t('trainer.calendar.createWorkout')}
+                        <Group gap="sm">
+                            <Button
+                                variant="light"
+                                color="gray"
+                                leftSection={<IconListDetails size={16} />}
+                                onClick={() => setLogOpened(true)}
+                            >
+                                {t('trainer.calendar.workoutLog')}
                             </Button>
-                        )}
+                            {!embedded && (
+                                <MultiSelect
+                                    placeholder={t('trainer.calendar.filterClients')}
+                                    data={clients.map((c) => ({ value: c.id, label: c.fullName }))}
+                                    value={selectedClientIds}
+                                    onChange={(value) => dispatch(setSelectedClients(value))}
+                                    clearable
+                                    leftSection={<IconUsers size={16} />}
+                                    style={{ width: 300 }}
+                                />
+                            )}
+                        </Group>
                     </Group>
 
                     <ScrollArea h={600}>
@@ -495,9 +504,31 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                     </div>
                                     {calendarDays.map((day) => {
                                         const dayKey = day.format('YYYY-MM-DD')
-                                        const hourStart = day.hour(hour).minute(0).second(0)
-                                        const hourEnd = day.hour(hour).minute(59).second(59)
-                                        const hourWorkouts = workoutsByDay.get(dayKey)?.filter((w) => {
+                                        const dayWorkouts = workoutsByDay.get(dayKey) || []
+
+                                        // Группировка перекрывающихся тренировок
+                                        const sortedWorkouts = [...dayWorkouts].sort((a, b) => dayjs(a.start).diff(dayjs(b.start)))
+                                        const columns: TrainerWorkout[][] = []
+
+                                        sortedWorkouts.forEach((workout) => {
+                                            let placed = false
+                                            for (let i = 0; i < columns.length; i++) {
+                                                const lastInColumn = columns[i][columns[i].length - 1]
+                                                // Если тренировка начинается после окончания последней в колонке
+                                                if (dayjs(workout.start).isAfter(dayjs(lastInColumn.end).subtract(1, 'minute'))) {
+                                                    columns[i].push(workout)
+                                                    placed = true
+                                                    break
+                                                }
+                                            }
+                                            if (!placed) {
+                                                columns.push([workout])
+                                            }
+                                        })
+
+                                        const hourWorkouts = dayWorkouts.filter((w) => {
+                                            const hourStart = day.hour(hour).minute(0).second(0)
+                                            const hourEnd = day.hour(hour).minute(59).second(59)
                                             const workoutStart = dayjs(w.start)
                                             return workoutStart.isAfter(hourStart.subtract(1, 'minute')) && workoutStart.isBefore(hourEnd.add(1, 'minute'))
                                         })
@@ -527,25 +558,33 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                                     const duration = endMinutes - startMinutes
                                                     const topOffset = startMinutes % 60
 
+                                                    // Находим колонку для этой тренировки
+                                                    const colIndex = columns.findIndex(col => col.some(w => w.id === workout.id))
+                                                    const colWidth = 100 / columns.length
+                                                    const leftOffset = colIndex * colWidth
+
+                                                    const client = clients.find(c => c.id === workout.clientId)
+
                                                     return (
                                                         <Card
                                                             key={workout.id}
-                                                            p="xs"
+                                                            p={4}
                                                             draggable
                                                             onDragStart={(e) => handleDragStart(e, workout)}
                                                             onDragEnd={handleDragEnd}
                                                             style={{
                                                                 position: 'absolute',
                                                                 top: `${topOffset}px`,
-                                                                left: '2px',
-                                                                right: '2px',
-                                                                height: `${(duration / 60) * 60 - 2}px`,
+                                                                left: `${leftOffset}%`,
+                                                                width: `${colWidth}%`,
+                                                                height: `${Math.max(20, (duration / 60) * 60 - 2)}px`,
                                                                 backgroundColor: `var(--mantine-color-${getWorkoutColor(workout.attendance)}-0)`,
                                                                 border: `2px solid var(--mantine-color-${getWorkoutColor(workout.attendance)}-6)`,
                                                                 cursor: 'move',
                                                                 zIndex: activeDragWorkout?.id === workout.id ? 10 : 5,
                                                                 opacity: activeDragWorkout?.id === workout.id ? 0.5 : 1,
                                                                 transition: 'opacity 0.2s',
+                                                                overflow: 'hidden',
                                                             }}
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
@@ -563,13 +602,13 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                                                 open()
                                                             }}
                                                         >
-                                                            <Stack gap={2}>
-                                                                <Group justify="space-between" gap="xs">
-                                                                    <Text size="xs" fw={600} lineClamp={1}>
+                                                            <Stack gap={1} h="100%">
+                                                                <Group justify="space-between" gap={2} wrap="nowrap">
+                                                                    <Text size="xs" fw={700} lineClamp={1} style={{ fontSize: '10px' }}>
                                                                         {workout.title}
                                                                     </Text>
                                                                     <ActionIcon
-                                                                        size="xs"
+                                                                        size={14}
                                                                         variant="subtle"
                                                                         color="red"
                                                                         onClick={(e) => {
@@ -577,19 +616,27 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                                                             handleDeleteWorkout(workout.id)
                                                                         }}
                                                                     >
-                                                                        <IconTrash size={12} />
+                                                                        <IconTrash size={10} />
                                                                     </ActionIcon>
                                                                 </Group>
-                                                                <Group gap={4}>
-                                                                    <Badge size="xs" variant="light" color={getWorkoutColor(workout.attendance)}>
-                                                                        {getClientName(workout.clientId)}
-                                                                    </Badge>
-                                                                    {workout.location && (
-                                                                        <Text size="xs" c="dimmed" lineClamp={1}>
-                                                                            {workout.location}
-                                                                        </Text>
-                                                                    )}
+                                                                <Group gap={4} wrap="nowrap" align="center">
+                                                                    <Avatar
+                                                                        src={client?.avatar}
+                                                                        size={14}
+                                                                        radius="xl"
+                                                                        color={getWorkoutColor(workout.attendance)}
+                                                                    >
+                                                                        {client ? client.fullName[0] : '?'}
+                                                                    </Avatar>
+                                                                    <Text size="10px" fw={500} lineClamp={1} c={getWorkoutColor(workout.attendance) + '.7'}>
+                                                                        {client?.fullName || workout.clientId}
+                                                                    </Text>
                                                                 </Group>
+                                                                {duration >= 45 && workout.location && (
+                                                                    <Text size="9px" c="dimmed" lineClamp={1}>
+                                                                        {workout.location}
+                                                                    </Text>
+                                                                )}
                                                             </Stack>
                                                         </Card>
                                                     )
@@ -688,6 +735,52 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                     </Group>
                 </Stack>
             </Modal>
+
+            <Drawer
+                opened={logOpened}
+                onClose={() => setLogOpened(false)}
+                title={t('trainer.calendar.workoutLog')}
+                position="right"
+                size="md"
+            >
+                <ScrollArea h="calc(100vh - 120px)" offsetScrollbars>
+                    <Stack gap="md">
+                        {filteredWorkouts.length === 0 ? (
+                            <Text c="dimmed" ta="center" py="xl">{t('dashboard.emptyNotes')}</Text>
+                        ) : (
+                            [...filteredWorkouts]
+                                .filter((w: TrainerWorkout) => dayjs(w.start).isBefore(dayjs()))
+                                .sort((a: TrainerWorkout, b: TrainerWorkout) => dayjs(b.start).diff(dayjs(a.start)))
+                                .map((workout: TrainerWorkout) => (
+                                    <Card key={workout.id} withBorder p="sm" radius="md">
+                                        <Group justify="space-between" align="flex-start" wrap="nowrap">
+                                            <Stack gap={4} style={{ flex: 1 }}>
+                                                <Text fw={600} size="sm">{workout.title}</Text>
+                                                <Group gap={8}>
+                                                    <Avatar size={16} src={clients.find(c => c.id === workout.clientId)?.avatar} radius="xl" />
+                                                    <Text size="xs" c="dimmed">
+                                                        {getClientName(workout.clientId)}
+                                                    </Text>
+                                                </Group>
+                                                <Text size="xs" c="dimmed">
+                                                    {dayjs(workout.start).format('D MMMM YYYY, HH:mm')}
+                                                </Text>
+                                                {workout.coachNote && (
+                                                    <Text size="xs" mt={4} style={{ fontStyle: 'italic' }}>
+                                                        {workout.coachNote}
+                                                    </Text>
+                                                )}
+                                            </Stack>
+                                            <Badge color={getWorkoutColor(workout.attendance)} variant="light">
+                                                {t(`calendar.status.${workout.attendance}`)}
+                                            </Badge>
+                                        </Group>
+                                    </Card>
+                                ))
+                        )}
+                    </Stack>
+                </ScrollArea>
+            </Drawer>
         </Stack>
     )
 }

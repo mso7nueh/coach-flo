@@ -503,3 +503,26 @@ class DashboardStats(BaseModel):
     next_workout: Optional[WorkoutResponse] = None
     goal: Optional[GoalResponse] = None
     progress_photos: List[ProgressPhotoResponse] = []
+
+
+# Notification schemas
+class NotificationBase(BaseModel):
+    user_id: str
+    sender_id: Optional[str] = None
+    type: str
+    title: str
+    content: Optional[str] = None
+    link: Optional[str] = None
+
+
+class NotificationResponse(NotificationBase):
+    id: str
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationUpdate(BaseModel):
+    is_read: Optional[bool] = None

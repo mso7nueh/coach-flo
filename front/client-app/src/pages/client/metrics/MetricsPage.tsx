@@ -18,7 +18,7 @@ import {
   UnstyledButton,
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
-import { IconActivity, IconAdjustments, IconCalendarCheck, IconPlus, IconScale, IconTarget } from '@tabler/icons-react'
+import { IconActivity, IconAdjustments, IconCalendarCheck, IconListDetails, IconPlus, IconScale, IconTarget } from '@tabler/icons-react'
 import { useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import dayjs from 'dayjs'
@@ -98,6 +98,8 @@ export const MetricsPage = () => {
   const [exerciseGoalModalOpened, { open: openExerciseGoalModal, close: closeExerciseGoalModal }] = useDisclosure(false)
   const [createBodyMetricModalOpened, { open: openCreateBodyMetricModal, close: closeCreateBodyMetricModal }] = useDisclosure(false)
   const [createExerciseMetricModalOpened, { open: openCreateExerciseMetricModal, close: closeCreateExerciseMetricModal }] = useDisclosure(false)
+  const [historyModalOpened, { open: openHistoryModal, close: closeHistoryModal }] = useDisclosure(false)
+  const [historyType, setHistoryType] = useState<'body' | 'exercise'>('body')
   const [goalMetricId, setGoalMetricId] = useState<string | null>(null)
   const [goalValue, setGoalValue] = useState<number>(0)
   const [goalExerciseId, setGoalExerciseId] = useState<string | null>(null)
@@ -294,10 +296,34 @@ export const MetricsPage = () => {
     const values = exerciseChartDisplayData.map((d) => d.value)
     const minValue = Math.min(...values)
     const maxValue = Math.max(...values)
+
+    const goals = exerciseMetricGoals[selectedExercise.id]
+    let goalValue: number | undefined
+    if (exerciseChartMode === 'weight') goalValue = goals?.weight
+    else if (exerciseChartMode === 'reps') goalValue = goals?.repetitions
+    else if (exerciseChartMode === 'volume' && goals?.weight && goals?.repetitions) {
+      // Для объёма считаем цель как вес * повторения (базовая цель на подход)
+      // В чарте объём считается как вес * повторения * подходы. 
+      // Для корректности возьмем среднее количество подходов из данных или 1
+      const avgSets = values.length > 0
+        ? exerciseChartDisplayData.reduce((acc, d) => acc + d.sets, 0) / exerciseChartDisplayData.length
+        : 1
+      goalValue = goals.weight * goals.repetitions * Math.round(avgSets)
+    }
+
+    if (goalValue !== undefined && goalValue !== null) {
+      const allValues = [...values, goalValue]
+      const allMin = Math.min(...allValues)
+      const allMax = Math.max(...allValues)
+      const range = allMax - allMin || 1
+      const padding = Math.max(range * 0.15, (allMax - allMin) * 0.1)
+      return [Math.max(0, allMin - padding), allMax + padding]
+    }
+
     const range = maxValue - minValue || 1
     const padding = Math.max(range * 0.15, (maxValue - minValue) * 0.1)
     return [Math.max(0, minValue - padding), maxValue + padding]
-  }, [exerciseChartDisplayData, selectedExercise])
+  }, [exerciseChartDisplayData, selectedExercise, exerciseChartMode, exerciseMetricGoals])
 
   const latestBodyValues = useMemo(() => {
     return bodyMetrics.map((metric) => {
@@ -624,15 +650,27 @@ export const MetricsPage = () => {
                           variant="light"
                           size="xs"
                           leftSection={<IconTarget size={14} />}
-                          onClick={() => handleOpenBodyGoalModal(selectedMetric.id)}
+                          onClick={() => selectedMetric && handleOpenBodyGoalModal(selectedMetric.id)}
                         >
                           {t('metricsPage.setGoal')}
+                        </Button>
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconListDetails size={14} />}
+                          onClick={() => {
+                            setHistoryType('body')
+                            openHistoryModal()
+                          }}
+                        >
+                          {t('common.history')}
                         </Button>
                         <Button
                           variant="light"
                           color="violet"
                           leftSection={<IconCalendarCheck size={16} />}
                           onClick={() => {
+                            if (!selectedMetric) return
                             const today = new Date()
                             const existingEntry = bodyMetricEntries
                               .filter((entry) => entry.metricId === selectedMetric.id)
@@ -662,7 +700,7 @@ export const MetricsPage = () => {
                             openBodyModal()
                           }}
                         >
-                          {bodyMetricEntries
+                          {selectedMetric && bodyMetricEntries
                             .filter((entry) => entry.metricId === selectedMetric.id)
                             .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(), 'day'))
                             ? t('metricsPage.updateToday')
@@ -957,15 +995,27 @@ export const MetricsPage = () => {
                           variant="light"
                           size="xs"
                           leftSection={<IconTarget size={14} />}
-                          onClick={() => handleOpenExerciseGoalModal(selectedExercise.id)}
+                          onClick={() => selectedExercise && handleOpenExerciseGoalModal(selectedExercise.id)}
                         >
                           {t('metricsPage.setGoal')}
+                        </Button>
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconListDetails size={14} />}
+                          onClick={() => {
+                            setHistoryType('exercise')
+                            openHistoryModal()
+                          }}
+                        >
+                          {t('common.history')}
                         </Button>
                         <Button
                           variant="light"
                           color="violet"
                           leftSection={<IconCalendarCheck size={16} />}
                           onClick={() => {
+                            if (!selectedExercise) return
                             const today = new Date()
                             const existingEntry = exerciseMetricEntries
                               .filter((entry) => entry.exerciseId === selectedExercise.id)
@@ -1001,7 +1051,7 @@ export const MetricsPage = () => {
                             openExerciseModal()
                           }}
                         >
-                          {exerciseMetricEntries
+                          {selectedExercise && exerciseMetricEntries
                             .filter((entry) => entry.exerciseId === selectedExercise.id)
                             .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
                             ? t('metricsPage.updateToday')
@@ -1131,6 +1181,27 @@ export const MetricsPage = () => {
                                 }}
                               />
                             )}
+                            {exerciseChartMode === 'volume' &&
+                              exerciseMetricGoals[selectedExercise.id]?.weight &&
+                              exerciseMetricGoals[selectedExercise.id]?.repetitions && (
+                                <ReferenceLine
+                                  y={(exerciseMetricGoals[selectedExercise.id]?.weight ?? 0) *
+                                    (exerciseMetricGoals[selectedExercise.id]?.repetitions ?? 0) *
+                                    Math.round(exerciseChartDisplayData.reduce((acc, d) => acc + d.sets, 0) / exerciseChartDisplayData.length)}
+                                  stroke="#7c3aed"
+                                  strokeWidth={2}
+                                  strokeDasharray="6 4"
+                                  strokeOpacity={0.7}
+                                  label={{
+                                    value: `${t('metricsPage.exerciseChart.modes.volume')} ${t('metricsPage.goal')}`,
+                                    position: 'insideTopRight',
+                                    fill: '#7c3aed',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    offset: 5,
+                                  }}
+                                />
+                              )}
                             {exerciseChartDisplayData[0] && (
                               <ReferenceLine
                                 y={exerciseChartDisplayData[0].value}
@@ -1550,6 +1621,65 @@ export const MetricsPage = () => {
           </Group>
         </Stack>
       </Modal>
-    </Stack>
+
+      <Modal opened={historyModalOpened} onClose={closeHistoryModal} title={t('common.history')} size="lg">
+        <ScrollArea h={500}>
+          <Stack gap="md">
+            {historyType === 'body' && selectedMetric && (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+                    <th style={{ padding: '12px' }}>{t('metricsPage.date')}</th>
+                    <th style={{ padding: '12px', textAlign: 'right' }}>{t('metricsPage.value')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bodyMetricEntries
+                    .filter((e) => e.metricId === selectedMetric.id)
+                    .sort((a, b) => dayjs(b.recordedAt).diff(dayjs(a.recordedAt)))
+                    .map((entry) => (
+                      <tr key={entry.id} style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
+                        <td style={{ padding: '12px' }}>{dayjs(entry.recordedAt).format('D MMM YYYY, HH:mm')}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>
+                          {entry.value.toFixed(2)} {selectedMetric.unit}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
+            {historyType === 'exercise' && selectedExercise && (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+                    <th style={{ padding: '12px' }}>{t('metricsPage.date')}</th>
+                    <th style={{ padding: '12px', textAlign: 'right' }}>{t('metricsPage.weight')}</th>
+                    <th style={{ padding: '12px', textAlign: 'right' }}>{t('metricsPage.repetitions')}</th>
+                    <th style={{ padding: '12px', textAlign: 'right' }}>{t('metricsPage.sets')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exerciseMetricEntries
+                    .filter((e) => e.exerciseId === selectedExercise.id)
+                    .sort((a, b) => dayjs(b.date).diff(dayjs(a.date)))
+                    .map((entry) => (
+                      <tr key={entry.id} style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
+                        <td style={{ padding: '12px' }}>{dayjs(entry.date).format('D MMM YYYY')}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>{entry.weight.toFixed(2)} кг</td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>{entry.repetitions}</td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>{entry.sets}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
+            {((historyType === 'body' && bodyMetricEntries.filter(e => e.metricId === selectedMetric?.id).length === 0) ||
+              (historyType === 'exercise' && exerciseMetricEntries.filter(e => e.exerciseId === selectedExercise?.id).length === 0)) && (
+                <Text c="dimmed" ta="center" py="xl">{t('metricsPage.noData')}</Text>
+              )}
+          </Stack>
+        </ScrollArea>
+      </Modal>
+    </Stack >
   )
 }

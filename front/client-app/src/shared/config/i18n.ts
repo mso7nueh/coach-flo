@@ -41,6 +41,7 @@ const resources = {
                 error: 'Ошибка',
                 close: 'Закрыть',
                 create: 'Создать',
+                history: 'История',
             },
             dashboard: {
                 greeting: 'Привет, {{name}}',
@@ -837,6 +838,13 @@ const resources = {
                     reminderBefore: 'Напоминать за',
                     reminderBeforeDescription: 'За сколько минут до тренировки отправлять напоминание',
                 },
+            },
+            notificationsPage: {
+                title: 'Уведомления',
+                empty: 'Уведомлений пока нет',
+                markAsRead: 'Отметить как прочитанное',
+                deleted: 'Уведомление удалено',
+                workoutRescheduled: 'Клиент перенес тренировку',
             },
         },
     },

@@ -234,7 +234,7 @@ export const FinancesPage = () => {
 
         return Array.from(clientMap.entries())
             .map(([name, revenue]) => ({
-                name: name.length > 30 ? name.substring(0, 30) + '...' : name,
+                name: name,
                 revenue: Math.round(revenue),
             }))
             .sort((a, b) => b.revenue - a.revenue)

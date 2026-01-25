@@ -436,3 +436,20 @@ class WorkoutTemplateExercise(Base):
     template = relationship("WorkoutTemplate", back_populates="exercises")
     exercise = relationship("Exercise")
 
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)  # Получатель
+    sender_id = Column(String, ForeignKey("users.id"), nullable=True)  # Отправитель (опционально)
+    type = Column(String, nullable=False)  # 'workout_rescheduled', 'workout_completed', etc.
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=True)
+    link = Column(String, nullable=True)  # Ссылка на объект (например, /calendar?workout_id=...)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])
+    sender = relationship("User", foreign_keys=[sender_id])
+

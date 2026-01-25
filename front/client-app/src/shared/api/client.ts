@@ -1181,6 +1181,18 @@ export const deleteExerciseTemplate = async (template_id: string): Promise<void>
   await api.delete<void>(`/api/library/exercise-templates/${template_id}`)
 }
 
+export interface Notification {
+  id: string
+  user_id: string
+  sender_id?: string | null
+  type: string
+  title: string
+  content?: string | null
+  link?: string | null
+  is_read: boolean
+  created_at: string
+}
+
 // Экспортируем объект apiClient для обратной совместимости
 export const apiClient = {
   sendSMS,
@@ -1277,4 +1289,16 @@ export const apiClient = {
   deleteExerciseTemplate,
   getToken,
   setToken,
+  // Notifications
+  getNotifications: async (params?: { limit?: number; skip?: number; only_unread?: boolean }): Promise<Notification[]> => {
+    const { data } = await api.get<Notification[]>('/api/notifications/', { params })
+    return data
+  },
+  markNotificationAsRead: async (notification_id: string): Promise<Notification> => {
+    const { data } = await api.put<Notification>(`/api/notifications/${notification_id}/read`)
+    return data
+  },
+  deleteNotification: async (notification_id: string): Promise<void> => {
+    await api.delete<void>(`/api/notifications/${notification_id}`)
+  }
 }
