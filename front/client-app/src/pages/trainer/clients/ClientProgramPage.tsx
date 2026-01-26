@@ -199,6 +199,9 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                     isActive: c.is_active ?? true,
                     workoutsPackage: c.workouts_package,
                     joinedDate: c.created_at || new Date().toISOString(),
+                    attendanceRate: 0,
+                    totalWorkouts: 0,
+                    completedWorkouts: 0,
                 }))
                 dispatch(setClients(mapped))
             }).finally(() => setIsLoadingClients(false))
@@ -333,6 +336,11 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
             }))
         }
         closeExerciseModal()
+    }
+
+    const handleEditExercise = (blockId: string, exercise: ProgramExercise) => {
+        setEditingExercise({ exercise, blockId })
+        openExerciseModal()
     }
 
     const handleDeleteExercise = (blockId: string, exerciseId: string) => {
