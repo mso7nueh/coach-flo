@@ -171,13 +171,6 @@ export const ClientDashboardPage = () => {
 
     }, [dispatch, clientId, period, clients.length]) // clients.length dependency to retry if empty
 
-    const client = clients.find((c) => c.id === clientId)
-
-    if (!client) {
-        if (isLoadingClients) return <Loader />
-        return <Text>{t('trainer.clients.clientNotFound')}</Text>
-    }
-
     // --- Helpers from DashboardPage ---
     const weightMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('вес') || m.label.toLowerCase().includes('weight')), [bodyMetrics])
     const sleepMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('сон') || m.label.toLowerCase().includes('sleep')), [bodyMetrics])
@@ -238,6 +231,13 @@ export const ClientDashboardPage = () => {
             steps: formatChartData(stepsMetric?.id).length > 0 ? formatChartData(stepsMetric?.id) : buildChartSeries(7500, 500),
         }
     }, [bodyMetrics, bodyMetricEntries, weightMetric, sleepMetric, heartRateMetric, stepsMetric])
+
+    const client = clients.find((c) => c.id === clientId)
+
+    if (!client) {
+        if (isLoadingClients) return <Loader />
+        return <Text>{t('trainer.clients.clientNotFound')}</Text>
+    }
 
     // Finance Logic
     const clientPayments = (payments || []).filter((payment) => payment.clientId === client.id).sort((a, b) => dayjs(b.date).diff(dayjs(a.date)))
