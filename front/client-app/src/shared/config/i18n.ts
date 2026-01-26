@@ -80,6 +80,8 @@ const resources = {
                     currentValue: 'Текущий показатель',
                     todayValue: 'За сегодня',
                     changeLabel: 'Изменение за период',
+                    sleepHours: 'Сон (часы)',
+                    sleepMinutes: 'Сон (минуты)',
                 },
                 updates: {
                     title: 'Обновления',

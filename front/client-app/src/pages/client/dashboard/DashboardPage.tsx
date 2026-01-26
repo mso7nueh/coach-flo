@@ -48,18 +48,18 @@ import { ResponsiveContainer, LineChart, Line, AreaChart, Area, ReferenceLine } 
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import {
-    closeConfiguration,
-    openConfiguration,
-    reorderTiles,
-    removeTrainerNote,
     setDashboardPeriod,
-    setMetricGoal,
     toggleTile,
-    updateTrainerNote,
+    reorderTiles,
+    openConfiguration,
+    closeConfiguration,
+    setMetricGoal,
     fetchDashboardStats,
     fetchTrainerNotes,
     createNoteApi,
     updateNoteApi,
+    removeTrainerNote,
+    type MetricPeriod,
 } from '@/app/store/slices/dashboardSlice'
 import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
 import { fetchBodyMetrics, fetchBodyMetricEntries, addBodyMetricEntryApi, createBodyMetricApi, type BodyMetricDescriptor } from '@/app/store/slices/metricsSlice'
@@ -609,7 +609,7 @@ export const DashboardPage = () => {
             </Group>
 
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                <Card withBorder padding="md">
+                <Card withBorder padding="md" radius="md">
                     <Stack gap="xs">
                         <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                             {t('dashboard.stats.totalWorkouts')}
@@ -627,7 +627,7 @@ export const DashboardPage = () => {
                     </Stack>
                 </Card>
 
-                <Card withBorder padding="md">
+                <Card withBorder padding="md" radius="md">
                     <Stack gap="xs">
                         <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                             {t('dashboard.stats.attendance')}
@@ -648,7 +648,7 @@ export const DashboardPage = () => {
                     </Stack>
                 </Card>
 
-                <Card withBorder padding="md">
+                <Card withBorder padding="md" radius="md">
                     <Stack gap="md">
                         <Stack gap="xs">
                             <Text size="xs" c="dimmed" fw={600} tt="uppercase">
@@ -670,51 +670,80 @@ export const DashboardPage = () => {
                                 {t('dashboard.stats.currentDayLabel')}
                             </Badge>
                         </Stack>
-                        <Divider />
-                        <Stack gap="xs">
-                            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                                {t('dashboard.stats.nextWorkout')}
-                            </Text>
-                            {stats?.next_workout ? (
-                                <>
-                                    <Text fw={600} size="lg" c="gray.9">
-                                        {dayjs(stats.next_workout.start).format('D MMM, HH:mm')}
-                                    </Text>
-                                    <Text size="sm" c="dimmed">
-                                        {stats.next_workout.title}
-                                    </Text>
-                                </>
-                            ) : upcoming.length > 0 ? (
-                                <>
-                                    <Text fw={600} size="lg" c="gray.9">
-                                        {dayjs(upcoming[0].start).format('D MMM, HH:mm')}
-                                    </Text>
-                                    <Text size="sm" c="dimmed">
-                                        {upcoming[0].title}
-                                    </Text>
-                                </>
-                            ) : (
-                                <Text size="sm" c="dimmed">
-                                    {t('dashboard.stats.noWorkouts')}
-                                </Text>
-                            )}
-                        </Stack>
                     </Stack>
                 </Card>
             </SimpleGrid>
 
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
+            <Group justify="space-between" align="center">
+                <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                    {t('dashboard.metricsTitle')}
+                </Text>
+                <Group gap="xs">
+                    <Select
+                        size="xs"
+                        value={period}
+                        data={[
+                            { value: '7d', label: t('dashboard.periods.7d') },
+                            { value: '14d', label: t('dashboard.periods.14d') },
+                            { value: '30d', label: t('dashboard.periods.30d') },
+                        ]}
+                        style={{ width: '120px' }}
+                        onChange={(val) => val && dispatch(setDashboardPeriod(val as MetricPeriod))}
+                    />
+                    <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={() => dispatch(openConfiguration())}>
+                        {t('dashboard.configureMetrics')}
+                    </Button>
+                </Group>
+            </Group>
+
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
                 {tiles.map((tile) => {
-                    const isTrend = tile.secondaryValue?.includes('↑') || tile.secondaryValue?.includes('↓')
-                    const trendUp = tile.secondaryValue?.includes('↑')
-                    const showToday = tile.showTodayValue && tile.todayValue
+                    const isTrend = tile.secondaryValue?.includes('↑') || tile.secondaryValue?.includes('↓') || (tile.id === 'weight' && weightChange) || (tile.id === 'sleep' && sleepChange) || (tile.id === 'heartRate' && heartRateChange) || (tile.id === 'steps' && stepsChange)
+
+                    // Derive values dynamically
+                    let displayValue = tile.value
+                    let displaySecondary = tile.secondaryValue
+                    let displayTodayValue = tile.todayValue
+                    let chartData: any[] = []
+                    let chartColor = '#7c3aed'
+
+                    if (tile.id === 'weight') {
+                        displayValue = weightValue ? `${weightValue.value.toFixed(1)} ${t('dashboard.bodyOverview.weightUnit')}` : '—'
+                        displaySecondary = weightChange ? `${weightChange.isPositive ? '↑' : '↓'} ${Math.abs(weightChange.changePercent).toFixed(1)}%` : undefined
+                        chartData = primaryChartData.weight
+                        chartColor = '#7c3aed'
+                    } else if (tile.id === 'sleep') {
+                        displayValue = sleepValue ? `${Math.floor(sleepValue.value)}${t('dashboard.bodyOverview.sleepUnit')} ${Math.round((sleepValue.value % 1) * 60)}м` : '—'
+                        displayTodayValue = sleepToday ? `${Math.floor(sleepToday.value)}${t('dashboard.bodyOverview.sleepUnit')} ${Math.round((sleepToday.value % 1) * 60)}м` : undefined
+                        displaySecondary = sleepChange ? `${sleepChange.isPositive ? '+' : ''}${sleepChange.change.toFixed(1)}ч` : undefined
+                        chartData = primaryChartData.sleep
+                        chartColor = '#06b6d4'
+                    } else if (tile.id === 'heartRate') {
+                        displayValue = heartRateValue ? `${Math.round(heartRateValue.value)} ${t('dashboard.bodyOverview.heartRateUnit')}` : '—'
+                        displayTodayValue = heartRateToday ? `${Math.round(heartRateToday.value)} ${t('dashboard.bodyOverview.heartRateUnit')}` : undefined
+                        displaySecondary = heartRateChange ? `${heartRateChange.isPositive ? '↑' : '↓'} ${Math.abs(heartRateChange.changePercent).toFixed(1)}%` : undefined
+                        chartData = primaryChartData.heartRate
+                        chartColor = '#ef4444'
+                    } else if (tile.id === 'steps') {
+                        displayValue = stepsValue ? `${Math.round(stepsValue.value).toLocaleString('ru-RU')}` : '—'
+                        displayTodayValue = stepsToday ? `${Math.round(stepsToday.value).toLocaleString('ru-RU')}` : undefined
+                        displaySecondary = stepsChange ? `${stepsChange.isPositive ? '+' : ''}${Math.abs(stepsChange.changePercent).toFixed(1)}%` : undefined
+                        chartData = primaryChartData.steps
+                        chartColor = '#3b82f6'
+                    } else if (tile.id === 'water') {
+                        displayValue = waterToday ? `${waterToday.value} ${t('metricsPage.water.unit')}` : `0 ${t('metricsPage.water.unit')}`
+                        chartColor = '#3b82f6'
+                    }
+
+                    const trendUp = displaySecondary?.includes('↑') || (tile.id === 'weight' && weightChange?.isPositive) || (tile.id === 'heartRate' && heartRateChange?.isPositive) || (tile.id === 'steps' && stepsChange?.isPositive) || (tile.id === 'sleep' && sleepChange?.isPositive)
+                    const showToday = (tile.showTodayValue || tile.id === 'water' || tile.id === 'sleep' || tile.id === 'heartRate' || tile.id === 'steps') && displayTodayValue
 
                     return (
-                        <Card key={tile.id} withBorder padding="md">
+                        <Card key={tile.id} withBorder padding="md" radius="md">
                             <Stack gap="xs">
                                 <Group justify="space-between" align="flex-start">
                                     <Stack gap={0}>
-                                        <Text size="xs" c="dimmed" fw={600}>
+                                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
                                             {t(tile.labelKey)}
                                         </Text>
                                         {tile.id === 'steps' && (
@@ -723,99 +752,103 @@ export const DashboardPage = () => {
                                             </Text>
                                         )}
                                     </Stack>
-                                    {isTrend && (
-                                        <Group gap={2}>
-                                            {trendUp ? (
-                                                <IconArrowUp size={14} color="var(--mantine-color-green-6)" />
-                                            ) : (
-                                                <IconArrowDown size={14} color="var(--mantine-color-red-6)" />
-                                            )}
-                                            {tile.secondaryValue && (
+                                    <Group gap="xs">
+                                        {displaySecondary && (
+                                            <Group gap={2}>
+                                                {trendUp ? (
+                                                    <IconArrowUp size={14} color="var(--mantine-color-green-6)" />
+                                                ) : (
+                                                    <IconArrowDown size={14} color="var(--mantine-color-red-6)" />
+                                                )}
                                                 <Text size="xs" c={trendUp ? 'green.7' : 'red.7'} fw={600}>
-                                                    {tile.secondaryValue.replace('↑', '').replace('↓', '')}
+                                                    {displaySecondary.replace('↑', '').replace('↓', '').replace('+', '')}
                                                 </Text>
-                                            )}
-                                        </Group>
-                                    )}
-                                    <ActionIcon
-                                        size="xs"
-                                        variant="subtle"
-                                        color="gray"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleOpenQuickLog(tile.id)
-                                        }}
-                                    >
-                                        <IconPlus size={14} />
-                                    </ActionIcon>
+                                            </Group>
+                                        )}
+                                        <ActionIcon
+                                            size="xs"
+                                            variant="subtle"
+                                            color="gray"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleOpenQuickLog(tile.id)
+                                            }}
+                                        >
+                                            <IconPlus size={14} />
+                                        </ActionIcon>
+                                    </Group>
                                 </Group>
-                                <Stack gap={4}>
-                                    {showToday ? (
-                                        <>
-                                            <Stack gap={2}>
+
+                                <Group justify="space-between" align="flex-end">
+                                    <Stack gap={0}>
+                                        {showToday ? (
+                                            <>
                                                 <Text size="xs" c="dimmed">
                                                     {t('dashboard.tiles.todayValue')}
                                                 </Text>
                                                 <Title order={3} c="gray.9">
-                                                    {tile.todayValue}
+                                                    {displayTodayValue}
                                                 </Title>
-                                            </Stack>
-                                            <Divider />
-                                            <Stack gap={2}>
-                                                <Text size="xs" c="dimmed">
-                                                    {t('dashboard.tiles.currentValue')}
-                                                </Text>
-                                                <Group gap="xs" align="flex-end">
-                                                    <Text fw={600} size="lg" c="gray.7">
-                                                        {tile.value}
-                                                    </Text>
-                                                    {tile.secondaryValue && (
-                                                        <Text size="xs" c="dimmed">
-                                                            {t('dashboard.tiles.changeLabel')}
-                                                        </Text>
-                                                    )}
-                                                </Group>
-                                            </Stack>
-                                        </>
-                                    ) : (
-                                        <>
+                                            </>
+                                        ) : (
                                             <Title order={3} c="gray.9">
-                                                {tile.value}
+                                                {displayValue}
                                             </Title>
-                                            {tile.secondaryValue && (
-                                                <Text size="xs" c="dimmed">
-                                                    {t('dashboard.tiles.changeLabel')}: {tile.secondaryValue.replace('↑', '').replace('↓', '')}
-                                                </Text>
-                                            )}
-                                        </>
-                                    )}
-                                    {tile.id === 'water' && (
-                                        <Group gap="xs" mt="xs">
-                                            <Button
-                                                size="compact-xs"
-                                                variant="light"
-                                                color="blue"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleQuickAddWater(250)
-                                                }}
-                                            >
-                                                +250
-                                            </Button>
-                                            <Button
-                                                size="compact-xs"
-                                                variant="light"
-                                                color="blue"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleQuickAddWater(500)
-                                                }}
-                                            >
-                                                +500
-                                            </Button>
-                                        </Group>
-                                    )}
-                                </Stack>
+                                        )}
+                                    </Stack>
+                                </Group>
+
+                                {chartData.length > 0 && (
+                                    <Box h={40} mt="xs">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={chartData}>
+                                                <defs>
+                                                    <linearGradient id={`grad-${tile.id}`} x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
+                                                        <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="value"
+                                                    stroke={chartColor}
+                                                    strokeWidth={1.5}
+                                                    fill={`url(#grad-${tile.id})`}
+                                                    isAnimationActive={false}
+                                                />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </Box>
+                                )}
+
+                                {tile.id === 'water' && (
+                                    <Group gap="xs" mt="xs">
+                                        <Button
+                                            size="compact-xs"
+                                            variant="light"
+                                            color="blue"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleQuickAddWater(250)
+                                            }}
+                                            style={{ flex: 1 }}
+                                        >
+                                            +250
+                                        </Button>
+                                        <Button
+                                            size="compact-xs"
+                                            variant="light"
+                                            color="blue"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleQuickAddWater(500)
+                                            }}
+                                            style={{ flex: 1 }}
+                                        >
+                                            +500
+                                        </Button>
+                                    </Group>
+                                )}
                             </Stack>
                         </Card>
                     )
@@ -903,234 +936,6 @@ export const DashboardPage = () => {
                 </Card>
             </SimpleGrid>
 
-            <Card withBorder padding="md">
-                <Stack gap="md">
-                    <Group justify="space-between" align="center">
-                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                            {t('dashboard.bodyOverview.title')}
-                        </Text>
-                        <Group gap="xs">
-                            <Select
-                                size="xs"
-                                value="30d"
-                                data={[
-                                    { value: '7d', label: t('dashboard.periods.7d') },
-                                    { value: '14d', label: t('dashboard.periods.14d') },
-                                    { value: '30d', label: t('dashboard.periods.30d') },
-                                ]}
-                                style={{ width: '120px' }}
-                            />
-                            <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={() => dispatch(openConfiguration())}>
-                                {t('dashboard.configureMetrics')}
-                            </Button>
-                        </Group>
-                    </Group>
-                    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-                        <Card withBorder padding="md">
-                            <Stack gap="xs">
-                                <Group justify="space-between" align="flex-start">
-                                    <Stack gap={2}>
-                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.weight')}</Text>
-                                        <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">{weightValue ? weightValue.value.toFixed(1) : '—'}</Text>
-                                            <Text size="sm" c="dimmed">{weightMetric?.unit || t('dashboard.bodyOverview.weightUnit')}</Text>
-                                            {weightChange && (
-                                                <Badge size="xs" color={weightChange.isPositive ? 'green' : 'red'} variant="light">
-                                                    {weightChange.isPositive ? '↑' : '↓'} {Math.abs(weightChange.changePercent).toFixed(1)}%
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Text size="xs" c="dimmed">
-                                            {t('dashboard.bodyOverview.currentValue')}
-                                        </Text>
-                                        {weightChange && (
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.changeLabel')}: {weightChange.isPositive ? '↑' : '↓'} {Math.abs(weightChange.changePercent).toFixed(1)}%
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('weight')}>
-                                        <IconEdit size={14} />
-                                    </ActionIcon>
-                                </Group>
-                                <ResponsiveContainer width="100%" height={100}>
-                                    <LineChart data={primaryChartData.weight} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                                        <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2} dot={false} />
-                                        {metricGoals.weight && (
-                                            <ReferenceLine
-                                                y={metricGoals.weight}
-                                                stroke="#7c3aed"
-                                                strokeWidth={1.5}
-                                                strokeDasharray="4 4"
-                                                strokeOpacity={0.5}
-                                            />
-                                        )}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </Stack>
-                        </Card>
-                        <Card withBorder padding="md">
-                            <Stack gap="xs">
-                                <Group justify="space-between" align="flex-start">
-                                    <Stack gap={2}>
-                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.sleep')}</Text>
-                                        <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">
-                                                {sleepValue ? `${Math.floor(sleepValue.value)} h ${Math.round((sleepValue.value % 1) * 60)} m` : '—'}
-                                            </Text>
-                                            {sleepChange && (
-                                                <Badge size="xs" color={sleepChange.isPositive ? 'green' : 'red'} variant="light">
-                                                    {sleepChange.isPositive ? '+' : ''}{sleepChange.change.toFixed(1)}h
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Group gap="xs">
-                                            {sleepToday && (
-                                                <>
-                                                    <Text size="xs" c="dimmed">
-                                                        {t('dashboard.bodyOverview.todayValue')}: {Math.floor(sleepToday.value)} h {Math.round((sleepToday.value % 1) * 60)} m
-                                                    </Text>
-                                                    <Text size="xs" c="dimmed">•</Text>
-                                                </>
-                                            )}
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.currentValue')}: {sleepValue ? `${Math.floor(sleepValue.value)} h ${Math.round((sleepValue.value % 1) * 60)} m` : '—'}
-                                            </Text>
-                                        </Group>
-                                        {sleepChange && (
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.changeLabel')}: {sleepChange.isPositive ? '+' : ''}{sleepChange.change.toFixed(1)} ч
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('sleep')}>
-                                        <IconEdit size={14} />
-                                    </ActionIcon>
-                                </Group>
-                                <ResponsiveContainer width="100%" height={100}>
-                                    <AreaChart data={primaryChartData.sleep} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                                        <Area type="monotone" dataKey="value" stroke="#06b6d4" strokeWidth={2} fill="#06b6d4" fillOpacity={0.2} />
-                                        {metricGoals.sleep && (
-                                            <ReferenceLine
-                                                y={metricGoals.sleep}
-                                                stroke="#7c3aed"
-                                                strokeWidth={1.5}
-                                                strokeDasharray="4 4"
-                                                strokeOpacity={0.5}
-                                            />
-                                        )}
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </Stack>
-                        </Card>
-                        <Card withBorder padding="md">
-                            <Stack gap="xs">
-                                <Group justify="space-between" align="flex-start">
-                                    <Stack gap={2}>
-                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.heartRate')}</Text>
-                                        <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">{heartRateValue ? Math.round(heartRateValue.value) : '—'}</Text>
-                                            <Text size="sm" c="dimmed">{heartRateMetric?.unit || t('dashboard.bodyOverview.heartRateUnit')}</Text>
-                                            {heartRateChange && (
-                                                <Badge size="xs" color={heartRateChange.isPositive ? 'red' : 'green'} variant="light">
-                                                    {heartRateChange.isPositive ? '↑' : '↓'} {Math.abs(heartRateChange.changePercent).toFixed(1)}%
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Group gap="xs">
-                                            {heartRateToday && (
-                                                <>
-                                                    <Text size="xs" c="dimmed">
-                                                        {t('dashboard.bodyOverview.todayValue')}: {Math.round(heartRateToday.value)} {heartRateMetric?.unit || t('dashboard.bodyOverview.heartRateUnit')}
-                                                    </Text>
-                                                    <Text size="xs" c="dimmed">•</Text>
-                                                </>
-                                            )}
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.currentValue')}: {heartRateValue ? Math.round(heartRateValue.value) : '—'} {heartRateMetric?.unit || t('dashboard.bodyOverview.heartRateUnit')}
-                                            </Text>
-                                        </Group>
-                                        {heartRateChange && (
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.changeLabel')}: {heartRateChange.isPositive ? '↑' : '↓'} {Math.abs(heartRateChange.changePercent).toFixed(1)}%
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('heartRate')}>
-                                        <IconEdit size={14} />
-                                    </ActionIcon>
-                                </Group>
-                                <ResponsiveContainer width="100%" height={100}>
-                                    <LineChart data={primaryChartData.heartRate} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                                        <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={2} dot={false} />
-                                        {metricGoals.heartRate && (
-                                            <ReferenceLine
-                                                y={metricGoals.heartRate}
-                                                stroke="#7c3aed"
-                                                strokeWidth={1.5}
-                                                strokeDasharray="4 4"
-                                                strokeOpacity={0.5}
-                                            />
-                                        )}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </Stack>
-                        </Card>
-                        <Card withBorder padding="md">
-                            <Stack gap="xs">
-                                <Group justify="space-between" align="flex-start">
-                                    <Stack gap={2}>
-                                        <Text size="xs" c="dimmed">{t('dashboard.bodyOverview.steps')}</Text>
-                                        <Group gap="xs" align="flex-end">
-                                            <Text fw={700} size="lg">{stepsValue ? Math.round(stepsValue.value).toLocaleString('ru-RU') : '—'}</Text>
-                                            {stepsChange && (
-                                                <Badge size="xs" color={stepsChange.isPositive ? 'green' : 'red'} variant="light">
-                                                    {stepsChange.isPositive ? '+' : ''}{Math.abs(stepsChange.changePercent).toFixed(1)}%
-                                                </Badge>
-                                            )}
-                                        </Group>
-                                        <Group gap="xs">
-                                            {stepsToday && (
-                                                <>
-                                                    <Text size="xs" c="dimmed">
-                                                        {t('dashboard.bodyOverview.todayValue')}: {Math.round(stepsToday.value).toLocaleString('ru-RU')}
-                                                    </Text>
-                                                    <Text size="xs" c="dimmed">•</Text>
-                                                </>
-                                            )}
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.currentValue')}: {stepsValue ? Math.round(stepsValue.value).toLocaleString('ru-RU') : '—'}
-                                            </Text>
-                                        </Group>
-                                        {stepsChange && (
-                                            <Text size="xs" c="dimmed">
-                                                {t('dashboard.bodyOverview.changeLabel')}: {stepsChange.isPositive ? '+' : ''}{Math.abs(stepsChange.changePercent).toFixed(1)}%
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                    <ActionIcon size="xs" variant="subtle" onClick={() => handleOpenQuickLog('steps')}>
-                                        <IconEdit size={14} />
-                                    </ActionIcon>
-                                </Group>
-                                <ResponsiveContainer width="100%" height={100}>
-                                    <AreaChart data={primaryChartData.steps} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.2} />
-                                        {metricGoals.steps && (
-                                            <ReferenceLine
-                                                y={metricGoals.steps}
-                                                stroke="#7c3aed"
-                                                strokeWidth={1.5}
-                                                strokeDasharray="4 4"
-                                                strokeOpacity={0.5}
-                                            />
-                                        )}
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </Stack>
-                        </Card>
-                    </SimpleGrid>
-                </Stack>
-            </Card>
 
             <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
                 <Card withBorder padding="md">
