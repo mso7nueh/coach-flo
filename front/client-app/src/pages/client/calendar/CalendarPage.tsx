@@ -112,9 +112,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     const [formState, setFormState] = useState<WorkoutFormState>(
         buildFormState(selectedDate, { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }),
     )
-    const [highlightedDates, setHighlightedDates] = useState<string[]>([])
     const [activeDragWorkout, setActiveDragWorkout] = useState<ClientWorkout | null>(null)
-    const [dragError, setDragError] = useState<string | null>(null)
 
     // Загружаем тренировки при открытии календаря
     useEffect(() => {
@@ -168,24 +166,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
         return days
     }, [startDate])
 
-    const getTrainerAvailableDates = (trainerId?: string) => {
-        if (!trainerId) {
-            return []
-        }
-        const availability = trainerAvailability[trainerId]
-        if (!availability) {
-            return []
-        }
-        return Object.keys(availability).filter((dayKey) => (availability[dayKey]?.length ?? 0) > 0)
-    }
-
-    const getTrainerSlotsForDay = (trainerId?: string, date?: Date | null) => {
-        if (!trainerId || !date) {
-            return []
-        }
-        const dayKey = dayjs(date).startOf('day').toISOString()
-        return trainerAvailability[trainerId]?.[dayKey] ?? []
-    }
 
     const workoutsPerDay = useMemo(() => {
         const grouped = workouts.reduce<Record<string, typeof workouts>>((acc, item) => {
@@ -203,11 +183,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
 
         return grouped
     }, [workouts])
-    const availableDatesForTrainer = getTrainerAvailableDates(formState.trainerId ?? trainerInfo?.id)
-    const availableSlotsForSelectedDate =
-        formState.withTrainer && formState.date
-            ? getTrainerSlotsForDay(formState.trainerId ?? trainerInfo?.id, formState.date)
-            : []
 
     const isTrainerDrag = Boolean(activeDragWorkout && activeDragWorkout.withTrainer && activeDragWorkout.format === 'offline')
 
@@ -367,30 +342,18 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     const handleDragStart = (event: DragEvent<HTMLDivElement>, workout: ClientWorkout) => {
         event.dataTransfer.setData('text/plain', workout.id)
         setActiveDragWorkout(workout)
-        if (workout.withTrainer && workout.format === 'offline') {
-            setHighlightedDates(getTrainerAvailableDates(workout.trainerId))
-        }
     }
 
     const handleDragEnd = () => {
         setActiveDragWorkout(null)
-        setHighlightedDates([])
-        setDragError(null)
     }
 
-    const isDayBlockedForWorkout = (workout: ClientWorkout, day: dayjs.Dayjs) => {
-        if (!workout.withTrainer || workout.format !== 'offline' || !workout.trainerId) {
-            return false
-        }
-        return getTrainerSlotsForDay(workout.trainerId, day.toDate()).length === 0
-    }
 
     const handleDayDragOver = (event: DragEvent<HTMLDivElement>) => {
         if (!activeDragWorkout) {
             return
         }
         event.preventDefault()
-        setDragError(null)
     }
 
     const handleDropOnDay = (event: DragEvent<HTMLDivElement>, day: dayjs.Dayjs) => {
@@ -410,7 +373,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
         const updatedEnd = updatedStart.add(duration, 'minute')
 
         dispatch(moveWorkout({ id: droppedWorkoutId, targetDate: targetDateISO }))
-        setDragError(null)
         handleDragEnd()
         applyWorkoutToForm({
             ...workout,
@@ -454,28 +416,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
 
             {/* Удалено предупреждение о блокировке переноса */}
 
-            {activeDragWorkout && highlightedDates.length > 0 && (
-                <Alert
-                    color="violet"
-                    variant="light"
-                    title={t('calendar.trainerAvailabilityTitle', {
-                        trainer: activeDragWorkout.trainerId && trainerInfo?.id === activeDragWorkout.trainerId
-                            ? trainerInfo.fullName
-                            : t('calendar.trainerFallbackName'),
-                    })}
-                >
-                    <Group gap="xs" mt="sm" wrap="wrap">
-                        {highlightedDates.map((date) => (
-                            <Badge key={date} color="violet" variant="light">
-                                {dayjs(date).format('DD MMM')}
-                            </Badge>
-                        ))}
-                    </Group>
-                    <Text size="xs" c="dimmed" mt="xs">
-                        {t('calendar.trainerAvailabilityHint')}
-                    </Text>
-                </Alert>
-            )}
 
             <ScrollArea h={`calc(100vh - ${200}px)`} type="auto" offsetScrollbars>
                 <div style={{ display: 'flex', flexDirection: 'column', minHeight: '600px', paddingRight: 'var(--mantine-spacing-md)' }}>
@@ -507,14 +447,9 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             const dayWorkouts = getDayWorkouts(day)
                             const isFirstDay = index === 0
                             const isCurrentDay = isToday(day)
-                            const dayKey = day.startOf('day').toISOString()
-                            const isHighlightedAsAvailable = highlightedDates.includes(dayKey)
-                            const isBlockedForDrag = false
                             const dayBackgroundColor = isCurrentDay
                                 ? 'var(--mantine-color-violet-0)'
-                                : isHighlightedAsAvailable
-                                    ? 'var(--mantine-color-violet-0)'
-                                    : 'white'
+                                : 'white'
 
                             return (
                                 <div
@@ -522,29 +457,17 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                     style={{
                                         borderRight:
                                             index % 7 !== 6
-                                                ? `1px solid ${isHighlightedAsAvailable
-                                                    ? 'var(--mantine-color-violet-4)'
-                                                    : 'var(--mantine-color-gray-3)'
-                                                }`
+                                                ? `1px solid var(--mantine-color-gray-3)`
                                                 : 'none',
                                         borderLeft: isFirstDay
-                                            ? `1px solid ${isHighlightedAsAvailable
-                                                ? 'var(--mantine-color-violet-4)'
-                                                : 'var(--mantine-color-gray-3)'
-                                            }`
+                                            ? `1px solid var(--mantine-color-gray-3)`
                                             : 'none',
-                                        borderBottom: `1px solid ${isHighlightedAsAvailable ? 'var(--mantine-color-violet-4)' : 'var(--mantine-color-gray-3)'
-                                            }`,
+                                        borderBottom: `1px solid var(--mantine-color-gray-3)`,
                                         padding: '8px 4px',
                                         minHeight: '120px',
                                         backgroundColor: dayBackgroundColor,
                                         position: 'relative',
-                                        cursor: isBlockedForDrag ? 'not-allowed' : 'pointer',
-                                        boxShadow: isBlockedForDrag
-                                            ? 'inset 0 0 0 2px var(--mantine-color-red-4)'
-                                            : isHighlightedAsAvailable
-                                                ? 'inset 0 0 0 1px var(--mantine-color-violet-4)'
-                                                : undefined,
+                                        cursor: 'pointer',
                                     }}
                                     onClick={(e) => {
                                         if (e.target === e.currentTarget) {
@@ -553,14 +476,14 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                     }}
                                     onDragOver={(event) => handleDayDragOver(event)}
                                     onDragEnter={(event) => handleDayDragOver(event)}
-                                    onDragLeave={() => setDragError(null)}
+                                    onDragLeave={() => { }}
                                     onDrop={(event) => handleDropOnDay(event, day)}
                                 >
                                     <Group justify="space-between" mb="xs" gap="xs">
                                         <Text
                                             size="sm"
                                             fw={isCurrentDay ? 700 : isPast(day) ? 400 : 600}
-                                            c={isCurrentDay ? 'white' : isBlockedForDrag ? 'red.7' : isPast(day) ? 'dimmed' : 'gray.9'}
+                                            c={isCurrentDay ? 'white' : isPast(day) ? 'dimmed' : 'gray.9'}
                                             style={{
                                                 width: '28px',
                                                 height: '28px',
@@ -568,7 +491,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 borderRadius: '50%',
-                                                backgroundColor: isCurrentDay ? 'var(--mantine-color-violet-6)' : isBlockedForDrag ? 'var(--mantine-color-red-2)' : 'transparent',
+                                                backgroundColor: isCurrentDay ? 'var(--mantine-color-violet-6)' : 'transparent',
                                             }}
                                         >
                                             {day.date()}
@@ -885,58 +808,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             }))
                         }
                     />
-                    {formState.withTrainer && (
-                        <Card radius="lg" padding="md" withBorder>
-                            <Stack gap="xs">
-                                <Text size="sm" fw={600}>
-                                    {t('calendar.availableTrainerDates')}
-                                </Text>
-                                {availableDatesForTrainer.length > 0 ? (
-                                    <Group gap="xs" wrap="wrap">
-                                        {availableDatesForTrainer.map((date) => (
-                                            <Badge key={date} color="violet" variant="light">
-                                                {dayjs(date).format('DD MMM')}
-                                            </Badge>
-                                        ))}
-                                    </Group>
-                                ) : (
-                                    <Text size="xs" c="dimmed">
-                                        {t('calendar.noTrainerDates')}
-                                    </Text>
-                                )}
-                                <Text size="sm" fw={600} mt="sm">
-                                    {t('calendar.availableTrainerSlots')}
-                                </Text>
-                                {availableSlotsForSelectedDate.length > 0 ? (
-                                    <Group gap="xs" wrap="wrap">
-                                        {availableSlotsForSelectedDate.map((slot) => {
-                                            const startLabel = dayjs(slot.start).format('HH:mm')
-                                            const endLabel = dayjs(slot.end).format('HH:mm')
-                                            const isActive = formState.startTime === startLabel && formState.endTime === endLabel
-                                            return (
-                                                <Button
-                                                    key={`${slot.start}-${slot.end}`}
-                                                    size="compact-sm"
-                                                    variant={isActive ? 'filled' : 'light'}
-                                                    color={isActive ? 'violet' : 'gray'}
-                                                    onClick={() => handleSlotSelect(slot)}
-                                                >
-                                                    {startLabel} - {endLabel}
-                                                </Button>
-                                            )
-                                        })}
-                                    </Group>
-                                ) : (
-                                    <Text size="xs" c="red">
-                                        {t('calendar.noSlotsForSelectedDate')}
-                                    </Text>
-                                )}
-                                <Text size="xs" c="dimmed">
-                                    {t('calendar.selectSlotHint')}
-                                </Text>
-                            </Stack>
-                        </Card>
-                    )}
                     <Select
                         label={t('program.assignToCalendar')}
                         placeholder={t('program.assignToCalendar')}
