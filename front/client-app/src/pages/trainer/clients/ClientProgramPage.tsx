@@ -50,6 +50,7 @@ import {
     fetchProgramDays,
     selectProgram,
     selectProgramDay,
+    createProgram,
     createProgramDay,
     updateProgramDay,
     deleteProgram,
@@ -256,9 +257,23 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
         }
     }
 
-    const handleAddDay = () => {
-        if (!selectedProgramId) return
-        dispatch(createProgramDay({ programId: selectedProgramId, name: `${t('common.day')} ${days.length + 1}` }))
+    const handleAddDay = async () => {
+        let programId = selectedProgramId
+        if (!programId && clientId) {
+            try {
+                const newProgram = await dispatch(createProgram({
+                    title: `${t('common.program')} - ${client?.fullName || clientId}`,
+                    owner: 'trainer',
+                    userId: clientId
+                })).unwrap()
+                programId = newProgram.id
+            } catch (e: any) {
+                notifications.show({ title: t('common.error'), message: e.message || t('common.error'), color: 'red' })
+                return
+            }
+        }
+        if (!programId) return
+        dispatch(createProgramDay({ programId, name: `${t('common.day')} ${days.length + 1}` }))
     }
 
     const handleRenameDay = () => {
