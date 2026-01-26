@@ -13,6 +13,7 @@ def migrate():
     migrations = [
         "ALTER TABLE program_exercises ADD COLUMN IF NOT EXISTS description TEXT",
         "ALTER TABLE program_exercises ADD COLUMN IF NOT EXISTS video_url VARCHAR(500)",
+        "ALTER TABLE program_exercises ADD COLUMN IF NOT EXISTS exercise_id VARCHAR(36)",
     ]
     
     try:
