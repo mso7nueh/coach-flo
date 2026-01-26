@@ -232,6 +232,17 @@ export const ClientDashboardPage = () => {
         }
     }, [bodyMetrics, bodyMetricEntries, weightMetric, sleepMetric, heartRateMetric, stepsMetric])
 
+    const progressPhotos = useMemo(() => {
+        return (stats?.progress_photos || []).map((photo: any, index: number) => ({
+            id: photo.id,
+            label: dayjs(photo.date).format('MM/YY'),
+            date: photo.date,
+            accent: index % 2 === 0 ? '#7c3aed' : '#f97316',
+            url: photo.url,
+            notes: photo.notes || '',
+        }))
+    }, [stats?.progress_photos])
+
     const client = clients.find((c) => c.id === clientId)
 
     if (!client) {
@@ -271,18 +282,6 @@ export const ClientDashboardPage = () => {
     const completedWorkouts = stats?.completed_workouts ?? client.completedWorkouts ?? 0
     const attendanceRate = stats?.attendance_rate ?? client.attendanceRate ?? 0
     const todayWorkouts = stats?.today_workouts ?? 0
-
-    // Photos
-    const progressPhotos = useMemo(() => {
-        return (stats?.progress_photos || []).map((photo: any, index: number) => ({
-            id: photo.id,
-            label: dayjs(photo.date).format('MM/YY'),
-            date: photo.date,
-            accent: index % 2 === 0 ? '#7c3aed' : '#f97316',
-            url: photo.url,
-            notes: photo.notes || '',
-        }))
-    }, [stats?.progress_photos])
 
     // Handlers
     const handleDisableClient = () => {

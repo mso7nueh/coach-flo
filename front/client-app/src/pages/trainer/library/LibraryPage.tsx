@@ -37,6 +37,7 @@ import {
     createWorkoutApi,
     updateWorkoutApi,
     deleteWorkoutTemplateApi,
+    createWorkoutTemplateFromDayApi,
 } from '@/app/store/slices/librarySlice'
 import {
     createProgram,
@@ -749,13 +750,26 @@ export const LibraryPage = () => {
         })
     }
 
-    const handleSaveProgramAsTemplate = () => {
-        if (!selectedDay || !programTemplateName.trim()) {
+    const handleSaveDayAsTemplate = async () => {
+        if (!selectedDay) {
             return
         }
-        console.log('Saving template:', programTemplateName, selectedDay)
-        closeProgramTemplateModal()
-        setProgramTemplateName('')
+
+        try {
+            await dispatch(createWorkoutTemplateFromDayApi(selectedDay.id)).unwrap()
+            notifications.show({
+                title: t('common.success'),
+                message: t('program.dayCreatedFromTemplate'),
+                color: 'green',
+            })
+            closeProgramTemplateModal()
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error || t('program.error.saveTemplate'),
+                color: 'red',
+            })
+        }
     }
 
     const visibleProgramDays = useMemo(() => {
@@ -3199,7 +3213,7 @@ export const LibraryPage = () => {
                         <Button variant="default" onClick={closeProgramTemplateModal}>
                             {t('common.cancel')}
                         </Button>
-                        <Button onClick={handleSaveProgramAsTemplate} disabled={!programTemplateName.trim()}>
+                        <Button onClick={handleSaveDayAsTemplate}>
                             {t('common.save')}
                         </Button>
                     </Group>

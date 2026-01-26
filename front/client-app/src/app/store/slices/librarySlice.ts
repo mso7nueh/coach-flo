@@ -321,6 +321,20 @@ export const createWorkoutApi = createAsyncThunk(
     }
 )
 
+export const createWorkoutTemplateFromDayApi = createAsyncThunk(
+    'library/createWorkoutTemplateFromDayApi',
+    async (dayId: string, { rejectWithValue, dispatch }) => {
+        try {
+            const template = await apiClient.createWorkoutTemplateFromDay(dayId)
+            const newWorkout = mapApiWorkoutTemplateToState(template)
+            await dispatch(fetchWorkoutTemplates())
+            return newWorkout
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка создания шаблона')
+        }
+    }
+)
+
 export const updateWorkoutApi = createAsyncThunk(
     'library/updateWorkoutApi',
     async (

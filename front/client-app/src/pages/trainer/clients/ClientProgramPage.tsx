@@ -43,6 +43,8 @@ import {
     IconVideo,
     IconInfoCircle,
     IconRepeat,
+    IconTemplate,
+    IconDeviceFloppy,
 } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import {
@@ -63,7 +65,11 @@ import {
     type ProgramBlockInput,
 } from '@/app/store/slices/programSlice'
 import { createWorkout } from '@/app/store/slices/calendarSlice'
-import { fetchExercises, fetchWorkoutTemplates } from '@/app/store/slices/librarySlice'
+import {
+    fetchExercises,
+    fetchWorkoutTemplates,
+    createWorkoutTemplateFromDayApi
+} from '@/app/store/slices/librarySlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
 import { useDisclosure } from '@mantine/hooks'
@@ -170,8 +176,10 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
     const dispatch = useAppDispatch()
     const { clients } = useAppSelector((state) => state.clients)
     const { days, selectedProgramId, selectedDayId, programs: clientPrograms } = useAppSelector((state) => state.program)
+    const { workouts: workoutTemplates } = useAppSelector((state) => state.library)
     const [isLoadingClients, setIsLoadingClients] = useState(false)
     const [selectProgramModalOpened, { open: openSelectProgramModal, close: closeSelectProgramModal }] = useDisclosure(false)
+    const [templatePickerOpened, { open: openTemplatePicker, close: closeTemplatePicker }] = useDisclosure(false)
     const [trainerPrograms, setTrainerPrograms] = useState<any[]>([])
     const [selectedTrainerProgramId, setSelectedTrainerProgramId] = useState<string | null>(null)
     const [isCopying, setIsCopying] = useState(false)
@@ -276,19 +284,6 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
         dispatch(createProgramDay({ programId, name: `${t('common.day')} ${days.length + 1}` }))
     }
 
-    const handleRenameDay = () => {
-        if (!selectedProgramId || !selectedDayId || !renameDraft.trim()) return
-        dispatch(updateProgramDay({ programId: selectedProgramId, dayId: selectedDayId, data: { name: renameDraft } }))
-        closeRename()
-    }
-
-    const handleDeleteDay = (dayId: string) => {
-        if (!selectedProgramId) return
-        if (window.confirm(t('common.confirmDelete'))) {
-            dispatch(deleteProgramDayApi({ programId: selectedProgramId, dayId }))
-        }
-    }
-
     const handleCopyDay = (dayId: string) => {
         const day = days.find(d => d.id === dayId)
         if (!day || !selectedProgramId) return
@@ -310,6 +305,106 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                 }))
             }))
         }))
+    }
+
+    const handleRenameDay = () => {
+        if (!selectedProgramId || !selectedDayId || !renameDraft.trim()) return
+        dispatch(updateProgramDay({ programId: selectedProgramId, dayId: selectedDayId, data: { name: renameDraft } }))
+        closeRename()
+    }
+
+    const handleDeleteDay = (dayId: string) => {
+        if (!selectedProgramId) return
+        if (window.confirm(t('common.confirmDelete'))) {
+            dispatch(deleteProgramDayApi({ programId: selectedProgramId, dayId }))
+        }
+    }
+
+    const handleAddDayFromTemplate = async (template: any) => {
+        let programId = selectedProgramId
+        if (!programId && clientId) {
+            try {
+                const newProgram = await dispatch(createProgram({
+                    title: `${t('common.program')} - ${client?.fullName || clientId}`,
+                    owner: 'trainer',
+                    userId: clientId
+                })).unwrap()
+                programId = newProgram.id
+            } catch (e: any) {
+                notifications.show({ title: t('common.error'), message: e.message || t('common.error'), color: 'red' })
+                return
+            }
+        }
+        if (!programId) return
+
+        try {
+            await dispatch(createProgramDay({
+                programId,
+                name: template.name,
+                sourceTemplateId: template.id,
+                blocks: [
+                    {
+                        type: 'warmup',
+                        title: t('program.sections.warmup'),
+                        exercises: template.warmup.map((ex: any) => ({
+                            title: ex.exercise?.name || t('program.newExercise'),
+                            sets: ex.sets,
+                            reps: ex.reps,
+                            weight: ex.weight ? String(ex.weight) : undefined,
+                            duration: ex.duration ? `${ex.duration} ${t('program.minutesShort')}` : undefined,
+                            rest: ex.rest ? `${ex.rest} ${t('program.minutesShort')}` : undefined,
+                        }))
+                    },
+                    {
+                        type: 'main',
+                        title: t('program.sections.main'),
+                        exercises: template.main.map((ex: any) => ({
+                            title: ex.exercise?.name || t('program.newExercise'),
+                            sets: ex.sets,
+                            reps: ex.reps,
+                            weight: ex.weight ? String(ex.weight) : undefined,
+                            duration: ex.duration ? `${ex.duration} ${t('program.minutesShort')}` : undefined,
+                            rest: ex.rest ? `${ex.rest} ${t('program.minutesShort')}` : undefined,
+                        }))
+                    },
+                    {
+                        type: 'cooldown',
+                        title: t('program.sections.cooldown'),
+                        exercises: template.cooldown.map((ex: any) => ({
+                            title: ex.exercise?.name || t('program.newExercise'),
+                            sets: ex.sets,
+                            reps: ex.reps,
+                            weight: ex.weight ? String(ex.weight) : undefined,
+                            duration: ex.duration ? `${ex.duration} ${t('program.minutesShort')}` : undefined,
+                            rest: ex.rest ? `${ex.rest} ${t('program.minutesShort')}` : undefined,
+                        }))
+                    }
+                ]
+            })).unwrap()
+            notifications.show({ title: t('common.success'), message: t('program.dayCreatedFromTemplate'), color: 'green' })
+            closeTemplatePicker()
+        } catch (e: any) {
+            notifications.show({ title: t('common.error'), message: e.message || t('common.error'), color: 'red' })
+        }
+    }
+
+    const handleSaveDayAsTemplate = async (dayId: string) => {
+        try {
+            await dispatch(createWorkoutTemplateFromDayApi(dayId)).unwrap()
+            notifications.show({ title: t('common.success'), message: t('program.dayCreatedFromTemplate'), color: 'green' })
+        } catch (e: any) {
+            notifications.show({ title: t('common.error'), message: e.message || t('common.error'), color: 'red' })
+        }
+    }
+
+    const handleSaveProgramAsTemplate = async () => {
+        if (!selectedProgramId) return
+        try {
+            await dispatch(copyProgram({ programId: selectedProgramId })).unwrap()
+            notifications.show({ title: t('common.success'), message: t('program.programCreated'), color: 'green' })
+        } catch (e: any) {
+            notifications.show({ title: t('common.error'), message: e.message || t('common.error'), color: 'red' })
+        }
     }
 
     const handleAssignToCalendar = (values: AssignForm) => {
@@ -386,7 +481,10 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                     </Breadcrumbs>
                     <Group justify="space-between">
                         <Title order={2}>{t('common.program')} - {client.fullName}</Title>
-                        <Button leftSection={<IconPlus size={16} />} onClick={openSelectProgramModal}>{t('trainer.clients.selectProgram')}</Button>
+                        <Group>
+                            <Button leftSection={<IconDeviceFloppy size={16} />} variant="light" onClick={handleSaveProgramAsTemplate}>{t('program.saveAsTemplate')}</Button>
+                            <Button leftSection={<IconPlus size={16} />} onClick={openSelectProgramModal}>{t('trainer.clients.selectProgram')}</Button>
+                        </Group>
                     </Group>
                 </>
             )}
@@ -414,6 +512,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                     <Menu.Dropdown>
                                         <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => { setRenameDraft(day.name); openRename(); }}>{t('common.rename')}</Menu.Item>
                                         <Menu.Item leftSection={<IconCopy size={14} />} onClick={() => handleCopyDay(day.id)}>{t('common.copy')}</Menu.Item>
+                                        <Menu.Item leftSection={<IconDeviceFloppy size={14} />} onClick={() => handleSaveDayAsTemplate(day.id)}>{t('program.saveAsTemplate')}</Menu.Item>
                                         <Menu.Item leftSection={<IconCalendar size={14} />} onClick={() => { setAssignForm(createAssignForm(day.id)); openAssign(); }}>{t('trainer.clients.program.assignToCalendar')}</Menu.Item>
                                         <Menu.Divider />
                                         <Menu.Item color="red" leftSection={<IconTrash size={14} />} onClick={() => handleDeleteDay(day.id)}>{t('common.delete')}</Menu.Item>
@@ -423,6 +522,9 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                         ))}
                         <Button variant="dashed" color="violet" leftSection={<IconPlus size={16} />} size="sm" radius="xl" onClick={handleAddDay}>
                             {t('trainer.clients.program.addDay')}
+                        </Button>
+                        <Button variant="dashed" color="blue" leftSection={<IconTemplate size={16} />} size="sm" radius="xl" onClick={() => { dispatch(fetchWorkoutTemplates()); openTemplatePicker(); }}>
+                            {t('program.addFromTemplate')}
                         </Button>
                     </Group>
                 </ScrollArea>
@@ -537,6 +639,34 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                 initialExercise={editingExercise?.exercise || null}
                 t={t}
             />
+
+            <Modal opened={templatePickerOpened} onClose={closeTemplatePicker} title={t('program.templateLibraryTitle')} size="lg">
+                <Stack gap="md">
+                    {workoutTemplates.length === 0 ? (
+                        <Text ta="center" c="dimmed" py="xl">{t('program.templatesEmpty')}</Text>
+                    ) : (
+                        <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                            {workoutTemplates.map((template) => (
+                                <Card key={template.id} withBorder padding="md" radius="md" style={{ cursor: 'pointer' }} onClick={() => handleAddDayFromTemplate(template)}>
+                                    <Group justify="space-between">
+                                        <Stack gap={4}>
+                                            <Text fw={600}>{template.name}</Text>
+                                            <Text size="xs" c="dimmed">{template.description}</Text>
+                                            <Group gap={4}>
+                                                <Badge size="xs" variant="light">{template.level}</Badge>
+                                                <Badge size="xs" variant="light" color="violet">{template.goal}</Badge>
+                                            </Group>
+                                        </Stack>
+                                        <ActionIcon variant="light" color="blue">
+                                            <IconPlus size={16} />
+                                        </ActionIcon>
+                                    </Group>
+                                </Card>
+                            ))}
+                        </SimpleGrid>
+                    )}
+                </Stack>
+            </Modal>
         </Stack>
     )
 }

@@ -180,8 +180,6 @@ export const ClientMetricsContent = ({ embedded = false }: { embedded?: boolean 
     }, [dispatch, clientId])
 
 
-    const client = clients.find((c) => c.id === clientId)
-
     const clientBodyMetrics = Array.isArray(bodyMetrics) ? bodyMetrics : Object.values(bodyMetrics)
     const clientExerciseMetrics = Array.isArray(exerciseMetrics) ? exerciseMetrics : Object.values(exerciseMetrics)
 
@@ -197,20 +195,6 @@ export const ClientMetricsContent = ({ embedded = false }: { embedded?: boolean 
             setSelectedExerciseId((clientExerciseMetrics[0] as any)?.id ?? null)
         }
     }, [clientBodyMetrics, clientExerciseMetrics, selectedMetricId, selectedExerciseId])
-
-    // Пока загружаем, показываем заглушку или ничего
-    if (!client) {
-        if (isLoadingClients) return null // или можно показать Loader
-
-        return (
-            <Stack gap="md">
-                <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
-                    {t('common.back')}
-                </Button>
-                <Text>{t('trainer.clients.clientNotFound')}</Text>
-            </Stack>
-        )
-    }
 
     const selectedMetric = (clientBodyMetrics as any[]).find((m) => m.id === selectedMetricId)
     const selectedExercise = (clientExerciseMetrics as any[]).find((e) => e.id === selectedExerciseId)
@@ -270,6 +254,22 @@ export const ClientMetricsContent = ({ embedded = false }: { embedded?: boolean 
 
     const latestBodyValue = filteredBodyEntries.length > 0 ? filteredBodyEntries[filteredBodyEntries.length - 1] : null
     const latestExerciseValue = filteredExerciseEntries.length > 0 ? filteredExerciseEntries[filteredExerciseEntries.length - 1] : null
+
+    const client = clients.find((c) => c.id === clientId)
+
+    // Пока загружаем, показываем заглушку или ничего
+    if (!client) {
+        if (isLoadingClients) return null // или можно показать Loader
+
+        return (
+            <Stack gap="md">
+                <Button leftSection={<IconArrowLeft size={16} />} variant="subtle" onClick={() => navigate('/trainer/clients')}>
+                    {t('common.back')}
+                </Button>
+                <Text>{t('trainer.clients.clientNotFound')}</Text>
+            </Stack>
+        )
+    }
 
     return (
         <Stack gap="lg">

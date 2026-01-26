@@ -1104,6 +1104,11 @@ export const deleteWorkoutTemplate = async (template_id: string): Promise<void> 
   await api.delete<void>(`/api/library/workout-templates/${template_id}`)
 }
 
+export const createWorkoutTemplateFromDay = async (dayId: string): Promise<any> => {
+  const response = await api.post(`/api/library/workout-templates/from-day/${dayId}`)
+  return response.data
+}
+
 export const getExercises = async (params?: {
   search?: string
   muscle_group?: string
@@ -1288,6 +1293,7 @@ export const apiClient = {
   createWorkoutTemplate,
   updateWorkoutTemplate,
   deleteWorkoutTemplate,
+  createWorkoutTemplateFromDay,
   getExercises,
   getExercise,
   createExercise,

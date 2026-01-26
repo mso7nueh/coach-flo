@@ -507,3 +507,159 @@ async def delete_workout_template(
     db.delete(template)
     db.commit()
     return None
+
+
+@router.post(
+    "/workout-templates/from-day/{day_id}",
+    response_model=WorkoutTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать шаблон из дня программы",
+    description="""
+    Создание шаблона тренировки на основе существующего дня программы.
+    
+    **Требуется аутентификация:** Да (JWT токен, только для тренеров)
+    """
+)
+async def create_workout_template_from_day(
+    day_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Создать шаблон из дня программы (только для тренеров)"""
+    if current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут создавать шаблоны")
+    
+    # Получаем день программы
+    day = db.query(models.ProgramDay).filter(
+        models.ProgramDay.id == day_id
+    ).first()
+    
+    if not day:
+        raise HTTPException(status_code=404, detail="День программы не найден")
+    
+    # Проверяем доступ к программе
+    program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == day.program_id
+    ).first()
+    
+    if program.user_id != current_user.id:
+        # Проверяем, является ли пользователь клиентом этого тренера
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == program.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому дню программы")
+
+    template_id = str(uuid.uuid4())
+    db_template = models.WorkoutTemplate(
+        id=template_id,
+        trainer_id=current_user.id,
+        title=day.name,
+        description=day.notes,
+    )
+    db.add(db_template)
+    db.flush()
+    
+    # Копируем упражнения из всех блоков
+    idx = 0
+    for block in day.blocks:
+        for ex in block.exercises:
+            # Пытаемся найти упражнение в библиотеке по названию
+            # Это упрощенный подход, так как ProgramExercise не имеет ссылки на Exercise ID в текущей модели
+            lib_ex = db.query(models.Exercise).filter(
+                and_(
+                    models.Exercise.name == ex.title,
+                    models.Exercise.trainer_id == current_user.id
+                )
+            ).first()
+            
+            if not lib_ex:
+                # Если не нашли своего, ищем в общей библиотеке
+                lib_ex = db.query(models.Exercise).filter(
+                    and_(
+                        models.Exercise.name == ex.title,
+                        models.Exercise.trainer_id == None
+                    )
+                ).first()
+            
+            # Если не нашли в библиотеке, создаем новое упражнение
+            if not lib_ex:
+                lib_ex_id = str(uuid.uuid4())
+                lib_ex = models.Exercise(
+                    id=lib_ex_id,
+                    trainer_id=current_user.id,
+                    name=ex.title,
+                    description=ex.description,
+                    video_url=ex.video_url,
+                    visibility='trainer'
+                )
+                db.add(lib_ex)
+                db.flush()
+
+            # Вспомогательная функция для парсинга числовых значений из строк типа "70 кг"
+            def _parse_str(s, unit):
+                if not s: return None
+                try: return float(s.replace(f" {unit}", "").strip())
+                except: return None
+
+            exercise_template_id = str(uuid.uuid4())
+            db_exercise = models.WorkoutTemplateExercise(
+                id=exercise_template_id,
+                template_id=template_id,
+                exercise_id=lib_ex.id,
+                block_type=block.type,
+                sets=ex.sets,
+                reps=ex.reps,
+                duration=None, # Мы не можем достоверно спарсить это из строки в данный момент
+                rest=None,
+                weight=_parse_str(ex.weight, "кг"),
+                notes=ex.description,
+                order_index=idx,
+            )
+            # Пытаемся спарсить duration и rest если возможно
+            if ex.duration and " мин" in ex.duration:
+                try: db_exercise.duration = int(ex.duration.replace(" мин", "").strip())
+                except: pass
+            if ex.rest and " сек" in ex.rest:
+                try: db_exercise.rest = int(ex.rest.replace(" сек", "").strip())
+                except: pass
+
+            db.add(db_exercise)
+            idx += 1
+    
+    db.commit()
+    db.refresh(db_template)
+    
+    # Build response
+    exercises_response = []
+    for ex_t in db_template.exercises:
+        exercises_response.append(WorkoutTemplateExerciseResponse(
+            id=ex_t.id,
+            exercise_id=ex_t.exercise_id,
+            block_type=ex_t.block_type,
+            sets=ex_t.sets,
+            reps=ex_t.reps,
+            duration=ex_t.duration,
+            rest=ex_t.rest,
+            weight=ex_t.weight,
+            notes=ex_t.notes,
+            order=ex_t.order_index
+        ))
+    
+    return WorkoutTemplateResponse(
+        id=db_template.id,
+        trainer_id=db_template.trainer_id,
+        title=db_template.title,
+        description=db_template.description,
+        duration=db_template.duration,
+        level=db_template.level,
+        goal=db_template.goal,
+        muscle_groups=json.loads(db_template.muscle_groups) if db_template.muscle_groups else None,
+        equipment=json.loads(db_template.equipment) if db_template.equipment else None,
+        exercises=exercises_response,
+        created_at=db_template.created_at,
+        updated_at=db_template.updated_at
+    )
