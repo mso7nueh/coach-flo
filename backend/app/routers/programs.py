@@ -384,6 +384,10 @@ async def delete_program(
     if not _check_program_access(program, current_user, db):
         raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
     
+    # Запрещаем клиентам удалять программы тренеров
+    if current_user.role == models.UserRole.CLIENT and program.owner == "trainer":
+        raise HTTPException(status_code=403, detail="Нельзя удалить программу, созданную тренером")
+    
     db.delete(program)
     db.commit()
     return None
@@ -417,6 +421,17 @@ async def delete_program_day(
     
     if not day:
         raise HTTPException(status_code=404, detail="День программы не найден")
+        
+    # Запрещаем клиентам удалять дни, созданные тренером
+    if current_user.role == models.UserRole.CLIENT and day.owner == "trainer":
+        raise HTTPException(status_code=403, detail="Нельзя удалить тренировку, созданную тренером")
+    
+    # Для совместимости: если owner не задан или client, но сама программа trainer, 
+    # нужно проверить логику. В ТЗ сказано "если клиент создал план, он может его удалить".
+    # Значит если day.owner == 'client', то можно удалять даже в программе тренера?
+    # Обычно в программе тренера дни тоже 'trainer'. 
+    # Если клиент добавляет день в программу тренера, он становится 'client' (см. create_program_day).
+    # Так что проверка day.owner должна быть достаточной.
     
     db.delete(day)
     db.commit()
@@ -758,6 +773,13 @@ async def delete_program_exercise(
     
     if not _check_program_access(program, current_user, db):
         raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+
+    # Проверка на удаление (клиент не может удалять из дней тренера)
+    if current_user.role == models.UserRole.CLIENT:
+        # Находим день чтобы проверить владельца
+        day = db.query(models.ProgramDay).filter(models.ProgramDay.id == day_id).first()
+        if day and day.owner == "trainer":
+             raise HTTPException(status_code=403, detail="Нельзя удалить упражнение из тренировки тренера")
     
     # Check exercise
     exercise = db.query(models.ProgramExercise).filter(

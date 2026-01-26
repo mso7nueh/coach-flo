@@ -57,6 +57,29 @@ async def create_payment(
         notes=payment.notes
     )
     db.add(db_payment)
+    
+    # Обновляем данные клиента
+    if payment.type == models.PaymentType.PACKAGE and payment.package_size:
+        if client.workouts_package is None:
+            client.workouts_package = 0
+        client.workouts_package += payment.package_size
+        # Если есть дата сгорания и она в будущем, возможно стоит продлить?
+        # Пока просто добавляем количество.
+        
+    elif payment.type == models.PaymentType.SUBSCRIPTION and payment.subscription_days:
+        # Если подписка активна, продлеваем её
+        now = datetime.now().astimezone()
+        if client.subscription_expires_at and client.subscription_expires_at > now:
+            client.subscription_expires_at += timedelta(days=payment.subscription_days)
+        else:
+            # Иначе начинаем новую с момента оплаты (или с указанной даты, если она в будущем? обычно с момента оплаты)
+            # В данном коде payment.date используется как дата платежа.
+            # Если payment.date < now, это может быть внесение прошлого платежа.
+            # Логично продлевать от текущего момента или от payment.date?
+            # Если вносим исторический платеж, то от payment.date.
+            start_date = payment.date if payment.date else now
+            client.subscription_expires_at = start_date + timedelta(days=payment.subscription_days)
+            
     db.commit()
     db.refresh(db_payment)
     return db_payment

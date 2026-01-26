@@ -30,6 +30,7 @@ interface UserState {
     token?: string
     subscription_plan?: string
     subscription_expires_at?: string
+    workoutsPackage?: number
 }
 
 // Проверяем наличие токена в localStorage при инициализации
@@ -58,6 +59,7 @@ const initialState: UserState = {
     token: initialToken,
     subscription_plan: undefined,
     subscription_expires_at: undefined,
+    workoutsPackage: undefined,
 }
 
 export interface LoginCredentials {
@@ -97,6 +99,7 @@ const mapApiUserToState = (apiUser: ApiUser): Omit<UserState, 'isAuthenticated' 
         trainerConnectionCode: apiUser.trainer_connection_code || undefined,
         subscription_plan: apiUser.subscription_plan || undefined,
         subscription_expires_at: apiUser.subscription_expires_at || undefined,
+        workoutsPackage: apiUser.workouts_package || 0,
         trainer: apiUser.trainer ? {
             id: apiUser.trainer.id,
             fullName: apiUser.trainer.full_name,

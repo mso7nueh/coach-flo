@@ -86,142 +86,178 @@ export const ProfilePage = () => {
                 </Stack>
             </Card>
 
-            {isTrainer && user.trainerConnectionCode && (
+            {!isTrainer && (
                 <Card withBorder padding="xl">
                     <Stack gap="md">
-                        <Title order={4}>{t('profile.connectionCode')}</Title>
-                        <Group gap="md">
-                            <Text size="lg" fw={600} style={{ fontFamily: 'monospace', letterSpacing: '2px' }}>
-                                {user.trainerConnectionCode}
-                            </Text>
-                            <Button
-                                variant="light"
-                                size="sm"
-                                leftSection={codeCopied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                                onClick={handleCopyCode}
-                            >
-                                {codeCopied ? t('profile.codeCopied') : t('profile.copyCode')}
-                            </Button>
-                        </Group>
-                        <Text size="sm" c="dimmed">
-                            {t('profile.connectionCodeDescription')}
-                        </Text>
-                    </Stack>
-                </Card>
-            )}
-
-            {isTrainer && user.trainer?.description && (
-                <Card withBorder padding="xl">
-                    <Stack gap="md">
-                        <Title order={4}>{t('profile.description')}</Title>
-                        <Text size="sm" c="dimmed">
-                            {user.trainer.description}
-                        </Text>
-                    </Stack>
-                </Card>
-            )}
-
-            {!isTrainer && user.trainer && (
-                <Card withBorder padding="xl">
-                    <Stack gap="md">
-                        <Title order={4}>{t('common.myTrainer')}</Title>
-                        <Group gap="md">
-                            <Avatar size={60} color="blue">
-                                {getInitials(user.trainer.fullName)}
-                            </Avatar>
-                            <Stack gap={4} flex={1}>
-                                <Text fw={600} size="lg">
-                                    {user.trainer.fullName}
+                        <Title order={4}>{t('common.subscription')}</Title>
+                        <Group gap="xl">
+                            <Stack gap={2}>
+                                <Text size="xs" c="dimmed">
+                                    {t('profile.remainingWorkouts')}
                                 </Text>
-                                {user.trainer.description && (
-                                    <Text size="sm" c="dimmed" mt="xs">
-                                        {user.trainer.description}
-                                    </Text>
-                                )}
-                                {user.trainer.email && (
-                                    <Group gap="xs" mt="xs">
-                                        <IconMail size={16} color="var(--mantine-color-gray-6)" />
-                                        <Text size="sm" c="dimmed">
-                                            {user.trainer.email}
-                                        </Text>
-                                    </Group>
-                                )}
-                                {user.trainer.phone && (
-                                    <Group gap="xs">
-                                        <IconPhone size={16} color="var(--mantine-color-gray-6)" />
-                                        <Text size="sm" c="dimmed">
-                                            {user.trainer.phone}
-                                        </Text>
-                                    </Group>
-                                )}
+                                <Text size="xl" fw={700} c="violet">
+                                    {user.workoutsPackage || 0}
+                                </Text>
                             </Stack>
+                            {user.subscription_expires_at && (
+                                <Stack gap={2}>
+                                    <Text size="xs" c="dimmed">
+                                        {t('profile.subscriptionExpires')}
+                                    </Text>
+                                    <Text size="xl" fw={700}>
+                                        {new Date(user.subscription_expires_at).toLocaleDateString()}
+                                    </Text>
+                                </Stack>
+                            )}
                         </Group>
-                        <Group justify="flex-end">
-                            <Button
-                                variant="outline"
-                                color="red"
-                                size="xs"
-                                onClick={async () => {
-                                    try {
-                                        await dispatch(unlinkTrainerApi()).unwrap()
-                                        setTrainerMessage(t('profile.trainerRemoved'))
-                                    } catch (error) {
-                                        setTrainerMessage(error instanceof Error ? error.message : t('profile.error'))
-                                    }
-                                }}
-                            >
-                                {t('profile.removeTrainer')}
-                            </Button>
-                        </Group>
-                        {trainerMessage && (
-                            <Alert color="green" radius="md">
-                                {trainerMessage}
-                            </Alert>
-                        )}
                     </Stack>
                 </Card>
             )}
 
-            {!isTrainer && !user.trainer && (
-                <Card withBorder padding="xl">
-                    <Stack gap="md">
-                        <Title order={4}>{t('profile.addTrainer')}</Title>
-                        <Text size="sm" c="dimmed">
-                            {t('profile.trainerCodeHelp')}
-                        </Text>
-                        <Group align="flex-end" gap="md">
-                            <TextInput
-                                label={t('profile.trainerCodeLabel')}
-                                placeholder={t('profile.trainerCodePlaceholder')}
-                                value={trainerCode}
-                                onChange={(event) => setTrainerCode(event.currentTarget.value)}
-                                style={{ flex: 1 }}
-                            />
-                            <Button
-                                onClick={async () => {
-                                    const code = trainerCode.trim()
-                                    if (!code) return
-                                    try {
-                                        await dispatch(linkTrainerApi(code)).unwrap()
-                                        setTrainerMessage(t('profile.trainerConnected'))
-                                        setTrainerCode('') // Очищаем поле после успешного связывания
-                                    } catch (error) {
-                                        setTrainerMessage(error instanceof Error ? error.message : t('profile.error'))
-                                    }
-                                }}
-                            >
-                                {t('profile.addTrainer')}
-                            </Button>
-                        </Group>
-                        {trainerMessage && (
-                            <Alert color="green" radius="md">
-                                {trainerMessage}
-                            </Alert>
-                        )}
-                    </Stack>
-                </Card>
-            )}
-        </Stack>
+            {
+                isTrainer && user.trainerConnectionCode && (
+                    <Card withBorder padding="xl">
+                        <Stack gap="md">
+                            <Title order={4}>{t('profile.connectionCode')}</Title>
+                            <Group gap="md">
+                                <Text size="lg" fw={600} style={{ fontFamily: 'monospace', letterSpacing: '2px' }}>
+                                    {user.trainerConnectionCode}
+                                </Text>
+                                <Button
+                                    variant="light"
+                                    size="sm"
+                                    leftSection={codeCopied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                                    onClick={handleCopyCode}
+                                >
+                                    {codeCopied ? t('profile.codeCopied') : t('profile.copyCode')}
+                                </Button>
+                            </Group>
+                            <Text size="sm" c="dimmed">
+                                {t('profile.connectionCodeDescription')}
+                            </Text>
+                        </Stack>
+                    </Card>
+                )
+            }
+
+            {
+                isTrainer && user.trainer?.description && (
+                    <Card withBorder padding="xl">
+                        <Stack gap="md">
+                            <Title order={4}>{t('profile.description')}</Title>
+                            <Text size="sm" c="dimmed">
+                                {user.trainer.description}
+                            </Text>
+                        </Stack>
+                    </Card>
+                )
+            }
+
+            {
+                !isTrainer && user.trainer && (
+                    <Card withBorder padding="xl">
+                        <Stack gap="md">
+                            <Title order={4}>{t('common.myTrainer')}</Title>
+                            <Group gap="md">
+                                <Avatar size={60} color="blue">
+                                    {getInitials(user.trainer.fullName)}
+                                </Avatar>
+                                <Stack gap={4} flex={1}>
+                                    <Text fw={600} size="lg">
+                                        {user.trainer.fullName}
+                                    </Text>
+                                    {user.trainer.description && (
+                                        <Text size="sm" c="dimmed" mt="xs">
+                                            {user.trainer.description}
+                                        </Text>
+                                    )}
+                                    {user.trainer.email && (
+                                        <Group gap="xs" mt="xs">
+                                            <IconMail size={16} color="var(--mantine-color-gray-6)" />
+                                            <Text size="sm" c="dimmed">
+                                                {user.trainer.email}
+                                            </Text>
+                                        </Group>
+                                    )}
+                                    {user.trainer.phone && (
+                                        <Group gap="xs">
+                                            <IconPhone size={16} color="var(--mantine-color-gray-6)" />
+                                            <Text size="sm" c="dimmed">
+                                                {user.trainer.phone}
+                                            </Text>
+                                        </Group>
+                                    )}
+                                </Stack>
+                            </Group>
+                            <Group justify="flex-end">
+                                <Button
+                                    variant="outline"
+                                    color="red"
+                                    size="xs"
+                                    onClick={async () => {
+                                        try {
+                                            await dispatch(unlinkTrainerApi()).unwrap()
+                                            setTrainerMessage(t('profile.trainerRemoved'))
+                                        } catch (error) {
+                                            setTrainerMessage(error instanceof Error ? error.message : t('profile.error'))
+                                        }
+                                    }}
+                                >
+                                    {t('profile.removeTrainer')}
+                                </Button>
+                            </Group>
+                            {trainerMessage && (
+                                <Alert color="green" radius="md">
+                                    {trainerMessage}
+                                </Alert>
+                            )}
+                        </Stack>
+                    </Card>
+                )
+            }
+
+            {
+                !isTrainer && !user.trainer && (
+                    <Card withBorder padding="xl">
+                        <Stack gap="md">
+                            <Title order={4}>{t('profile.addTrainer')}</Title>
+                            <Text size="sm" c="dimmed">
+                                {t('profile.trainerCodeHelp')}
+                            </Text>
+                            <Group align="flex-end" gap="md">
+                                <TextInput
+                                    label={t('profile.trainerCodeLabel')}
+                                    placeholder={t('profile.trainerCodePlaceholder')}
+                                    value={trainerCode}
+                                    onChange={(event) => setTrainerCode(event.currentTarget.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <Button
+                                    onClick={async () => {
+                                        const code = trainerCode.trim()
+                                        if (!code) return
+                                        try {
+                                            await dispatch(linkTrainerApi(code)).unwrap()
+                                            setTrainerMessage(t('profile.trainerConnected'))
+                                            setTrainerCode('') // Очищаем поле после успешного связывания
+                                        } catch (error) {
+                                            setTrainerMessage(error instanceof Error ? error.message : t('profile.error'))
+                                        }
+                                    }}
+                                >
+                                    {t('profile.addTrainer')}
+                                </Button>
+                            </Group>
+                            {trainerMessage && (
+                                <Alert color="green" radius="md">
+                                    {trainerMessage}
+                                </Alert>
+                            )}
+                        </Stack>
+                    </Card>
+                )
+            }
+        </Stack >
     )
 }
 

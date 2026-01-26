@@ -41,6 +41,7 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import {
   createProgram,
+  deleteProgram,
   createProgramDay,
   fetchPrograms,
   fetchProgramDays,
@@ -187,6 +188,30 @@ export const ProgramPage = () => {
     }
   }
 
+  const handleDeleteProgram = async (programId: string) => {
+    if (confirm(t('common.delete') + '?')) {
+      try {
+        await dispatch(deleteProgram(programId)).unwrap()
+        // Перезагружаем список программ после удаления
+        await dispatch(fetchPrograms())
+        if (selectedProgramId === programId) {
+          dispatch(selectProgram(null))
+        }
+        notifications.show({
+          title: t('common.success'),
+          message: t('program.programDeleted'),
+          color: 'green',
+        })
+      } catch (error: any) {
+        notifications.show({
+          title: t('common.error'),
+          message: error || t('program.error.deleteProgram'),
+          color: 'red',
+        })
+      }
+    }
+  }
+
   const handleAddDay = async () => {
     let targetProgramId = resolveProgramId()
     if (!targetProgramId) {
@@ -307,6 +332,8 @@ export const ProgramPage = () => {
             duration: undefined,
             rest: undefined,
             weight: undefined,
+            description: exercise.description,
+            videoUrl: exercise.videoUrl,
           },
         })
       ).unwrap()
@@ -668,9 +695,24 @@ export const ProgramPage = () => {
                     <Stack gap={4}>
                       <Group justify="space-between">
                         <Text fw={600}>{program.title}</Text>
-                        <Badge size="xs" color={program.owner === 'trainer' ? 'gray' : 'green'} variant="light">
-                          {t(`program.owner.${program.owner}`)}
-                        </Badge>
+                        <Group gap={4}>
+                          <Badge size="xs" color={program.owner === 'trainer' ? 'gray' : 'green'} variant="light">
+                            {t(`program.owner.${program.owner}`)}
+                          </Badge>
+                          {(role === 'trainer' || program.owner === 'client') && (
+                            <ActionIcon
+                              size="sm"
+                              color="red"
+                              variant="subtle"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteProgram(program.id)
+                              }}
+                            >
+                              <IconTrash size={14} />
+                            </ActionIcon>
+                          )}
+                        </Group>
                       </Group>
                       {program.description ? (
                         <Text size="xs" c="dimmed">
