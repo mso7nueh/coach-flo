@@ -12,6 +12,8 @@ export interface ProgramExercise {
   duration?: string
   rest?: string
   weight?: string
+  description?: string
+  videoUrl?: string
 }
 
 export interface TrainingProgram {
@@ -80,7 +82,8 @@ const mapApiProgramDayToState = (apiDay: ApiProgramDay, programId: string): Prog
         reps: ex.reps || undefined,
         duration: ex.duration || undefined,
         rest: ex.rest || undefined,
-        weight: ex.weight || undefined,
+        description: ex.description || undefined,
+        videoUrl: ex.video_url || undefined,
       })),
     })),
     notes: apiDay.notes || undefined,

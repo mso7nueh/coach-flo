@@ -122,6 +122,8 @@ export interface ProgramDayExercise {
   weight?: string | null
   duration?: string | null
   rest?: string | null
+  description?: string | null
+  video_url?: string | null
 }
 
 export interface BodyMetric {

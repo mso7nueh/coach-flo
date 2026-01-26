@@ -207,6 +207,8 @@ class ProgramExerciseBase(BaseModel):
     duration: Optional[str] = None
     rest: Optional[str] = None
     weight: Optional[str] = None
+    description: Optional[str] = None
+    video_url: Optional[str] = None
 
 
 class ProgramExerciseCreate(ProgramExerciseBase):

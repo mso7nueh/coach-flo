@@ -19,7 +19,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useEffect, useState, useMemo } from 'react'
-import { IconArrowLeft, IconPlus } from '@tabler/icons-react'
+import { IconArrowLeft, IconPlus, IconVideo, IconInfoCircle, IconRepeat, IconBarbell, IconClock } from '@tabler/icons-react'
 import { fetchPrograms, fetchProgramDays, selectProgram, selectProgramDay, createProgram, createProgramDay, deleteProgram } from '@/app/store/slices/programSlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
@@ -163,6 +163,8 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                         duration: ex.duration ? String(ex.duration) : undefined,
                         rest: ex.rest ? String(ex.rest) : undefined,
                         weight: ex.weight ? String(ex.weight) : undefined,
+                        description: ex.description || undefined,
+                        videoUrl: ex.videoUrl || ex.video_url || undefined,
                     })),
                 }))
 
@@ -316,10 +318,59 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                                                     <Group justify="space-between">
                                                                         <Stack gap={2}>
                                                                             <Text fw={500}>{exercise.title}</Text>
-                                                                            {exercise.duration && (
-                                                                                <Text size="xs" c="dimmed">
-                                                                                    {exercise.duration}
-                                                                                </Text>
+                                                                            <Group gap="md" wrap="wrap">
+                                                                                {exercise.sets && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.sets} {t('program.sets')}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.reps && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.reps} {t('program.reps')}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.duration && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.duration}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.weight && (
+                                                                                    <Badge variant="light" color="violet" size="sm">
+                                                                                        {exercise.weight}
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </Group>
+                                                                            {exercise.description && (
+                                                                                <Group gap={4} align="flex-start" mt={4}>
+                                                                                    <IconInfoCircle size={14} color="var(--mantine-color-gray-6)" style={{ marginTop: 2 }} />
+                                                                                    <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                                                                                        {exercise.description}
+                                                                                    </Text>
+                                                                                </Group>
+                                                                            )}
+                                                                            {exercise.videoUrl && (
+                                                                                <Button
+                                                                                    variant="subtle"
+                                                                                    size="compact-xs"
+                                                                                    leftSection={<IconVideo size={14} />}
+                                                                                    component="a"
+                                                                                    href={exercise.videoUrl}
+                                                                                    target="_blank"
+                                                                                    color="violet"
+                                                                                    style={{ width: 'fit-content' }}
+                                                                                    mt={4}
+                                                                                >
+                                                                                    {t('program.viewVideo')}
+                                                                                </Button>
                                                                             )}
                                                                         </Stack>
                                                                     </Group>
@@ -343,28 +394,60 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                                                     <Group justify="space-between">
                                                                         <Stack gap={2}>
                                                                             <Text fw={500}>{exercise.title}</Text>
-                                                                            <Group gap="xs">
+                                                                            <Group gap="md" wrap="wrap">
                                                                                 {exercise.sets && (
-                                                                                    <Badge size="sm" variant="light">
-                                                                                        {exercise.sets} {t('program.sets')}
-                                                                                    </Badge>
+                                                                                    <Group gap={4}>
+                                                                                        <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.sets} {t('program.sets')}
+                                                                                        </Text>
+                                                                                    </Group>
                                                                                 )}
                                                                                 {exercise.reps && (
-                                                                                    <Badge size="sm" variant="light">
-                                                                                        {exercise.reps} {t('program.reps')}
-                                                                                    </Badge>
+                                                                                    <Group gap={4}>
+                                                                                        <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.reps} {t('program.reps')}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.duration && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.duration}
+                                                                                        </Text>
+                                                                                    </Group>
                                                                                 )}
                                                                                 {exercise.weight && (
-                                                                                    <Badge size="sm" variant="light">
+                                                                                    <Badge variant="light" color="violet" size="sm">
                                                                                         {exercise.weight}
                                                                                     </Badge>
                                                                                 )}
-                                                                                {exercise.rest && (
-                                                                                    <Text size="xs" c="dimmed">
-                                                                                        {exercise.rest}
-                                                                                    </Text>
-                                                                                )}
                                                                             </Group>
+                                                                            {exercise.description && (
+                                                                                <Group gap={4} align="flex-start" mt={4}>
+                                                                                    <IconInfoCircle size={14} color="var(--mantine-color-gray-6)" style={{ marginTop: 2 }} />
+                                                                                    <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                                                                                        {exercise.description}
+                                                                                    </Text>
+                                                                                </Group>
+                                                                            )}
+                                                                            {exercise.videoUrl && (
+                                                                                <Button
+                                                                                    variant="subtle"
+                                                                                    size="compact-xs"
+                                                                                    leftSection={<IconVideo size={14} />}
+                                                                                    component="a"
+                                                                                    href={exercise.videoUrl}
+                                                                                    target="_blank"
+                                                                                    color="violet"
+                                                                                    style={{ width: 'fit-content' }}
+                                                                                    mt={4}
+                                                                                >
+                                                                                    {t('program.viewVideo')}
+                                                                                </Button>
+                                                                            )}
                                                                         </Stack>
                                                                     </Group>
                                                                 </Card>
@@ -387,10 +470,59 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                                                     <Group justify="space-between">
                                                                         <Stack gap={2}>
                                                                             <Text fw={500}>{exercise.title}</Text>
-                                                                            {exercise.duration && (
-                                                                                <Text size="xs" c="dimmed">
-                                                                                    {exercise.duration}
-                                                                                </Text>
+                                                                            <Group gap="md" wrap="wrap">
+                                                                                {exercise.sets && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.sets} {t('program.sets')}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.reps && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.reps} {t('program.reps')}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.duration && (
+                                                                                    <Group gap={4}>
+                                                                                        <IconClock size={14} color="var(--mantine-color-gray-6)" />
+                                                                                        <Text size="xs" c="dimmed">
+                                                                                            {exercise.duration}
+                                                                                        </Text>
+                                                                                    </Group>
+                                                                                )}
+                                                                                {exercise.weight && (
+                                                                                    <Badge variant="light" color="violet" size="sm">
+                                                                                        {exercise.weight}
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </Group>
+                                                                            {exercise.description && (
+                                                                                <Group gap={4} align="flex-start" mt={4}>
+                                                                                    <IconInfoCircle size={14} color="var(--mantine-color-gray-6)" style={{ marginTop: 2 }} />
+                                                                                    <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                                                                                        {exercise.description}
+                                                                                    </Text>
+                                                                                </Group>
+                                                                            )}
+                                                                            {exercise.videoUrl && (
+                                                                                <Button
+                                                                                    variant="subtle"
+                                                                                    size="compact-xs"
+                                                                                    leftSection={<IconVideo size={14} />}
+                                                                                    component="a"
+                                                                                    href={exercise.videoUrl}
+                                                                                    target="_blank"
+                                                                                    color="violet"
+                                                                                    style={{ width: 'fit-content' }}
+                                                                                    mt={4}
+                                                                                >
+                                                                                    {t('program.viewVideo')}
+                                                                                </Button>
                                                                             )}
                                                                         </Stack>
                                                                     </Group>

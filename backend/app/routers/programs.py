@@ -266,6 +266,8 @@ async def create_program_day(
                 duration=exercise_data.duration,
                 rest=exercise_data.rest,
                 weight=exercise_data.weight,
+                description=exercise_data.description,
+                video_url=exercise_data.video_url,
                 order=exercise_order
             )
             db.add(db_exercise)

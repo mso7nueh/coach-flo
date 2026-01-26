@@ -31,6 +31,8 @@ import {
   IconStretching,
   IconTemplate,
   IconBooks,
+  IconVideo,
+  IconInfoCircle,
 } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { useMemo, useState, useEffect } from 'react'
@@ -101,6 +103,8 @@ export const ProgramPage = () => {
     duration: undefined,
     rest: undefined,
     weight: undefined,
+    description: undefined,
+    videoUrl: undefined,
   })
   const [templateName, setTemplateName] = useState('')
   const programTrainings = useMemo(() => {
@@ -235,6 +239,8 @@ export const ProgramPage = () => {
         duration: item.duration ? `${item.duration} ${t('program.minutesShort')}` : undefined,
         rest: item.rest ? `${item.rest} ${t('program.minutesShort')}` : undefined,
         weight: item.weight ? `${item.weight}` : undefined,
+        description: linkedExercise?.description || item.exercise?.description || undefined,
+        videoUrl: linkedExercise?.videoUrl || item.exercise?.videoUrl || undefined,
       }
     }
     const blocks: ProgramBlockInput[] = [
@@ -430,6 +436,8 @@ export const ProgramPage = () => {
       duration: exercise.duration,
       rest: exercise.rest,
       weight: exercise.weight,
+      description: exercise.description,
+      videoUrl: exercise.videoUrl,
     })
     openExerciseModal()
   }
@@ -536,6 +544,8 @@ export const ProgramPage = () => {
           duration: undefined,
           rest: undefined,
           weight: undefined,
+          description: undefined,
+          videoUrl: undefined,
         })
       } catch (error: any) {
         notifications.show({
@@ -557,6 +567,8 @@ export const ProgramPage = () => {
       duration: undefined,
       rest: undefined,
       weight: undefined,
+      description: undefined,
+      videoUrl: undefined,
     })
   }
 
@@ -583,6 +595,8 @@ export const ProgramPage = () => {
             duration: ex.duration,
             rest: ex.rest,
             weight: ex.weight,
+            description: ex.description,
+            videoUrl: ex.videoUrl,
           })),
         }))
         await dispatch(
@@ -1069,6 +1083,28 @@ export const ProgramPage = () => {
                                       </Badge>
                                     )}
                                   </Group>
+                                  {exercise.description && (
+                                    <Group gap={4} align="flex-start">
+                                      <IconInfoCircle size={14} color="var(--mantine-color-gray-6)" style={{ marginTop: 2 }} />
+                                      <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                                        {exercise.description}
+                                      </Text>
+                                    </Group>
+                                  )}
+                                  {exercise.videoUrl && (
+                                    <Button
+                                      variant="subtle"
+                                      size="compact-xs"
+                                      leftSection={<IconVideo size={14} />}
+                                      component="a"
+                                      href={exercise.videoUrl}
+                                      target="_blank"
+                                      color={config.color}
+                                      style={{ width: 'fit-content' }}
+                                    >
+                                      {t('program.viewVideo')}
+                                    </Button>
+                                  )}
                                 </Stack>
                                 {canEditSelectedDay && (
                                   <Group gap="xs">
@@ -1327,6 +1363,18 @@ export const ProgramPage = () => {
                 setExerciseForm((state) => ({ ...state, weight: value || undefined }))
               }
             }}
+          />
+          <TextInput
+            label={t('program.exerciseDescription')}
+            placeholder={t('program.exerciseDescriptionPlaceholder')}
+            value={exerciseForm.description || ''}
+            onChange={(event) => setExerciseForm((state) => ({ ...state, description: event.currentTarget.value || undefined }))}
+          />
+          <TextInput
+            label={t('program.videoUrl')}
+            placeholder={t('program.videoUrlPlaceholder')}
+            value={exerciseForm.videoUrl || ''}
+            onChange={(event) => setExerciseForm((state) => ({ ...state, videoUrl: event.currentTarget.value || undefined }))}
           />
           <Group justify="flex-end">
             <Button variant="default" onClick={handleCloseExerciseModal}>
