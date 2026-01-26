@@ -22,6 +22,7 @@ export interface User {
   timezone?: string | null // Часовой пояс пользователя (например, 'Europe/Moscow')
   subscription_plan?: string | null
   subscription_expires_at?: string | null
+  workouts_package?: number | null
 }
 
 export interface OnboardingResponse {

@@ -333,8 +333,12 @@ const programSlice = createSlice({
   name: 'program',
   initialState,
   reducers: {
-    selectProgram(state, action: PayloadAction<string>) {
+    selectProgram(state, action: PayloadAction<string | null>) {
       state.selectedProgramId = action.payload
+      if (!action.payload) {
+        state.selectedDayId = null
+        return
+      }
       const programDays = state.days
         .filter((day) => day.programId === action.payload)
         .sort((a, b) => a.order - b.order)
