@@ -6,7 +6,7 @@ import './index.css'
 import App from './App.tsx'
 
 import { Component, type ReactNode } from 'react'
-import { Center, Text, Title, Stack, Button } from '@mantine/core'
+import i18n from '@/shared/config/i18n'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -21,17 +21,49 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   render() {
     if (this.state.hasError) {
       return (
-        <Center h="100vh">
-          <Stack align="center" gap="md" p="xl" style={{ border: '1px solid #eee', borderRadius: 8 }}>
-            <Title order={2} c="red">Something went wrong</Title>
-            <Text c="dimmed" style={{ maxWidth: 600, textAlign: 'center' }}>
-              {this.state.error?.message}
-            </Text>
-            <Button onClick={() => window.location.reload()} variant="light" color="violet">
+        <div style={{
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <div style={{
+            border: '1px solid #dee2e6',
+            borderRadius: '8px',
+            padding: '32px',
+            maxWidth: '600px',
+            textAlign: 'center',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+          }}>
+            <h2 style={{ color: '#fa5252', marginTop: 0, fontSize: '24px' }}>Something went wrong</h2>
+            <p style={{ color: '#495057', fontSize: '16px', lineHeight: '1.5', margin: '16px 0' }}>
+              {this.state.error?.message || 'An unexpected error occurred'}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                backgroundColor: '#6c7ae0',
+                color: '#ffffff',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 600,
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#5a67d8')}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#6c7ae0')}
+            >
               Reload Page
-            </Button>
-          </Stack>
-        </Center>
+            </button>
+          </div>
+        </div>
       )
     }
 

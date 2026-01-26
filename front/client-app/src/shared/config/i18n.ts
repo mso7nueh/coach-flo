@@ -112,6 +112,13 @@ const resources = {
                     success: 'Показатель сохранен',
                     error: 'Ошибка сохранения'
                 },
+                error: {
+                    saveNote: 'Ошибка сохранения заметки',
+                    metricNotFound: 'Метрика {{metric}} не найдена',
+                },
+                errors: {
+                    metricNotFound: 'Метрика {{metric}} не найдена',
+                },
                 goalsCard: {
                     title: 'Мои цели',
                     empty: 'Цели пока не указаны',
@@ -1004,6 +1011,21 @@ const resources = {
                         leg: 'Leg injury last winter',
                         physio: 'Physical therapy in July 2018',
                     },
+                },
+                error: {
+                    saveNote: 'Error saving note',
+                    metricNotFound: 'Metric {{metric}} not found',
+                },
+                errors: {
+                    metricNotFound: 'Metric {{metric}} not found',
+                },
+                quickLog: {
+                    title: 'Log Value',
+                    valueLabel: 'Value',
+                    dateLabel: 'Date',
+                    submit: 'Save',
+                    success: 'Measurement saved',
+                    error: 'Error saving'
                 },
                 photos: {
                     title: 'Progress photos',
