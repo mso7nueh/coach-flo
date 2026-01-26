@@ -46,12 +46,14 @@ const defaultTiles: DashboardTile[] = [
     { id: 'sleep', labelKey: 'dashboard.bodyOverview.sleep', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
     { id: 'heartRate', labelKey: 'dashboard.bodyOverview.heartRate', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
     { id: 'steps', labelKey: 'dashboard.bodyOverview.steps', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+    { id: 'water', labelKey: 'metricsPage.water.title', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
 ]
 
+const savedPeriod = typeof window !== 'undefined' ? localStorage.getItem('dashboard_period') as MetricPeriod : null;
 const initialState: DashboardState = {
     tiles: [...defaultTiles],
     availableTiles: [...defaultTiles],
-    period: '7d',
+    period: savedPeriod || '7d',
     trainerNotes: [],
     configurationOpened: false,
     metricGoals: {},
@@ -127,6 +129,7 @@ const dashboardSlice = createSlice({
     reducers: {
         setDashboardPeriod(state, action: PayloadAction<MetricPeriod>) {
             state.period = action.payload
+            localStorage.setItem('dashboard_period', action.payload)
         },
         toggleTile(state, action: PayloadAction<string>) {
             const exists = state.tiles.find((tile) => tile.id === action.payload)

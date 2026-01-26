@@ -61,14 +61,31 @@ async def create_nutrition_entry(
 
 @router.get("/", response_model=List[schemas.NutritionEntryResponse])
 async def get_nutrition_entries(
+    user_id: Optional[str] = Query(None, description="ID пользователя (для тренеров)"),
     start_date: Optional[datetime] = Query(None, description="Начало периода"),
     end_date: Optional[datetime] = Query(None, description="Конец периода"),
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Получить записи питания"""
+    target_user_id = current_user.id
+    
+    if user_id and current_user.role == models.UserRole.TRAINER:
+        # Проверяем, что клиент связан с тренером
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = user_id
+    elif user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут просматривать питание других пользователей")
+        
     query = db.query(models.NutritionEntry).filter(
-        models.NutritionEntry.user_id == current_user.id
+        models.NutritionEntry.user_id == target_user_id
     )
     
     if start_date:

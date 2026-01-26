@@ -54,10 +54,10 @@ import { useDisclosure } from '@mantine/hooks'
 import { useEffect } from 'react'
 
 const periodSegments = [
-  { label: '1w', value: '1w' },
-  { label: '4w', value: '4w' },
-  { label: '12w', value: '12w' },
-  { label: 'All', value: 'all' },
+  { label: '7д', value: '1w' },
+  { label: '30д', value: '4w' },
+  { label: '90д', value: '12w' },
+  { label: 'Все', value: 'all' },
 ]
 
 interface BodyMetricForm {
@@ -509,10 +509,10 @@ export const MetricsPage = () => {
           <SegmentedControl
             value={period}
             onChange={(value) => dispatch(setMetricsPeriod(value as typeof period))}
-            data={periodSegments.map((segment) => ({
-              label: t(`metricsPage.period.${segment.value}`),
-              value: segment.value,
-            }))}
+            data={periodSegments}
+            radius="md"
+            size="sm"
+            color="violet"
           />
           <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openBulkModal}>
             {t('metricsPage.bulkUpdate')}
@@ -759,12 +759,12 @@ export const MetricsPage = () => {
                           <Area
                             type="monotone"
                             dataKey="value"
-                            stroke="#7950f2"
+                            stroke="#7c3aed"
                             strokeWidth={3}
                             fill={`url(#colorGradient-${selectedMetric.id})`}
-                            dot={{ r: 5, fill: '#7950f2', strokeWidth: 2, stroke: 'white' }}
-                            activeDot={{ r: 7, strokeWidth: 2, stroke: '#7950f2', fill: 'white' }}
-                            animationDuration={800}
+                            dot={{ r: 4, fill: '#7c3aed', strokeWidth: 2, stroke: 'white' }}
+                            activeDot={{ r: 6, strokeWidth: 0, fill: '#7c3aed' }}
+                            animationDuration={1000}
                             animationEasing="ease-out"
                             name={selectedMetric.label}
                           />

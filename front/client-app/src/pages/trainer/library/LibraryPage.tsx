@@ -413,7 +413,7 @@ export const LibraryPage = () => {
             })
         }
         const trainingsCount = trainerDays.filter((day) => day.programId === targetProgramId).length + 1
-        const defaultName = t('program.trainingName', { count: trainingsCount })
+        const defaultName = template.name || t('program.trainingName', { count: trainingsCount })
         try {
             await dispatch(
                 createProgramDay({

@@ -5,8 +5,11 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { updateUserApi, updateOnboardingApi } from '@/app/store/slices/userSlice'
 import { useForm } from '@mantine/form'
 import { useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { notifications } from '@mantine/notifications'
+import { Avatar, FileButton, ActionIcon } from '@mantine/core'
+import { IconCamera, IconUpload, IconX } from '@tabler/icons-react'
+import heic2any from 'heic2any'
 
 const GOALS = [
     { value: 'weight_loss', label: 'Похудение' },
@@ -34,6 +37,7 @@ export const EditProfilePage = () => {
             goals: user.onboardingMetrics?.goals || [],
             restrictions: user.onboardingMetrics?.restrictions?.join(', ') || '',
             activityLevel: user.onboardingMetrics?.activityLevel,
+            avatar: user.avatar || null,
         },
         validate: {
             fullName: (value) => (value.trim().length < 2 ? t('profile.validation.nameRequired') : null),
@@ -51,10 +55,34 @@ export const EditProfilePage = () => {
             age: user.onboardingMetrics?.age,
             goals: user.onboardingMetrics?.goals || [],
             restrictions: user.onboardingMetrics?.restrictions?.join(', ') || '',
-            activityLevel: user.onboardingMetrics?.activityLevel,
         })
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user.fullName, user.email, user.phone, user.onboardingMetrics])
+    }, [user.fullName, user.email, user.phone, user.onboardingMetrics, user.avatar])
+
+    const [avatarFile, setAvatarFile] = useState<File | null>(null)
+    const [isConverting, setIsConverting] = useState(false)
+
+    const handleAvatarChange = async (file: File | null) => {
+        if (!file) return
+        setAvatarFile(file)
+
+        // If HEIC, convert to JPEG for preview or immediate upload if needed
+        if (file.name.toLowerCase().endsWith('.heic') || file.type === 'image/heic') {
+            setIsConverting(true)
+            try {
+                const converted = await heic2any({ blob: file, toType: 'image/jpeg' })
+                const blob = Array.isArray(converted) ? converted[0] : converted
+                const jpegFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' })
+                setAvatarFile(jpegFile)
+                // In a real app, you might upload here or on form submit
+                // For simplicity, we'll just keep it in state and let the user click save
+            } catch (e) {
+                console.error('HEIC conversion failed', e)
+            } finally {
+                setIsConverting(false)
+            }
+        }
+    }
 
     const handleSubmit = async (values: typeof form.values) => {
         try {
@@ -64,6 +92,7 @@ export const EditProfilePage = () => {
                     full_name: values.fullName,
                     email: values.email,
                     phone: values.phone || undefined,
+                    // If we had a base64 or upload URL for avatar, we'd add it here
                 }),
             ).unwrap()
 
@@ -107,6 +136,30 @@ export const EditProfilePage = () => {
             <Card withBorder padding="xl">
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                     <Stack gap="md">
+                        <Group gap="xl" align="center" mb="md">
+                            <Stack align="center" gap="xs">
+                                <Avatar
+                                    src={avatarFile ? URL.createObjectURL(avatarFile) : user.avatar}
+                                    size={100}
+                                    radius={100}
+                                    color="violet"
+                                >
+                                    {user.fullName.split(' ').map(n => n[0]).join('')}
+                                </Avatar>
+                                <FileButton onChange={handleAvatarChange} accept="image/*">
+                                    {(props) => (
+                                        <Button {...props} variant="light" size="xs" color="violet" loading={isConverting} leftSection={<IconCamera size={14} />}>
+                                            {t('profile.changePhoto')}
+                                        </Button>
+                                    )}
+                                </FileButton>
+                            </Stack>
+                            <Stack gap={4} style={{ flex: 1 }}>
+                                <Text fw={600} size="lg">{user.fullName}</Text>
+                                <Text size="sm" c="dimmed">{user.email}</Text>
+                            </Stack>
+                        </Group>
+
                         <TextInput
                             label={t('profile.fullName')}
                             placeholder={t('profile.fullNamePlaceholder')}

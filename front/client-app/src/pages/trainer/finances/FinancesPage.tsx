@@ -13,6 +13,7 @@ import {
     Text,
     TextInput,
     Title,
+    Box,
 } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
@@ -258,143 +259,174 @@ export const FinancesPage = () => {
             .slice(0, 10)
     }, [filteredPayments, clients])
 
-    const COLORS = ['#4c6ef5', '#51cf66', '#ffd43b', '#ff8787', '#845ef7']
+    const COLORS = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899']
 
     return (
-        <Stack gap="lg">
+        <Stack gap="lg" style={{ animation: 'fadeIn 0.5s ease-out' }}>
             <Group justify="space-between">
-                <Title order={2}>{t('trainer.finances.title')}</Title>
-                <Button leftSection={<IconPlus size={16} />} onClick={openAddModal}>
+                <Stack gap={0}>
+                    <Title order={2} fw={800}>{t('trainer.finances.title')}</Title>
+                    <Text size="sm" c="dimmed">{t('trainer.finances.statistics')}</Text>
+                </Stack>
+                <Button
+                    leftSection={<IconPlus size={16} />}
+                    onClick={openAddModal}
+                    radius="md"
+                    variant="filled"
+                    color="violet"
+                >
                     {t('trainer.finances.addPayment')}
                 </Button>
             </Group>
 
             <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
-                <Card withBorder padding="md">
-                    <Stack gap="xs">
-                        <Text size="sm" c="dimmed">
-                            {t('trainer.finances.monthlyRevenue')}
-                        </Text>
-                        <Text fw={700} size="xl">
-                            {monthlyRevenue.toLocaleString()} ₽
-                        </Text>
-                    </Stack>
-                </Card>
-                <Card withBorder padding="md">
-                    <Stack gap="xs">
-                        <Text size="sm" c="dimmed">
-                            {t('trainer.finances.averageCheck')}
-                        </Text>
-                        <Text fw={700} size="xl">
-                            {averageCheck.toLocaleString()} ₽
-                        </Text>
-                    </Stack>
-                </Card>
-                <Card withBorder padding="md">
-                    <Stack gap="xs">
-                        <Text size="sm" c="dimmed">
-                            {t('trainer.finances.totalRevenue')}
-                        </Text>
-                        <Text fw={700} size="xl">
-                            {totalRevenue.toLocaleString()} ₽
-                        </Text>
-                    </Stack>
-                </Card>
-                <Card withBorder padding="md">
-                    <Stack gap="xs">
-                        <Text size="sm" c="dimmed">
-                            {t('trainer.finances.totalPayments')}
-                        </Text>
-                        <Text fw={700} size="xl">
-                            {filteredPayments.length}
-                        </Text>
-                    </Stack>
-                </Card>
+                {[
+                    { label: t('trainer.finances.monthlyRevenue'), value: monthlyRevenue, color: 'violet' },
+                    { label: t('trainer.finances.averageCheck'), value: averageCheck, color: 'blue' },
+                    { label: t('trainer.finances.totalRevenue'), value: totalRevenue, color: 'emerald' },
+                    { label: t('trainer.finances.totalPayments'), value: filteredPayments.length, color: 'gray' },
+                ].map((stat, i) => (
+                    <Card key={i} withBorder padding="md" radius="md" style={{ borderLeft: `4px solid var(--mantine-color-${stat.color}-6)` }}>
+                        <Stack gap="xs">
+                            <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                                {stat.label}
+                            </Text>
+                            <Text fw={800} size="xl">
+                                {stat.label.includes('Всего') && !stat.label.includes('выручка') ? stat.value : `${stat.value.toLocaleString()} ₽`}
+                            </Text>
+                        </Stack>
+                    </Card>
+                ))}
             </SimpleGrid>
 
             <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-                <Card withBorder padding="md">
+                <Card withBorder padding="xl" radius="md" shadow="sm">
                     <Stack gap="md">
-                        <Text fw={600} size="lg">
-                            {t('trainer.finances.revenueByMonth')}
-                        </Text>
+                        <Group justify="space-between">
+                            <Text fw={700} size="lg">
+                                {t('trainer.finances.revenueByMonth')}
+                            </Text>
+                            <Badge variant="light" color="violet">{t('common.period')}</Badge>
+                        </Group>
                         <ResponsiveContainer width="100%" height={300}>
                             <AreaChart data={monthlyRevenueData}>
                                 <defs>
                                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#4c6ef5" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#4c6ef5" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="var(--mantine-color-violet-6)" stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor="var(--mantine-color-violet-6)" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--mantine-color-gray-2)" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--mantine-color-gray-1)" />
                                 <XAxis
                                     dataKey="month"
-                                    tick={{ fontSize: 12, fill: 'var(--mantine-color-gray-6)' }}
+                                    tick={{ fontSize: 11, fill: 'var(--mantine-color-gray-5)', fontWeight: 500 }}
                                     tickLine={false}
                                     axisLine={false}
+                                    dy={10}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 12, fill: 'var(--mantine-color-gray-6)' }}
+                                    tick={{ fontSize: 11, fill: 'var(--mantine-color-gray-5)', fontWeight: 500 }}
                                     tickLine={false}
                                     axisLine={false}
-                                    tickFormatter={(value) => `${value / 1000}k`}
+                                    tickFormatter={(value) => value >= 1000 ? `${value / 1000}k` : value}
                                 />
-                                <Tooltip content={<CustomTooltip />} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--mantine-color-violet-6)', strokeWidth: 1 }} />
                                 <Area
                                     type="monotone"
                                     dataKey="revenue"
                                     name={t('trainer.finances.amount')}
-                                    stroke="#4c6ef5"
+                                    stroke="var(--mantine-color-violet-6)"
                                     strokeWidth={3}
                                     fillOpacity={1}
                                     fill="url(#colorRevenue)"
+                                    dot={{ r: 4, fill: 'var(--mantine-color-violet-6)', strokeWidth: 2, stroke: 'white' }}
+                                    activeDot={{ r: 6, strokeWidth: 0, fill: 'var(--mantine-color-violet-6)' }}
+                                    animationDuration={1500}
                                 />
                             </AreaChart>
                         </ResponsiveContainer>
                     </Stack>
                 </Card>
 
-                <Card withBorder padding="md">
-                    <Stack gap="md">
-                        <Text fw={600} size="lg">
+                <Card withBorder padding="xl" radius="md" shadow="sm">
+                    <Stack gap="md" h="100%">
+                        <Text fw={700} size="lg">
                             {t('trainer.finances.paymentsByType')}
                         </Text>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={paymentsByTypeData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {paymentsByTypeData.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={0} />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        <Box style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ResponsiveContainer width="100%" height={240}>
+                                <PieChart>
+                                    <Pie
+                                        data={paymentsByTypeData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={65}
+                                        outerRadius={85}
+                                        paddingAngle={6}
+                                        dataKey="value"
+                                        stroke="none"
+                                        animationBegin={200}
+                                        animationDuration={1500}
+                                        cornerRadius={4}
+                                    >
+                                        {paymentsByTypeData.map((_, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </Box>
+                        <Group justify="center" gap="md">
+                            {paymentsByTypeData.map((item, index) => (
+                                <Group key={index} gap={6}>
+                                    <Box w={8} h={8} style={{ borderRadius: '50%', backgroundColor: COLORS[index % COLORS.length] }} />
+                                    <Text size="xs" fw={500} c="gray.7">{item.name}</Text>
+                                </Group>
+                            ))}
+                        </Group>
                     </Stack>
                 </Card>
             </SimpleGrid>
 
-            <Card withBorder padding="md">
+            <Card withBorder padding="xl" radius="md" shadow="sm">
                 <Stack gap="md">
-                    <Text fw={600} size="lg">
+                    <Text fw={700} size="lg">
                         {t('trainer.finances.revenueByClient')}
                     </Text>
                     <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={revenueByClientData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                            <YAxis />
-                            <Tooltip
-                                formatter={(value: number) => [`${value.toLocaleString()} ₽`, t('trainer.finances.amount')]}
+                        <BarChart data={revenueByClientData} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--mantine-color-gray-1)" />
+                            <XAxis
+                                dataKey="name"
+                                angle={-30}
+                                textAnchor="end"
+                                height={60}
+                                tick={{ fontSize: 11, fill: 'var(--mantine-color-gray-5)', fontWeight: 500 }}
+                                tickLine={false}
+                                axisLine={false}
                             />
-                            <Bar dataKey="revenue" fill="#4c6ef5" />
+                            <YAxis
+                                tick={{ fontSize: 11, fill: 'var(--mantine-color-gray-5)', fontWeight: 500 }}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => `${value.toLocaleString()}`}
+                            />
+                            <Tooltip
+                                content={<CustomTooltip />}
+                                cursor={{ fill: 'var(--mantine-color-gray-0)', opacity: 0.4 }}
+                            />
+                            <Bar
+                                dataKey="revenue"
+                                fill="var(--mantine-color-violet-6)"
+                                radius={[6, 6, 0, 0]}
+                                barSize={34}
+                                animationDuration={1500}
+                            >
+                                {revenueByClientData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--mantine-color-violet-6)' : 'var(--mantine-color-violet-4)'} />
+                                ))}
+                            </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 </Stack>

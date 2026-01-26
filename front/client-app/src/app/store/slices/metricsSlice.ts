@@ -59,8 +59,9 @@ interface MetricsState {
   nutritionEntries: DailyNutritionEntry[]
 }
 
+const savedPeriod = typeof window !== 'undefined' ? localStorage.getItem('metrics_period') as MetricsPeriod : null;
 const initialState: MetricsState = {
-  period: '4w',
+  period: savedPeriod || '4w',
   bodyMetrics: [],
   bodyMetricEntries: [],
   exerciseMetrics: [],
@@ -224,7 +225,7 @@ const mapApiNutritionEntryToState = (entry: any): DailyNutritionEntry => ({
 
 export const fetchNutritionEntries = createAsyncThunk(
   'metrics/fetchNutritionEntries',
-  async (params?: { start_date?: string; end_date?: string; client_id?: string }) => {
+  async (params?: { start_date?: string; end_date?: string; user_id?: string }) => {
     const entries = await apiClient.getNutritionEntries(params)
     return entries.map(mapApiNutritionEntryToState)
   }
@@ -255,6 +256,7 @@ const metricsSlice = createSlice({
   reducers: {
     setMetricsPeriod(state, action: PayloadAction<MetricsPeriod>) {
       state.period = action.payload
+      localStorage.setItem('metrics_period', action.payload)
     },
     addBodyMetric(state, action: PayloadAction<BodyMetricDescriptor>) {
       state.bodyMetrics.push(action.payload)

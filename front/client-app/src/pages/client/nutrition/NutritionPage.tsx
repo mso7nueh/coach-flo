@@ -42,7 +42,7 @@ export const NutritionContent = ({ embedded = false, clientId }: { embedded?: bo
         dispatch(fetchNutritionEntries({
           start_date: startDate,
           end_date: endDate,
-          client_id: clientId
+          user_id: clientId
         }))
       }
       loadClientNutrition()

@@ -129,6 +129,7 @@ export const DashboardPage = () => {
         else if (metricId === 'sleep') metric = sleepMetric
         else if (metricId === 'heartRate') metric = heartRateMetric
         else if (metricId === 'steps') metric = stepsMetric
+        else if (metricId === 'water') metric = waterMetric
 
         if (!metric) {
             // Если метрика не найдена, создаем её
@@ -138,6 +139,7 @@ export const DashboardPage = () => {
                     sleep: { label: 'Сон', unit: 'h' },
                     heartRate: { label: 'Пульс', unit: 'bpm' },
                     steps: { label: 'Шаги', unit: 'steps' },
+                    water: { label: 'Вода', unit: 'ml' },
                 }
 
                 if (defaults[metricId]) {
@@ -184,8 +186,6 @@ export const DashboardPage = () => {
                 color: 'green',
             })
             closeQuickLog()
-            // Data refresh is handled by the thunk or auto-refetch if needed, 
-            // but addBodyMetricEntryApi already updates the store
         } catch (error: any) {
             notifications.show({
                 title: t('common.error'),
@@ -194,6 +194,45 @@ export const DashboardPage = () => {
             })
         } finally {
             setIsQuickLogSubmitting(false)
+        }
+    }
+
+    const handleQuickAddWater = async (amount: number) => {
+        let metric = waterMetric
+        if (!metric) {
+            try {
+                metric = await dispatch(createBodyMetricApi({
+                    label: 'Вода',
+                    unit: 'ml'
+                })).unwrap()
+            } catch (error) {
+                console.error('Failed to create water metric:', error)
+                return
+            }
+        }
+
+        if (metric) {
+            const todayValue = waterToday ? waterToday.value : 0
+            try {
+                await dispatch(addBodyMetricEntryApi({
+                    metricId: metric.id,
+                    value: todayValue + amount,
+                    recordedAt: dayjs().toISOString(),
+                })).unwrap()
+
+                notifications.show({
+                    title: t('common.success'),
+                    message: `+${amount} ${t('metricsPage.water.unit')}`,
+                    color: 'blue',
+                    autoClose: 2000,
+                })
+            } catch (error: any) {
+                notifications.show({
+                    title: t('common.error'),
+                    message: error?.message || t('dashboard.quickLog.error'),
+                    color: 'red',
+                })
+            }
         }
     }
 
@@ -315,6 +354,7 @@ export const DashboardPage = () => {
     const sleepMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('сон') || m.label.toLowerCase().includes('sleep')), [bodyMetrics])
     const heartRateMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('пульс') || m.label.toLowerCase().includes('heart')), [bodyMetrics])
     const stepsMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('шаг') || m.label.toLowerCase().includes('step')), [bodyMetrics])
+    const waterMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('вода') || m.label.toLowerCase().includes('water')), [bodyMetrics])
 
     // Получаем последние значения метрик
     const getLatestMetricValue = (metricId: string | undefined) => {
@@ -352,10 +392,12 @@ export const DashboardPage = () => {
     const sleepValue = getLatestMetricValue(sleepMetric?.id)
     const heartRateValue = getLatestMetricValue(heartRateMetric?.id)
     const stepsValue = getLatestMetricValue(stepsMetric?.id)
+    const waterValue = getLatestMetricValue(waterMetric?.id)
 
     const sleepToday = getTodayMetricValue(sleepMetric?.id)
     const heartRateToday = getTodayMetricValue(heartRateMetric?.id)
     const stepsToday = getTodayMetricValue(stepsMetric?.id)
+    const waterToday = getTodayMetricValue(waterMetric?.id)
 
     const periodDays = parseInt(period.replace('d', ''))
     const weightChange = getMetricChange(weightMetric?.id, periodDays)
@@ -746,6 +788,32 @@ export const DashboardPage = () => {
                                                 </Text>
                                             )}
                                         </>
+                                    )}
+                                    {tile.id === 'water' && (
+                                        <Group gap="xs" mt="xs">
+                                            <Button
+                                                size="compact-xs"
+                                                variant="light"
+                                                color="blue"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleQuickAddWater(250)
+                                                }}
+                                            >
+                                                +250
+                                            </Button>
+                                            <Button
+                                                size="compact-xs"
+                                                variant="light"
+                                                color="blue"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleQuickAddWater(500)
+                                                }}
+                                            >
+                                                +500
+                                            </Button>
+                                        </Group>
                                     )}
                                 </Stack>
                             </Stack>
@@ -1675,7 +1743,7 @@ export const DashboardPage = () => {
                     <Text size="sm" c="dimmed">
                         {t('dashboard.quickLog.valueLabel')} - {quickLogMetric?.label} ({quickLogMetric?.unit})
                     </Text>
-                    {quickLogMetric?.id === 'sleep' ? (
+                    {quickLogMetric?.id === sleepMetric?.id ? (
                         <Group grow>
                             <NumberInput
                                 label={t('dashboard.bodyOverview.sleepHours')}
