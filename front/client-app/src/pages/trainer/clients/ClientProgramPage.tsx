@@ -68,7 +68,8 @@ import { createWorkout } from '@/app/store/slices/calendarSlice'
 import {
     fetchExercises,
     fetchWorkoutTemplates,
-    createWorkoutTemplateFromDayApi
+    createWorkoutTemplateFromDayApi,
+    fetchExerciseTemplates,
 } from '@/app/store/slices/librarySlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
@@ -183,6 +184,8 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
     const [trainerPrograms, setTrainerPrograms] = useState<any[]>([])
     const [selectedTrainerProgramId, setSelectedTrainerProgramId] = useState<string | null>(null)
     const [isCopying, setIsCopying] = useState(false)
+    const [exerciseTemplatePickerOpened, { open: openExerciseTemplatePicker, close: closeExerciseTemplatePicker }] = useDisclosure(false)
+    const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
 
     // UI state for editing
     const [renameModalOpened, { open: openRename, close: closeRename }] = useDisclosure(false)
@@ -227,6 +230,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                 }
             })
             dispatch(fetchExercises())
+            dispatch(fetchExerciseTemplates())
             dispatch(fetchWorkoutTemplates())
         }
     }, [dispatch, clientId])
@@ -460,6 +464,17 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
         }
     }
 
+    const { exercises, exerciseTemplates } = useAppSelector((state) => state.library)
+
+    const filteredExercises = useMemo(() => {
+        return exercises.filter((ex) => {
+            if (ex.visibility === 'all') return true
+            if (ex.visibility === 'trainer') return true // Trainer can see their own
+            if (ex.visibility === 'client' && ex.clientId === clientId) return true
+            return false
+        })
+    }, [exercises, clientId])
+
     if (isLoadingClients && !client) return <Group justify="center" py="xl"><Loader /></Group>
     if (!client) return (
         <Stack gap="md" align="center" py="xl">
@@ -550,9 +565,16 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                             {block.type === 'cooldown' && <IconClock size={20} />}
                                             <Title order={4}>{block.title}</Title>
                                         </Group>
-                                        <ActionIcon variant="light" color="violet" onClick={() => { setEditingExercise({ exercise: null, blockId: block.id }); openExerciseModal(); }}>
-                                            <IconPlus size={16} />
-                                        </ActionIcon>
+                                        <Group gap={4}>
+                                            <Tooltip label={t('program.orAddFromTemplate')}>
+                                                <ActionIcon variant="light" color="blue" onClick={() => { setActiveBlockId(block.id); openExerciseTemplatePicker(); }}>
+                                                    <IconTemplate size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                            <ActionIcon variant="light" color="violet" onClick={() => { setEditingExercise({ exercise: null, blockId: block.id }); openExerciseModal(); }}>
+                                                <IconPlus size={16} />
+                                            </ActionIcon>
+                                        </Group>
                                     </Group>
                                     <Divider />
                                     {block.exercises.length === 0 ? (
@@ -666,6 +688,59 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                         </SimpleGrid>
                     )}
                 </Stack>
+            </Modal>
+
+            <Modal opened={exerciseTemplatePickerOpened} onClose={closeExerciseTemplatePicker} title={t('program.browseExerciseTemplates')} size="lg">
+                <ScrollArea h={400}>
+                    <Stack gap="sm">
+                        {exerciseTemplates.length === 0 ? (
+                            <Text ta="center" c="dimmed" py="xl">{t('program.templatesEmpty')}</Text>
+                        ) : (
+                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                                {exerciseTemplates.map((template) => {
+                                    const exercise = exercises.find(e => e.id === template.exerciseId)
+                                    return (
+                                        <Card
+                                            key={template.id}
+                                            withBorder
+                                            padding="md"
+                                            radius="md"
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => {
+                                                if (!selectedProgramId || !selectedDayId || !activeBlockId) return
+                                                dispatch(addExerciseToProgramDayApi({
+                                                    programId: selectedProgramId,
+                                                    dayId: selectedDayId,
+                                                    blockId: activeBlockId,
+                                                    exercise: {
+                                                        title: template.name,
+                                                        sets: template.sets,
+                                                        reps: template.reps,
+                                                        weight: template.weight ? String(template.weight) : undefined,
+                                                        duration: template.duration ? `${template.duration} ${t('program.minutesShort')}` : undefined,
+                                                        rest: template.rest ? `${template.rest} ${t('program.secondsShort')}` : undefined,
+                                                        description: template.notes,
+                                                        exerciseId: template.exerciseId
+                                                    }
+                                                }))
+                                                closeExerciseTemplatePicker()
+                                            }}
+                                        >
+                                            <Stack gap={4}>
+                                                <Text fw={600}>{template.name}</Text>
+                                                <Text size="xs" c="dimmed">{exercise?.name || template.name}</Text>
+                                                <Group gap={4}>
+                                                    <Badge size="xs" variant="light">{template.sets} {t('common.sets')}</Badge>
+                                                    {template.reps && <Badge size="xs" variant="light" color="violet">{template.reps} {t('program.reps')}</Badge>}
+                                                </Group>
+                                            </Stack>
+                                        </Card>
+                                    )
+                                })}
+                            </SimpleGrid>
+                        )}
+                    </Stack>
+                </ScrollArea>
             </Modal>
         </Stack>
     )

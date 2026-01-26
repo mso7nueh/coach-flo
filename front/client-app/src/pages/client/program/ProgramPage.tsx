@@ -148,8 +148,10 @@ export const ProgramPage = () => {
 
   const [viewingExercise, setViewingExercise] = useState<Exercise | null>(null)
   const [viewExerciseModalOpened, { open: openViewExerciseModal, close: closeViewExerciseModal }] = useDisclosure(false)
-  const canEditSelectedDay = Boolean(selectedDay && (role === 'trainer' || selectedDay.owner === 'client'))
-  const canManageDay = (dayOwner: 'trainer' | 'client') => role === 'trainer' || dayOwner === 'client'
+  const selectedProgram = useMemo(() => programs.find(p => p.id === selectedProgramId) || null, [programs, selectedProgramId])
+  const canEditSelectedProgram = Boolean(selectedProgram && (role === 'trainer' || selectedProgram.owner === 'client'))
+  const canEditSelectedDay = Boolean(selectedDay && (role === 'trainer' || (selectedDay.owner === 'client' && canEditSelectedProgram)))
+  const canManageDay = (dayOwner: 'trainer' | 'client') => role === 'trainer' || (dayOwner === 'client' && canEditSelectedProgram)
 
   // Загружаем программы и библиотеку при открытии страницы
   useEffect(() => {
@@ -688,9 +690,11 @@ export const ProgramPage = () => {
                   {t('program.addProgramFromTemplate')}
                 </Button>
               )}
-              <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddProgram}>
-                {t('program.addProgram')}
-              </Button>
+              {(role === 'trainer' || !programs.some(p => p.owner === 'client')) && (
+                <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddProgram}>
+                  {t('program.addProgram')}
+                </Button>
+              )}
             </Group>
           </Group>
           <ScrollArea type="auto" offsetScrollbars>
@@ -761,12 +765,16 @@ export const ProgramPage = () => {
           <Group justify="space-between" align="center">
             <Text fw={600}>{t('program.trainingsTitle')}</Text>
             <Group gap="xs">
-              <Button variant="light" leftSection={<IconTemplate size={16} />} onClick={openTemplatePicker}>
-                {t('program.addTrainingFromTemplate')}
-              </Button>
-              <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddDay}>
-                {t('program.addTraining')}
-              </Button>
+              {canEditSelectedProgram && (
+                <>
+                  <Button variant="light" leftSection={<IconTemplate size={16} />} onClick={openTemplatePicker}>
+                    {t('program.addTrainingFromTemplate')}
+                  </Button>
+                  <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddDay}>
+                    {t('program.addTraining')}
+                  </Button>
+                </>
+              )}
             </Group>
           </Group>
           <DragDropContext onDragEnd={handleDragEnd}>
@@ -1456,6 +1464,21 @@ export const ProgramPage = () => {
               {editingExercise?.exercise ? t('common.save') : t('common.add')}
             </Button>
           </Group>
+          {role === 'trainer' && !editingExercise?.exercise && (
+            <Stack gap="xs" mt="md">
+              <Text size="sm" fw={500}>{t('program.orAddFromTemplate')}</Text>
+              <Button
+                variant="outline"
+                leftSection={<IconTemplate size={16} />}
+                onClick={() => {
+                  closeExerciseModal()
+                  openExerciseLibrary()
+                }}
+              >
+                {t('program.browseExerciseTemplates')}
+              </Button>
+            </Stack>
+          )}
         </Stack>
       </Modal>
 

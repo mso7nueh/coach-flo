@@ -59,9 +59,23 @@ export interface WorkoutTemplate {
     clientId?: string
 }
 
+export interface ExerciseTemplate {
+    id: string
+    trainerId: string
+    exerciseId: string
+    name: string
+    sets: number
+    reps?: number
+    duration?: number
+    rest?: number
+    weight?: number
+    notes?: string
+}
+
 interface LibraryState {
     workouts: WorkoutTemplate[]
     exercises: Exercise[]
+    exerciseTemplates: ExerciseTemplate[]
     workoutFilters: {
         level?: WorkoutLevel
         goal?: WorkoutGoal
@@ -81,6 +95,7 @@ interface LibraryState {
 const initialState: LibraryState = {
     workouts: [],
     exercises: [],
+    exerciseTemplates: [],
     workoutFilters: {},
     exerciseFilters: {},
     selectedWorkoutId: null,
@@ -578,6 +593,85 @@ export const deleteExerciseApi = createAsyncThunk(
     }
 )
 
+export const fetchExerciseTemplates = createAsyncThunk(
+    'library/fetchExerciseTemplates',
+    async (_, { rejectWithValue }) => {
+        try {
+            const templates = await apiClient.getExerciseTemplates()
+            return templates.map(t => ({
+                id: t.id,
+                trainerId: t.trainer_id,
+                exerciseId: t.exercise_id,
+                name: t.name,
+                sets: t.sets,
+                reps: t.reps ?? undefined,
+                duration: t.duration ?? undefined,
+                rest: t.rest ?? undefined,
+                weight: t.weight ?? undefined,
+                notes: t.notes ?? undefined,
+            }))
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка загрузки шаблонов упражнений')
+        }
+    }
+)
+
+export const createExerciseTemplateApi = createAsyncThunk(
+    'library/createExerciseTemplateApi',
+    async (data: Omit<ExerciseTemplate, 'id' | 'trainerId'>, { rejectWithValue, dispatch }) => {
+        try {
+            const template = await apiClient.createExerciseTemplate({
+                exercise_id: data.exerciseId,
+                name: data.name,
+                sets: data.sets,
+                reps: data.reps,
+                duration: data.duration,
+                rest: data.rest,
+                weight: data.weight,
+                notes: data.notes,
+            })
+            await dispatch(fetchExerciseTemplates())
+            return template
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка создания шаблона упражнения')
+        }
+    }
+)
+
+export const updateExerciseTemplateApi = createAsyncThunk(
+    'library/updateExerciseTemplateApi',
+    async ({ id, updates }: { id: string; updates: Partial<ExerciseTemplate> }, { rejectWithValue, dispatch }) => {
+        try {
+            const template = await apiClient.updateExerciseTemplate(id, {
+                name: updates.name,
+                sets: updates.sets,
+                reps: updates.reps,
+                duration: updates.duration,
+                rest: updates.rest,
+                weight: updates.weight,
+                notes: updates.notes,
+            })
+            await dispatch(fetchExerciseTemplates())
+            return template
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка обновления шаблона упражнения')
+        }
+    }
+)
+
+export const deleteExerciseTemplateApi = createAsyncThunk(
+    'library/deleteExerciseTemplateApi',
+    async (templateId: string, { rejectWithValue, dispatch }) => {
+        try {
+            await apiClient.deleteExerciseTemplate(templateId)
+            await dispatch(fetchExerciseTemplates())
+            return templateId
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Ошибка удаления шаблона упражнения')
+        }
+    }
+)
+
 export const deleteWorkoutTemplateApi = createAsyncThunk(
     'library/deleteWorkoutTemplateApi',
     async (workoutId: string, { rejectWithValue, dispatch }) => {
@@ -737,6 +831,21 @@ const librarySlice = createSlice({
                 if (state.selectedWorkoutId === action.payload) {
                     state.selectedWorkoutId = null
                 }
+            })
+            .addCase(fetchExerciseTemplates.pending, (state) => {
+                state.loading = true
+                state.error = null
+            })
+            .addCase(fetchExerciseTemplates.fulfilled, (state, action) => {
+                state.loading = false
+                state.exerciseTemplates = action.payload
+            })
+            .addCase(fetchExerciseTemplates.rejected, (state, action) => {
+                state.loading = false
+                state.error = action.payload as string
+            })
+            .addCase(deleteExerciseTemplateApi.fulfilled, (state, action) => {
+                state.exerciseTemplates = state.exerciseTemplates.filter(t => t.id !== action.payload)
             })
     },
 })

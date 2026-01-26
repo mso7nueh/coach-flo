@@ -204,6 +204,21 @@ export interface Note {
   created_at: string
 }
 
+export interface ExerciseTemplate {
+  id: string
+  trainer_id: string
+  exercise_id: string
+  name: string
+  sets: number
+  reps?: number | null
+  duration?: number | null
+  rest?: number | null
+  weight?: number | null
+  notes?: string | null
+  created_at: string
+  updated_at?: string | null
+}
+
 // Создаем axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -1165,30 +1180,38 @@ export const deleteExercise = async (exercise_id: string): Promise<void> => {
   await api.delete<void>(`/api/exercises/${exercise_id}`)
 }
 
-export const getExerciseTemplates = async (): Promise<any[]> => {
-  const { data } = await api.get<any[]>('/api/library/exercise-templates')
+export const getExerciseTemplates = async (): Promise<ExerciseTemplate[]> => {
+  const { data } = await api.get<ExerciseTemplate[]>('/api/library/exercise-templates')
   return data
 }
 
 export const createExerciseTemplate = async (data: {
-  title: string
-  description?: string
-  muscle_group?: string
-}): Promise<any> => {
-  // Добавляем слэш в конце, чтобы избежать редиректа
-  const { data: response } = await api.post<any>('/api/library/exercise-templates/', data)
+  exercise_id: string
+  name: string
+  sets: number
+  reps?: number
+  duration?: number
+  rest?: number
+  weight?: number
+  notes?: string
+}): Promise<ExerciseTemplate> => {
+  const { data: response } = await api.post<ExerciseTemplate>('/api/library/exercise-templates/', data)
   return response
 }
 
 export const updateExerciseTemplate = async (
   template_id: string,
   data: {
-    title?: string
-    description?: string
-    muscle_group?: string
+    name?: string
+    sets?: number
+    reps?: number
+    duration?: number
+    rest?: number
+    weight?: number
+    notes?: string
   }
-): Promise<any> => {
-  const { data: response } = await api.put<any>(`/api/library/exercise-templates/${template_id}`, data)
+): Promise<ExerciseTemplate> => {
+  const { data: response } = await api.put<ExerciseTemplate>(`/api/library/exercise-templates/${template_id}`, data)
   return response
 }
 

@@ -232,11 +232,27 @@ export const createProgramDay = createAsyncThunk(
 export const updateProgramDay = createAsyncThunk(
   'program/updateProgramDay',
   async (
-    { programId, dayId, data }: { programId: string; dayId: string; data: { name?: string; order?: number } },
+    { programId, dayId, data }: { programId: string; dayId: string; data: { name?: string; order?: number; blocks?: ProgramBlockInput[] } },
     { rejectWithValue }
   ) => {
     try {
-      const day = await apiClient.updateProgramDay(programId, dayId, data)
+      const apiData: any = { ...data }
+      if (data.blocks) {
+        apiData.blocks = data.blocks.map(block => ({
+          type: block.type,
+          title: block.title,
+          exercises: block.exercises.map(ex => ({
+            title: ex.title,
+            exercise_id: ex.exerciseId,
+            sets: ex.sets || 1,
+            reps: ex.reps || null,
+            weight: ex.weight != null ? String(ex.weight) : null,
+            duration: ex.duration != null ? String(ex.duration) : null,
+            rest: ex.rest != null ? String(ex.rest) : null,
+          })),
+        }))
+      }
+      const day = await apiClient.updateProgramDay(programId, dayId, apiData)
       return mapApiProgramDayToState(day, programId)
     } catch (error: any) {
       return rejectWithValue(error.message || 'Ошибка обновления дня программы')

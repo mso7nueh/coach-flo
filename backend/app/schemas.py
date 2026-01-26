@@ -447,6 +447,43 @@ class ExerciseResponse(ExerciseBase):
         from_attributes = True
 
 
+# Exercise Template schemas
+class ExerciseTemplateBase(BaseModel):
+    exercise_id: str
+    name: str
+    sets: int = 1
+    reps: Optional[int] = None
+    duration: Optional[int] = None  # minutes
+    rest: Optional[int] = None  # seconds
+    weight: Optional[float] = None  # kg
+    notes: Optional[str] = None
+
+
+class ExerciseTemplateCreate(ExerciseTemplateBase):
+    pass
+
+
+class ExerciseTemplateUpdate(BaseModel):
+    exercise_id: Optional[str] = None
+    name: Optional[str] = None
+    sets: Optional[int] = None
+    reps: Optional[int] = None
+    duration: Optional[int] = None
+    rest: Optional[int] = None
+    weight: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class ExerciseTemplateResponse(ExerciseTemplateBase):
+    id: str
+    trainer_id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 # Trainer Notes schemas
 class TrainerNoteBase(BaseModel):
     client_id: str

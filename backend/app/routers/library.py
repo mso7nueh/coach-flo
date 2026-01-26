@@ -663,3 +663,140 @@ async def create_workout_template_from_day(
         created_at=db_template.created_at,
         updated_at=db_template.updated_at
     )
+
+
+# Exercise Template endpoints
+
+@router.post(
+    "/exercise-templates/",
+    response_model=schemas.ExerciseTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать шаблон упражнения",
+    description="Создание шаблона упражнения (только для тренеров)."
+)
+async def create_exercise_template(
+    template: schemas.ExerciseTemplateCreate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Создать шаблон упражнения (только для тренеров)"""
+    if current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут создавать шаблоны")
+    
+    # Verify exercise exists and trainer has access
+    exercise = db.query(models.Exercise).filter(models.Exercise.id == template.exercise_id).first()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Упражнение не найдено")
+    
+    # Trainer can use any exercise they have access to (their own or default)
+    if exercise.trainer_id and exercise.trainer_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому упражнению")
+
+    template_id = str(uuid.uuid4())
+    db_template = models.ExerciseTemplate(
+        id=template_id,
+        trainer_id=current_user.id,
+        exercise_id=template.exercise_id,
+        name=template.name,
+        sets=template.sets,
+        reps=template.reps,
+        duration=template.duration,
+        rest=template.rest,
+        weight=template.weight,
+        notes=template.notes
+    )
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+
+@router.get(
+    "/exercise-templates",
+    response_model=List[schemas.ExerciseTemplateResponse],
+    summary="Получить список шаблонов упражнений"
+)
+async def get_exercise_templates(
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Получить список шаблонов упражнений"""
+    if current_user.role == models.UserRole.TRAINER:
+        return db.query(models.ExerciseTemplate).filter(models.ExerciseTemplate.trainer_id == current_user.id).all()
+    else:
+        # Client sees templates of their trainer
+        if not current_user.trainer_id:
+            return []
+        return db.query(models.ExerciseTemplate).filter(models.ExerciseTemplate.trainer_id == current_user.trainer_id).all()
+
+
+@router.get("/exercise-templates/{template_id}", response_model=schemas.ExerciseTemplateResponse)
+async def get_exercise_template(
+    template_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Получить шаблон упражнения по ID"""
+    template = db.query(models.ExerciseTemplate).filter(models.ExerciseTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    if current_user.role == models.UserRole.TRAINER:
+        if template.trainer_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    else:
+        if template.trainer_id != current_user.trainer_id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+            
+    return template
+
+
+@router.put("/exercise-templates/{template_id}", response_model=schemas.ExerciseTemplateResponse)
+async def update_exercise_template(
+    template_id: str,
+    template_update: schemas.ExerciseTemplateUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновить шаблон упражнения"""
+    if current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут обновлять шаблоны")
+    
+    template = db.query(models.ExerciseTemplate).filter(
+        models.ExerciseTemplate.id == template_id,
+        models.ExerciseTemplate.trainer_id == current_user.id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    update_data = template_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(template, key, value)
+        
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@router.delete("/exercise-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_exercise_template(
+    template_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Удалить шаблон упражнения"""
+    if current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут удалять шаблоны")
+    
+    template = db.query(models.ExerciseTemplate).filter(
+        models.ExerciseTemplate.id == template_id,
+        models.ExerciseTemplate.trainer_id == current_user.id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+        
+    db.delete(template)
+    db.commit()
+    return None

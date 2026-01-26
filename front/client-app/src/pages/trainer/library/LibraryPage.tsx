@@ -23,6 +23,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
+import { nanoid } from '@reduxjs/toolkit'
 import {
     addWorkout,
     removeWorkout,
@@ -38,6 +39,10 @@ import {
     updateWorkoutApi,
     deleteWorkoutTemplateApi,
     createWorkoutTemplateFromDayApi,
+    fetchExerciseTemplates,
+    createExerciseTemplateApi,
+    updateExerciseTemplateApi,
+    deleteExerciseTemplateApi,
 } from '@/app/store/slices/librarySlice'
 import {
     createProgram,
@@ -89,12 +94,13 @@ import type {
     WorkoutGoal,
     MuscleGroup,
     WorkoutExercise,
+    ExerciseTemplate,
 } from '@/app/store/slices/librarySlice'
 
 export const LibraryPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
-    const { workouts, exercises, workoutFilters, exerciseFilters } = useAppSelector((state) => state.library)
+    const { workouts, exercises, exerciseTemplates, workoutFilters, exerciseFilters } = useAppSelector((state) => state.library)
     const { programs, days, selectedProgramId, selectedDayId } = useAppSelector((state) => state.program)
     const clients = useAppSelector((state) => state.clients.clients)
     const [activeTab, setActiveTab] = useState<string>('exercises')
@@ -109,6 +115,8 @@ export const LibraryPage = () => {
     const [addExerciseModalOpened, { open: openAddExerciseModal, close: closeAddExerciseModal }] = useDisclosure(false)
     const [currentBlockType, setCurrentBlockType] = useState<'warmup' | 'main' | 'cooldown' | null>(null)
     const [editingWorkoutExercise, setEditingWorkoutExercise] = useState<{ blockType: 'warmup' | 'main' | 'cooldown'; index: number } | null>(null)
+    const [exerciseTemplateModalOpened, { open: openExerciseTemplateModal, close: closeExerciseTemplateModal }] = useDisclosure(false)
+    const [editingExerciseTemplate, setEditingExerciseTemplate] = useState<ExerciseTemplate | null>(null)
 
     const trainerPrograms = useMemo(() => programs.filter((p) => p.owner === 'trainer'), [programs])
     const trainerDays = useMemo(() => days.filter((d) => d.owner === 'trainer'), [days])
@@ -117,6 +125,8 @@ export const LibraryPage = () => {
     const [programEditModalOpened, { open: openProgramEdit, close: closeProgramEdit }] = useDisclosure(false)
     const [programExerciseModalOpened, { open: openProgramExerciseModal, close: closeProgramExerciseModal }] = useDisclosure(false)
     const [programTemplatePickerOpened, { open: openProgramTemplatePicker, close: closeProgramTemplatePicker }] = useDisclosure(false)
+    const [exerciseTemplatePickerOpened, { open: openExerciseTemplatePicker, close: closeExerciseTemplatePicker }] = useDisclosure(false)
+    const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
     const [programExerciseLibraryOpened, { open: openProgramExerciseLibrary, close: closeProgramExerciseLibrary }] = useDisclosure(false)
     const [programTemplateModalOpened, { open: openProgramTemplateModal, close: closeProgramTemplateModal }] = useDisclosure(false)
     const [programRenameDraft, setProgramRenameDraft] = useState('')
@@ -193,6 +203,23 @@ export const LibraryPage = () => {
                 return null
             },
         },
+    })
+
+    const exerciseTemplateForm = useForm<Omit<ExerciseTemplate, 'id' | 'trainerId'>>({
+        initialValues: {
+            exerciseId: '',
+            name: '',
+            sets: 3,
+            reps: undefined,
+            duration: undefined,
+            rest: undefined,
+            weight: undefined,
+            notes: '',
+        },
+        validate: {
+            exerciseId: (value) => !value ? t('trainer.library.exerciseTemplateForm.exerciseRequired') : null,
+            name: (value) => !value ? t('trainer.library.exerciseTemplateForm.nameRequired') : null,
+        }
     })
 
     const workoutExerciseForm = useForm<{ exerciseId: string; sets?: number; reps?: number; duration?: number; rest?: number; weight?: number; notes?: string }>({
@@ -284,6 +311,75 @@ export const LibraryPage = () => {
         }
     }
 
+
+    const handleDeleteExerciseTemplate = async (id: string) => {
+        if (confirm(t('common.delete') + '?')) {
+            try {
+                await dispatch(deleteExerciseTemplateApi(id)).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.library.exerciseTemplateDeleted'),
+                    color: 'green',
+                })
+            } catch (error: any) {
+                notifications.show({
+                    title: t('common.error'),
+                    message: error || t('trainer.library.error.deleteExerciseTemplate'),
+                    color: 'red',
+                })
+            }
+        }
+    }
+
+    const handleCreateExerciseTemplate = () => {
+        setEditingExerciseTemplate(null)
+        exerciseTemplateForm.reset()
+        openExerciseTemplateModal()
+    }
+
+    const handleEditExerciseTemplate = (template: ExerciseTemplate) => {
+        setEditingExerciseTemplate(template)
+        exerciseTemplateForm.setValues({
+            exerciseId: template.exerciseId,
+            name: template.name,
+            sets: template.sets,
+            reps: template.reps,
+            duration: template.duration,
+            rest: template.rest,
+            weight: template.weight,
+            notes: template.notes || '',
+        })
+        openExerciseTemplateModal()
+    }
+
+    const handleSaveExerciseTemplate = async (values: typeof exerciseTemplateForm.values) => {
+        try {
+            if (editingExerciseTemplate) {
+                await dispatch(updateExerciseTemplateApi({ id: editingExerciseTemplate.id, updates: values })).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.library.exerciseTemplateUpdated'),
+                    color: 'green',
+                })
+            } else {
+                await dispatch(createExerciseTemplateApi(values)).unwrap()
+                notifications.show({
+                    title: t('common.success'),
+                    message: t('trainer.library.exerciseTemplateCreated'),
+                    color: 'green',
+                })
+            }
+            closeExerciseTemplateModal()
+            exerciseTemplateForm.reset()
+            setEditingExerciseTemplate(null)
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error || t('trainer.library.error.saveExerciseTemplate'),
+                color: 'red',
+            })
+        }
+    }
 
     const accessibleExercisesForProgram = useMemo(() => {
         return exercises.filter((exercise) => {
@@ -699,6 +795,11 @@ export const LibraryPage = () => {
         openProgramExerciseLibrary()
     }
 
+    const handleOpenExerciseTemplatePicker = (blockId: string) => {
+        setActiveBlockId(blockId)
+        openExerciseTemplatePicker()
+    }
+
     const handleAddProgramExerciseFromLibrary = async (exercise: Exercise) => {
         if (!selectedDay || !programExerciseLibraryTargetBlock) {
             return
@@ -790,8 +891,17 @@ export const LibraryPage = () => {
 
     // Загружаем шаблоны тренировок при открытии вкладки тренировок
     useEffect(() => {
-        if (activeTab === 'workouts') {
-            dispatch(fetchWorkoutTemplates())
+        dispatch(fetchExercises())
+        dispatch(fetchExerciseTemplates())
+        dispatch(fetchWorkoutTemplates())
+        dispatch(fetchPrograms())
+    }, [dispatch])
+
+    // Загружаем шаблоны упражнений при открытии вкладки шаблонов
+    useEffect(() => {
+        if (activeTab === 'exercise-templates') {
+            dispatch(fetchExerciseTemplates())
+            dispatch(fetchExercises())
         }
     }, [activeTab, dispatch])
 
@@ -888,7 +998,10 @@ export const LibraryPage = () => {
                         {t('trainer.library.workouts')}
                     </Tabs.Tab>
                     <Tabs.Tab value="programs" leftSection={<IconTemplate size={16} />}>
-                        {t('program.programsTitle')}
+                        {t('trainer.library.programs')}
+                    </Tabs.Tab>
+                    <Tabs.Tab value="exercise-templates" leftSection={<IconBooks size={16} />}>
+                        {t('trainer.library.exerciseTemplates')}
                     </Tabs.Tab>
                 </Tabs.List>
 
@@ -1705,6 +1818,15 @@ export const LibraryPage = () => {
                                                             >
                                                                 {t('program.addFromLibrary')}
                                                             </Button>
+                                                            <Button
+                                                                variant="subtle"
+                                                                color={config.color}
+                                                                leftSection={<IconTemplate size={16} />}
+                                                                onClick={() => handleOpenExerciseTemplatePicker(block.id)}
+                                                                fullWidth
+                                                            >
+                                                                {t('program.orAddFromTemplate')}
+                                                            </Button>
                                                         </Group>
                                                     </Stack>
                                                 </Card>
@@ -1724,6 +1846,83 @@ export const LibraryPage = () => {
                             )}
                         </ScrollArea>
                     </Group>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="exercise-templates" pt="xl">
+                    <Stack gap="lg">
+                        <Group justify="space-between">
+                            <Title order={3}>{t('trainer.library.exerciseTemplates')}</Title>
+                            <Button leftSection={<IconPlus size={16} />} onClick={handleCreateExerciseTemplate}>
+                                {t('trainer.library.createExerciseTemplate')}
+                            </Button>
+                        </Group>
+
+                        {exerciseTemplates.length === 0 ? (
+                            <Card withBorder padding="xl">
+                                <Stack align="center" gap="md">
+                                    <IconTemplate size={48} color="var(--mantine-color-gray-4)" />
+                                    <Text c="dimmed">{t('trainer.library.exerciseTemplatesEmpty')}</Text>
+                                    <Button variant="light" onClick={handleCreateExerciseTemplate}>
+                                        {t('trainer.library.createFirstExerciseTemplate')}
+                                    </Button>
+                                </Stack>
+                            </Card>
+                        ) : (
+                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                                {exerciseTemplates.map((template) => {
+                                    const exercise = exercises.find(e => e.id === template.exerciseId)
+                                    return (
+                                        <Card key={template.id} withBorder padding="md" style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <Group justify="space-between" mb="xs">
+                                                <Text fw={600} size="lg">{template.name}</Text>
+                                                <Menu position="bottom-end" withinPortal>
+                                                    <Menu.Target>
+                                                        <ActionIcon variant="subtle" color="gray">
+                                                            <IconDotsVertical size={16} />
+                                                        </ActionIcon>
+                                                    </Menu.Target>
+                                                    <Menu.Dropdown>
+                                                        <Menu.Item leftSection={<IconEdit size={16} />} onClick={() => handleEditExerciseTemplate(template)}>
+                                                            {t('common.edit')}
+                                                        </Menu.Item>
+                                                        <Menu.Item leftSection={<IconTrash size={16} />} color="red" onClick={() => handleDeleteExerciseTemplate(template.id)}>
+                                                            {t('common.delete')}
+                                                        </Menu.Item>
+                                                    </Menu.Dropdown>
+                                                </Menu>
+                                            </Group>
+                                            <Stack gap={4} style={{ flexGrow: 1 }}>
+                                                <Group gap="xs">
+                                                    <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                                    <Text size="sm" fw={500}>{exercise?.name || template.name}</Text>
+                                                </Group>
+                                                <Group gap="md" wrap="wrap">
+                                                    {template.sets && (
+                                                        <Group gap={4}>
+                                                            <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
+                                                            <Text size="xs" c="dimmed">{template.sets} {t('program.sets')}</Text>
+                                                        </Group>
+                                                    )}
+                                                    {template.reps && (
+                                                        <Group gap={4}>
+                                                            <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
+                                                            <Text size="xs" c="dimmed">× {template.reps} {t('program.reps')}</Text>
+                                                        </Group>
+                                                    )}
+                                                    {template.weight && (
+                                                        <Badge size="xs" variant="light" color="blue">{template.weight} кг</Badge>
+                                                    )}
+                                                </Group>
+                                                {template.notes && (
+                                                    <Text size="xs" c="dimmed" lineClamp={2} mt="xs">{template.notes}</Text>
+                                                )}
+                                            </Stack>
+                                        </Card>
+                                    )
+                                })}
+                            </SimpleGrid>
+                        )}
+                    </Stack>
                 </Tabs.Panel>
             </Tabs>
 
@@ -3218,6 +3417,137 @@ export const LibraryPage = () => {
                         </Button>
                     </Group>
                 </Stack>
+            </Modal>
+
+            <Modal opened={exerciseTemplatePickerOpened} onClose={closeExerciseTemplatePicker} title={t('program.browseExerciseTemplates')} size="lg">
+                <ScrollArea h={400}>
+                    <Stack gap="sm">
+                        {exerciseTemplates.length === 0 ? (
+                            <Text ta="center" c="dimmed" py="xl">{t('program.templatesEmpty')}</Text>
+                        ) : (
+                            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                                {exerciseTemplates.map((template) => {
+                                    const exercise = exercises.find(e => e.id === template.exerciseId)
+                                    return (
+                                        <Card
+                                            key={template.id}
+                                            withBorder
+                                            padding="md"
+                                            radius="md"
+                                            style={{ cursor: 'pointer' }}
+                                            onClick={() => {
+                                                if (!selectedDay || !activeBlockId) return
+                                                const exerciseData: Array<Omit<ProgramExercise, 'id'>> = [{
+                                                    title: template.name,
+                                                    sets: template.sets,
+                                                    reps: template.reps,
+                                                    weight: template.weight ? String(template.weight) : undefined,
+                                                    duration: template.duration ? `${template.duration} ${t('program.minutesShort')}` : undefined,
+                                                    rest: template.rest ? `${template.rest} ${t('program.secondsShort')}` : undefined,
+                                                    description: template.notes,
+                                                    exerciseId: template.exerciseId
+                                                }]
+
+                                                const newBlocks = selectedDay.blocks.map(block => {
+                                                    if (block.id === activeBlockId) {
+                                                        return {
+                                                            ...block,
+                                                            exercises: [...block.exercises, ...exerciseData.map(ex => ({ ...ex, id: nanoid() }))]
+                                                        }
+                                                    }
+                                                    return block
+                                                })
+
+                                                dispatch(updateProgramDay({
+                                                    programId: selectedDay.programId,
+                                                    dayId: selectedDay.id,
+                                                    data: { blocks: newBlocks }
+                                                }))
+                                                closeExerciseTemplatePicker()
+                                            }}
+                                        >
+                                            <Stack gap={4}>
+                                                <Text fw={600}>{template.name}</Text>
+                                                <Text size="xs" c="dimmed">{exercise?.name || template.name}</Text>
+                                                <Group gap={4}>
+                                                    <Badge size="xs" variant="light">{template.sets} {t('common.sets')}</Badge>
+                                                    {template.reps && <Badge size="xs" variant="light" color="violet">{template.reps} {t('program.reps')}</Badge>}
+                                                </Group>
+                                            </Stack>
+                                        </Card>
+                                    )
+                                })}
+                            </SimpleGrid>
+                        )}
+                    </Stack>
+                </ScrollArea>
+            </Modal>
+
+            <Modal
+                opened={exerciseTemplateModalOpened}
+                onClose={closeExerciseTemplateModal}
+                title={editingExerciseTemplate ? t('trainer.library.editExerciseTemplate') : t('trainer.library.createExerciseTemplate')}
+                size="lg"
+            >
+                <form onSubmit={exerciseTemplateForm.onSubmit(handleSaveExerciseTemplate)}>
+                    <Stack gap="md">
+                        <TextInput
+                            label={t('trainer.library.exerciseTemplateForm.name')}
+                            placeholder={t('trainer.library.exerciseTemplateForm.namePlaceholder')}
+                            required
+                            {...exerciseTemplateForm.getInputProps('name')}
+                        />
+                        <Select
+                            label={t('trainer.library.exerciseTemplateForm.exercise')}
+                            required
+                            searchable
+                            data={exercises.map(e => ({ value: e.id, label: e.name }))}
+                            {...exerciseTemplateForm.getInputProps('exerciseId')}
+                        />
+                        <Group grow>
+                            <NumberInput
+                                label={t('trainer.library.exerciseTemplateForm.sets')}
+                                min={1}
+                                required
+                                {...exerciseTemplateForm.getInputProps('sets')}
+                            />
+                            <NumberInput
+                                label={t('trainer.library.exerciseTemplateForm.reps')}
+                                min={1}
+                                {...exerciseTemplateForm.getInputProps('reps')}
+                            />
+                        </Group>
+                        <Group grow>
+                            <NumberInput
+                                label={t('trainer.library.exerciseTemplateForm.duration')}
+                                min={0}
+                                {...exerciseTemplateForm.getInputProps('duration')}
+                                rightSection={<Text size="xs">{t('program.minutesShort')}</Text>}
+                            />
+                            <NumberInput
+                                label={t('trainer.library.exerciseTemplateForm.rest')}
+                                min={0}
+                                {...exerciseTemplateForm.getInputProps('rest')}
+                                rightSection={<Text size="xs">{t('program.secondsShort')}</Text>}
+                            />
+                        </Group>
+                        <TextInput
+                            label={t('trainer.library.exerciseTemplateForm.weight')}
+                            placeholder={t('program.weightPlaceholder')}
+                            {...exerciseTemplateForm.getInputProps('weight')}
+                        />
+                        <Textarea
+                            label={t('trainer.library.exerciseTemplateForm.notes')}
+                            {...exerciseTemplateForm.getInputProps('notes')}
+                        />
+                        <Group justify="flex-end" mt="md">
+                            <Button variant="subtle" onClick={closeExerciseTemplateModal}>
+                                {t('common.cancel')}
+                            </Button>
+                            <Button type="submit">{t('common.save')}</Button>
+                        </Group>
+                    </Stack>
+                </form>
             </Modal>
         </Stack>
     )

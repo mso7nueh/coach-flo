@@ -439,6 +439,26 @@ class WorkoutTemplateExercise(Base):
     exercise = relationship("Exercise")
 
 
+class ExerciseTemplate(Base):
+    __tablename__ = "exercise_templates"
+
+    id = Column(String, primary_key=True, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    exercise_id = Column(String, ForeignKey("exercises.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    sets = Column(Integer, nullable=False, default=1)
+    reps = Column(Integer, nullable=True)
+    duration = Column(Integer, nullable=True)  # minutes
+    rest = Column(Integer, nullable=True)  # seconds
+    weight = Column(Float, nullable=True)  # kg
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    trainer = relationship("User")
+    exercise = relationship("Exercise")
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
