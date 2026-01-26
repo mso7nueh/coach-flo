@@ -41,9 +41,16 @@ interface DashboardState {
     error: string | null
 }
 
+const defaultTiles: DashboardTile[] = [
+    { id: 'weight', labelKey: 'dashboard.bodyOverview.weight', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: false },
+    { id: 'sleep', labelKey: 'dashboard.bodyOverview.sleep', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+    { id: 'heartRate', labelKey: 'dashboard.bodyOverview.heartRate', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+    { id: 'steps', labelKey: 'dashboard.bodyOverview.steps', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+]
+
 const initialState: DashboardState = {
-    tiles: [],
-    availableTiles: [],
+    tiles: [...defaultTiles],
+    availableTiles: [...defaultTiles],
     period: '7d',
     trainerNotes: [],
     configurationOpened: false,

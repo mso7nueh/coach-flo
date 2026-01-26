@@ -916,7 +916,8 @@ export const LibraryPage = () => {
                                     onClick={(e) => {
                                         const target = e.target as HTMLElement
                                         if (!target.closest('[data-menu-trigger]') && !target.closest('[data-menu-dropdown]')) {
-                                            handleEditExercise(exercise)
+                                            setViewingExercise(exercise)
+                                            openViewExerciseModal()
                                         }
                                     }}
                                 >

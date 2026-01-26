@@ -76,7 +76,11 @@ const mapApiWorkoutToState = (workout: Workout): ClientWorkout => ({
 export const fetchWorkouts = createAsyncThunk(
   'calendar/fetchWorkouts',
   async (params?: { start_date?: string; end_date?: string; client_id?: string }) => {
-    const workouts = await apiClient.getWorkouts(params)
+    // Если передан client_id, добавляем trainer_view: true, чтобы получить доступ к тренировкам клиента
+    const apiParams = params?.client_id
+      ? { ...params, trainer_view: true }
+      : params
+    const workouts = await apiClient.getWorkouts(apiParams)
     return workouts.map(mapApiWorkoutToState)
   }
 )
@@ -91,6 +95,7 @@ export const createWorkout = createAsyncThunk(
       location?: string
       format?: 'online' | 'offline'
       trainerId?: string
+      userId?: string // ID клиента (для тренера)
       programDayId?: string
       recurrence?: RecurrenceRule
     },
@@ -104,6 +109,7 @@ export const createWorkout = createAsyncThunk(
         location: workoutData.location,
         format: workoutData.format,
         trainer_id: workoutData.trainerId,
+        user_id: workoutData.userId,
         program_day_id: workoutData.programDayId,
       }
 

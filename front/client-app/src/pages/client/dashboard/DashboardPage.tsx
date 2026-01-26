@@ -70,6 +70,7 @@ import { updateWorkoutAttendance, updateWorkoutApi } from '@/app/store/slices/ca
 import type { TrainerNote } from '@/app/store/slices/dashboardSlice'
 import { notifications } from '@mantine/notifications'
 import { uploadProgressPhoto, deleteProgressPhoto, type ProgressPhoto } from '@/shared/api/client'
+import heic2any from 'heic2any'
 
 const periods: { label: string; value: '7d' | '14d' | '30d' }[] = [
     { label: '7', value: '7d' },
@@ -366,10 +367,12 @@ export const DashboardPage = () => {
     const primaryChartData = useMemo(() => {
         const formatChartData = (metricId: string | undefined) => {
             if (!metricId) return []
+            const daysToShow = parseInt(period.replace('d', ''))
             const entries = bodyMetricEntries
                 .filter(e => e.metricId === metricId)
                 .sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
-                .slice(-12) // Последние 12 записей
+                // Show entries within the selected period
+                .filter(e => dayjs(e.recordedAt).isAfter(dayjs().subtract(daysToShow, 'day')))
             return entries.map(entry => ({
                 label: dayjs(entry.recordedAt).format('DD MMM'),
                 value: entry.value,
@@ -442,7 +445,30 @@ export const DashboardPage = () => {
 
         setIsUploading(true)
         try {
-            const uploaded = await uploadProgressPhoto(photoFile, photoDate, photoNotes)
+            let fileToUpload = photoFile
+
+            // Check if HEIC
+            if (photoFile.name.toLowerCase().endsWith('.heic') || photoFile.type === 'image/heic') {
+                try {
+                    const convertedBlob = await heic2any({
+                        blob: photoFile,
+                        toType: 'image/jpeg',
+                        quality: 0.8
+                    })
+
+                    const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob
+                    fileToUpload = new File(
+                        [blob],
+                        photoFile.name.replace(/\.heic$/i, '.jpg'),
+                        { type: 'image/jpeg' }
+                    )
+                } catch (e) {
+                    console.error('HEIC conversion failed', e)
+                    // Continue with original file if conversion fails, backend might handle it or it will fail there
+                }
+            }
+
+            const uploaded = await uploadProgressPhoto(fileToUpload, photoDate, photoNotes)
             setLocalPhotos(prev => [...prev, {
                 id: uploaded.id,
                 date: uploaded.date,
@@ -1649,14 +1675,43 @@ export const DashboardPage = () => {
                     <Text size="sm" c="dimmed">
                         {t('dashboard.quickLog.valueLabel')} - {quickLogMetric?.label} ({quickLogMetric?.unit})
                     </Text>
-                    <NumberInput
-                        label={t('dashboard.quickLog.valueLabel')}
-                        placeholder="0"
-                        value={quickLogValue}
-                        onChange={(value) => setQuickLogValue(typeof value === 'number' ? value : '')}
-                        min={0}
-                        suffix={` ${quickLogMetric?.unit || ''}`}
-                    />
+                    {quickLogMetric?.id === 'sleep' ? (
+                        <Group grow>
+                            <NumberInput
+                                label={t('dashboard.bodyOverview.sleepHours')}
+                                placeholder="7"
+                                value={Math.floor(Number(quickLogValue || 0))}
+                                onChange={(val) => {
+                                    const h = typeof val === 'number' ? val : 0;
+                                    const m = Math.round((Number(quickLogValue || 0) % 1) * 60);
+                                    setQuickLogValue(h + m / 60);
+                                }}
+                                min={0}
+                                max={24}
+                            />
+                            <NumberInput
+                                label={t('dashboard.bodyOverview.sleepMinutes')}
+                                placeholder="30"
+                                value={Math.round((Number(quickLogValue || 0) % 1) * 60)}
+                                onChange={(val) => {
+                                    const m = typeof val === 'number' ? val : 0;
+                                    const h = Math.floor(Number(quickLogValue || 0));
+                                    setQuickLogValue(h + m / 60);
+                                }}
+                                min={0}
+                                max={59}
+                            />
+                        </Group>
+                    ) : (
+                        <NumberInput
+                            label={t('dashboard.quickLog.valueLabel')}
+                            placeholder="0"
+                            value={quickLogValue}
+                            onChange={(value) => setQuickLogValue(typeof value === 'number' ? value : '')}
+                            min={0}
+                            suffix={` ${quickLogMetric?.unit || ''}`}
+                        />
+                    )}
                     <DateInput
                         label={t('dashboard.quickLog.dateLabel')}
                         value={quickLogDate}

@@ -7,6 +7,7 @@ export type ProgramBlockType = 'warmup' | 'main' | 'cooldown'
 export interface ProgramExercise {
   id: string
   title: string
+  exerciseId?: string
   sets: number
   reps?: number
   duration?: string
@@ -78,6 +79,7 @@ const mapApiProgramDayToState = (apiDay: ApiProgramDay, programId: string): Prog
       exercises: (block.exercises || []).map((ex) => ({
         id: ex.id || nanoid(),
         title: ex.title,
+        exerciseId: ex.exercise_id || undefined,
         sets: ex.sets || 0,
         reps: ex.reps || undefined,
         duration: ex.duration || undefined,
@@ -155,6 +157,18 @@ export const updateProgram = createAsyncThunk(
       return mapApiProgramToState(program)
     } catch (error: any) {
       return rejectWithValue(error.message || 'Ошибка обновления программы')
+    }
+  }
+)
+
+export const copyProgram = createAsyncThunk(
+  'program/copyProgram',
+  async ({ programId, targetUserId }: { programId: string; targetUserId?: string }, { rejectWithValue }) => {
+    try {
+      const program = await apiClient.copyProgram(programId, targetUserId)
+      return mapApiProgramToState(program)
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка копирования программы')
     }
   }
 )
@@ -560,6 +574,20 @@ const programSlice = createSlice({
         }
       })
       .addCase(updateProgram.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      .addCase(copyProgram.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(copyProgram.fulfilled, (state, action) => {
+        state.loading = false
+        state.programs.push(action.payload)
+        state.selectedProgramId = action.payload.id
+        state.selectedDayId = null
+      })
+      .addCase(copyProgram.rejected, (state, action) => {
         state.loading = false
         state.error = action.payload as string
       })

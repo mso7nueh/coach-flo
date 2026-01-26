@@ -20,7 +20,7 @@ import { useAppSelector } from '@/shared/hooks/useAppSelector'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useEffect, useState, useMemo } from 'react'
 import { IconArrowLeft, IconPlus, IconVideo, IconInfoCircle, IconRepeat, IconBarbell, IconClock } from '@tabler/icons-react'
-import { fetchPrograms, fetchProgramDays, selectProgram, selectProgramDay, createProgram, createProgramDay, deleteProgram } from '@/app/store/slices/programSlice'
+import { fetchPrograms, fetchProgramDays, selectProgram, selectProgramDay, createProgram, createProgramDay, deleteProgram, copyProgram } from '@/app/store/slices/programSlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
 import { useDisclosure } from '@mantine/hooks'
@@ -125,13 +125,10 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
 
         setIsCopying(true)
         try {
-            // Получаем программу тренера и её дни
             const trainerProgram = trainerPrograms.find((p) => p.id === selectedTrainerProgramId)
             if (!trainerProgram) {
                 throw new Error('Программа не найдена')
             }
-
-            const trainerProgramDays = await apiClient.getProgramDays(selectedTrainerProgramId)
 
             // Удаляем все текущие программы клиента (Replacement logic)
             if (clientPrograms.length > 0) {
@@ -140,48 +137,13 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                 }
             }
 
-            // Создаем новую программу для клиента
+            // Копируем программу через API (deep copy на бэкенде)
             const newProgram = await dispatch(
-                createProgram({
-                    title: trainerProgram.title,
-                    description: trainerProgram.description,
-                    owner: 'client',
-                    userId: clientId
+                copyProgram({
+                    programId: trainerProgram.id,
+                    targetUserId: clientId
                 })
             ).unwrap()
-
-            // Копируем все дни программы
-            for (const day of trainerProgramDays) {
-                const blocks: ProgramBlockInput[] = (day.blocks || []).map((block: any) => ({
-                    type: block.type,
-                    title: block.title,
-                    exercises: (block.exercises || []).map((ex: any) => ({
-                        title: ex.title,
-                        sets: ex.sets || 1, // sets обязательное поле, по умолчанию 1
-                        reps: ex.reps || undefined,
-                        // duration, rest, weight должны быть строками или undefined для бэкенда
-                        duration: ex.duration ? String(ex.duration) : undefined,
-                        rest: ex.rest ? String(ex.rest) : undefined,
-                        weight: ex.weight ? String(ex.weight) : undefined,
-                        description: ex.description || undefined,
-                        videoUrl: ex.videoUrl || ex.video_url || undefined,
-                    })),
-                }))
-
-                const createdDay = await dispatch(
-                    createProgramDay({
-                        name: day.name,
-                        programId: newProgram.id,
-                        blocks,
-                        sourceTemplateId: day.source_template_id || undefined,
-                    })
-                ).unwrap()
-
-                // При создании первого дня сразу выбираем его для отображения
-                if (day === trainerProgramDays[0]) {
-                    dispatch(selectProgramDay(createdDay.day.id))
-                }
-            }
 
             // Перезагружаем программы клиента и выбираем новую
             await dispatch(fetchPrograms(clientId))

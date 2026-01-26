@@ -88,15 +88,15 @@ const mapApiBodyMetricEntryToState = (entry: ApiBodyMetricEntry, unit: string): 
 
 export const fetchBodyMetrics = createAsyncThunk(
   'metrics/fetchBodyMetrics',
-  async () => {
-    const metrics = await apiClient.getBodyMetrics()
+  async (params?: { user_id?: string }) => {
+    const metrics = await apiClient.getBodyMetrics(params?.user_id)
     return metrics.map(mapApiBodyMetricToState)
   }
 )
 
 export const fetchBodyMetricEntries = createAsyncThunk(
   'metrics/fetchBodyMetricEntries',
-  async (params: { metric_id?: string; start_date?: string; end_date?: string } | undefined, { getState }) => {
+  async (params: { metric_id?: string; user_id?: string; start_date?: string; end_date?: string } | undefined, { getState }) => {
     const entries = await apiClient.getBodyMetricEntries(params)
     // Получаем unit из уже загруженных метрик в state, чтобы избежать дополнительного запроса
     const state = getState() as { metrics: MetricsState }
@@ -224,7 +224,7 @@ const mapApiNutritionEntryToState = (entry: any): DailyNutritionEntry => ({
 
 export const fetchNutritionEntries = createAsyncThunk(
   'metrics/fetchNutritionEntries',
-  async (params?: { start_date?: string; end_date?: string }) => {
+  async (params?: { start_date?: string; end_date?: string; client_id?: string }) => {
     const entries = await apiClient.getNutritionEntries(params)
     return entries.map(mapApiNutritionEntryToState)
   }
@@ -335,12 +335,20 @@ const metricsSlice = createSlice({
         })
       }
     },
+    setBodyMetrics(state, action: PayloadAction<BodyMetricDescriptor[]>) {
+      state.bodyMetrics = action.payload
+    },
+    setBodyMetricEntries(state, action: PayloadAction<BodyMetricEntry[]>) {
+      state.bodyMetricEntries = action.payload
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchBodyMetrics.fulfilled, (state, action) => {
         state.bodyMetrics = action.payload
       })
+      // ... (rest of extraReducers)
+
       .addCase(fetchBodyMetricEntries.fulfilled, (state, action) => {
         // Объединяем новые записи с существующими, избегая дубликатов
         const existingIds = new Set(state.bodyMetricEntries.map(e => e.id))
@@ -414,6 +422,8 @@ export const {
   setExerciseMetricGoal,
   setBodyMetricStartValue,
   upsertNutritionEntry,
+  setBodyMetrics,
+  setBodyMetricEntries,
 } = metricsSlice.actions
 export default metricsSlice.reducer
 

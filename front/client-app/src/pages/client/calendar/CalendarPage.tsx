@@ -38,6 +38,7 @@ import {
     IconSparkles,
     IconTrash,
     IconTypography,
+    IconTemplate,
 } from '@tabler/icons-react'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
@@ -56,6 +57,7 @@ import {
     moveWorkout,
     type ClientWorkout,
 } from '@/app/store/slices/calendarSlice'
+import { fetchWorkoutTemplates } from '@/app/store/slices/librarySlice'
 import { useMemo, useState, useEffect, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { Modal } from '@mantine/core'
@@ -98,10 +100,11 @@ const buildFormState = (date: string, options?: { trainerId?: string; withTraine
     format: options?.withTrainer ? 'offline' : 'online',
 })
 
-export const CalendarPage = () => {
+export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const { workouts, selectedDate, currentStartDate, trainerAvailability } = useAppSelector((state) => state.calendar)
+    const { workouts: libraryWorkouts } = useAppSelector((state) => state.library)
     const role = useAppSelector((state) => state.user.role)
     const programDays = useAppSelector((state) => state.program.days)
     const trainerInfo = useAppSelector((state) => state.user.trainer)
@@ -122,8 +125,10 @@ export const CalendarPage = () => {
         dispatch(fetchWorkouts({
             start_date: loadStartDate.toISOString(),
             end_date: loadEndDate.toISOString(),
+            client_id: clientId,
         }))
-    }, [dispatch]) // Загружаем только при монтировании компонента
+        dispatch(fetchWorkoutTemplates())
+    }, [dispatch, clientId]) // Загружаем при монтировании или смене клиента
 
     // Дополнительно загружаем тренировки при изменении текущей недели (для пагинации)
     useEffect(() => {
@@ -133,8 +138,9 @@ export const CalendarPage = () => {
         dispatch(fetchWorkouts({
             start_date: startDate.subtract(1, 'week').toISOString(),
             end_date: endDate.toISOString(),
+            client_id: clientId,
         }))
-    }, [dispatch, currentStartDate]) // Загружаем при изменении недели
+    }, [dispatch, currentStartDate, clientId]) // Загружаем при изменении недели или клиента
 
     // Обновляем форму при изменении trainerInfo
     useEffect(() => {
@@ -182,7 +188,7 @@ export const CalendarPage = () => {
     }
 
     const workoutsPerDay = useMemo(() => {
-        return workouts.reduce<Record<string, typeof workouts>>((acc, item) => {
+        const grouped = workouts.reduce<Record<string, typeof workouts>>((acc, item) => {
             const key = dayjs(item.start).startOf('day').toISOString()
             if (!acc[key]) {
                 acc[key] = []
@@ -190,6 +196,12 @@ export const CalendarPage = () => {
             acc[key].push(item)
             return acc
         }, {})
+
+        Object.keys(grouped).forEach(key => {
+            grouped[key].sort((a, b) => dayjs(a.start).valueOf() - dayjs(b.start).valueOf())
+        })
+
+        return grouped
     }, [workouts])
     const availableDatesForTrainer = getTrainerAvailableDates(formState.trainerId ?? trainerInfo?.id)
     const availableSlotsForSelectedDate =
@@ -305,9 +317,10 @@ export const CalendarPage = () => {
                 dispatch(fetchWorkouts({
                     start_date: startDate.subtract(1, 'week').toISOString(),
                     end_date: endDate.toISOString(),
+                    client_id: clientId,
                 }))
             } else {
-                await dispatch(createWorkout(workoutData)).unwrap()
+                await dispatch(createWorkout({ ...workoutData, userId: clientId })).unwrap()
                 notifications.show({
                     title: t('common.success'),
                     message: t('calendar.workoutCreated'),
@@ -319,6 +332,7 @@ export const CalendarPage = () => {
                 dispatch(fetchWorkouts({
                     start_date: startDate.subtract(1, 'week').toISOString(),
                     end_date: endDate.toISOString(),
+                    client_id: clientId,
                 }))
             }
             close()
@@ -463,8 +477,8 @@ export const CalendarPage = () => {
                 </Alert>
             )}
 
-            <ScrollArea h={`calc(100vh - ${200}px)`}>
-                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '600px' }}>
+            <ScrollArea h={`calc(100vh - ${200}px)`} type="auto" offsetScrollbars>
+                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '600px', paddingRight: 'var(--mantine-spacing-md)' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
                         {calendarDays.map((day, index) => {
                             const dayOfWeek = day.isoWeekday() // ISO неделя: понедельник = 1, воскресенье = 7
@@ -646,6 +660,7 @@ export const CalendarPage = () => {
                                                                                 dispatch(fetchWorkouts({
                                                                                     start_date: startDate.subtract(1, 'week').toISOString(),
                                                                                     end_date: endDate.toISOString(),
+                                                                                    client_id: clientId,
                                                                                 }))
                                                                             } catch (error: any) {
                                                                                 notifications.show({
@@ -753,6 +768,33 @@ export const CalendarPage = () => {
                             <IconSparkles size={22} style={{ opacity: 0.6 }} />
                         </Group>
                     </Card>
+
+                    {!formState.id && (
+                        <Select
+                            label={t('library.calendar.template')}
+                            placeholder={t('library.calendar.selectTemplate')}
+                            data={libraryWorkouts.map((w) => ({ label: w.name, value: w.id }))}
+                            searchable
+                            clearable
+                            leftSection={<IconTemplate size={16} />}
+                            radius="lg"
+                            onChange={(value) => {
+                                const template = libraryWorkouts.find((w) => w.id === value)
+                                if (template) {
+                                    const start = dayjs(formState.date)
+                                        .hour(Number(formState.startTime.split(':')[0]))
+                                        .minute(Number(formState.startTime.split(':')[1]))
+                                    const end = start.add(template.duration, 'minute')
+                                    setFormState((state) => ({
+                                        ...state,
+                                        title: template.name,
+                                        endTime: end.format('HH:mm'),
+                                    }))
+                                }
+                            }}
+                            mb="xs"
+                        />
+                    )}
 
                     <TextInput
                         label={t('calendar.workoutTitle')}

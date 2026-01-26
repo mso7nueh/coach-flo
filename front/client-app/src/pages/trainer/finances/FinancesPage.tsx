@@ -52,6 +52,23 @@ interface AddPaymentForm {
     notes?: string
 }
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <Card padding="sm" radius="md" shadow="sm" withBorder>
+                <Text size="xs" c="dimmed" mb={4}>{label}</Text>
+                {payload.map((p: any, index: number) => (
+                    <Text key={index} size="sm" fw={600} style={{ color: p.stroke || p.fill }}>
+                        {p.value.toLocaleString()} ₽
+                        {p.name && <span style={{ fontWeight: 400, color: 'var(--mantine-color-gray-6)' }}> • {p.name}</span>}
+                    </Text>
+                ))}
+            </Card>
+        )
+    }
+    return null
+}
+
 export const FinancesPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
@@ -303,13 +320,35 @@ export const FinancesPage = () => {
                         </Text>
                         <ResponsiveContainer width="100%" height={300}>
                             <AreaChart data={monthlyRevenueData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="month" />
-                                <YAxis />
-                                <Tooltip
-                                    formatter={(value: number) => [`${value.toLocaleString()} ₽`, t('trainer.finances.amount')]}
+                                <defs>
+                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#4c6ef5" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="#4c6ef5" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--mantine-color-gray-2)" />
+                                <XAxis
+                                    dataKey="month"
+                                    tick={{ fontSize: 12, fill: 'var(--mantine-color-gray-6)' }}
+                                    tickLine={false}
+                                    axisLine={false}
                                 />
-                                <Area type="monotone" dataKey="revenue" stroke="#4c6ef5" fill="#4c6ef5" fillOpacity={0.6} />
+                                <YAxis
+                                    tick={{ fontSize: 12, fill: 'var(--mantine-color-gray-6)' }}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `${value / 1000}k`}
+                                />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Area
+                                    type="monotone"
+                                    dataKey="revenue"
+                                    name={t('trainer.finances.amount')}
+                                    stroke="#4c6ef5"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#colorRevenue)"
+                                />
                             </AreaChart>
                         </ResponsiveContainer>
                     </Stack>
@@ -326,17 +365,16 @@ export const FinancesPage = () => {
                                     data={paymentsByTypeData}
                                     cx="50%"
                                     cy="50%"
-                                    labelLine={false}
-                                    label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                    innerRadius={60}
                                     outerRadius={80}
-                                    fill="#8884d8"
+                                    paddingAngle={5}
                                     dataKey="value"
                                 >
                                     {paymentsByTypeData.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={0} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(value: number) => `${value.toLocaleString()} ₽`} />
+                                <Tooltip content={<CustomTooltip />} />
                             </PieChart>
                         </ResponsiveContainer>
                     </Stack>

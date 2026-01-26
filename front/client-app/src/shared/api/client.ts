@@ -118,6 +118,7 @@ export interface ProgramDayBlock {
 export interface ProgramDayExercise {
   id?: string
   title: string
+  exercise_id?: string | null
   sets?: number | null
   reps?: number | null
   weight?: string | null
@@ -507,6 +508,12 @@ export const updateProgram = async (
   return response
 }
 
+export const copyProgram = async (program_id: string, target_user_id?: string): Promise<TrainingProgram> => {
+  const params = target_user_id ? { target_user_id } : undefined
+  const { data } = await api.post<TrainingProgram>(`/api/programs/${program_id}/copy`, null, { params })
+  return data
+}
+
 export const deleteProgram = async (program_id: string): Promise<void> => {
   await api.delete<void>(`/api/programs/${program_id}`)
 }
@@ -856,8 +863,8 @@ export const getClient = async (client_id: string): Promise<any> => {
   return data
 }
 
-export const getClientStats = async (client_id: string): Promise<any> => {
-  const { data } = await api.get<any>(`/api/clients/${client_id}/stats`)
+export const getClientStats = async (client_id: string, period?: '7d' | '14d' | '30d'): Promise<any> => {
+  const { data } = await api.get<any>(`/api/clients/${client_id}/stats`, { params: { period } })
   return data
 }
 
@@ -868,7 +875,7 @@ export const getClientOnboarding = async (client_id: string): Promise<Onboarding
 
 export const getClientDashboard = async (client_id: string, period?: '7d' | '14d' | '30d'): Promise<any> => {
   // Используем статистику клиента вместо отдельного эндпоинта dashboard
-  const stats = await getClientStats(client_id)
+  const stats = await getClientStats(client_id, period)
   // Можно добавить дополнительную логику для дашборда здесь
   return stats
 }
@@ -1290,6 +1297,7 @@ export const apiClient = {
   createExerciseTemplate,
   updateExerciseTemplate,
   deleteExerciseTemplate,
+  copyProgram,
   getToken,
   setToken,
   // Notifications

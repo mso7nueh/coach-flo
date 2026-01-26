@@ -57,6 +57,7 @@ import {
   type ProgramBlockInput,
 } from '@/app/store/slices/programSlice'
 import { createWorkout } from '@/app/store/slices/calendarSlice'
+import { fetchExercises, fetchWorkoutTemplates } from '@/app/store/slices/librarySlice'
 import type { WorkoutTemplate, Exercise, WorkoutExercise } from '@/app/store/slices/librarySlice'
 import { notifications } from '@mantine/notifications'
 
@@ -144,12 +145,17 @@ export const ProgramPage = () => {
     }
     return libraryWorkouts.filter((workout) => !workout.clientId || workout.clientId === userId)
   }, [libraryWorkouts, role, userId])
+
+  const [viewingExercise, setViewingExercise] = useState<Exercise | null>(null)
+  const [viewExerciseModalOpened, { open: openViewExerciseModal, close: closeViewExerciseModal }] = useDisclosure(false)
   const canEditSelectedDay = Boolean(selectedDay && (role === 'trainer' || selectedDay.owner === 'client'))
   const canManageDay = (dayOwner: 'trainer' | 'client') => role === 'trainer' || dayOwner === 'client'
 
-  // Загружаем программы при открытии страницы
+  // Загружаем программы и библиотеку при открытии страницы
   useEffect(() => {
     dispatch(fetchPrograms())
+    dispatch(fetchExercises())
+    dispatch(fetchWorkoutTemplates())
   }, [dispatch])
 
   // Загружаем дни программы при выборе программы
@@ -169,7 +175,9 @@ export const ProgramPage = () => {
     const owner = isTrainer ? 'trainer' : 'client'
     const ownerProgramsCount = programs.filter((program) => program.owner === owner).length + 1
     const defaultTitle =
-      owner === 'trainer' ? `${t('program.newProgramTrainer')} ${ownerProgramsCount}` : t('program.newProgramClient', { count: ownerProgramsCount })
+      owner === 'trainer'
+        ? `${t('program.coachProgram')} ${ownerProgramsCount}`
+        : `${t('program.myProgram')} ${ownerProgramsCount}`
     try {
       await dispatch(createProgram({ title: defaultTitle, owner })).unwrap()
       // Перезагружаем список программ после создания
@@ -189,6 +197,16 @@ export const ProgramPage = () => {
   }
 
   const handleDeleteProgram = async (programId: string) => {
+    const program = programs.find((p) => p.id === programId)
+    if (role === 'client' && program?.owner !== 'client') {
+      notifications.show({
+        title: t('common.error'),
+        message: t('program.error.deleteRestricted'),
+        color: 'red',
+      })
+      return
+    }
+
     if (confirm(t('common.delete') + '?')) {
       try {
         await dispatch(deleteProgram(programId)).unwrap()
@@ -1062,7 +1080,19 @@ export const ProgramPage = () => {
                               style={{
                                 backgroundColor: 'var(--mantine-color-white)',
                                 borderColor: `var(--mantine-color-${config.color}-2)`,
+                                cursor: 'pointer',
                                 transition: 'all 0.2s',
+                              }}
+                              onClick={() => {
+                                // Try to find full exercise details in library
+                                const fullExercise = exercise.exerciseId
+                                  ? libraryExercises.find(e => e.id === exercise.exerciseId)
+                                  : libraryExercises.find(e => e.name === exercise.title)
+
+                                if (fullExercise) {
+                                  setViewingExercise(fullExercise)
+                                  openViewExerciseModal()
+                                }
                               }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = 'translateY(-2px)'
@@ -1450,6 +1480,70 @@ export const ProgramPage = () => {
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      <Modal opened={viewExerciseModalOpened} onClose={closeViewExerciseModal} title={t('trainer.library.viewExercise')} size="lg">
+        {viewingExercise && (
+          <Stack gap="md">
+            <Text size="xl" fw={700}>
+              {viewingExercise.name}
+            </Text>
+
+            <Group gap="xs">
+              <Badge color="blue" variant="light">
+                {t(`trainer.library.muscle${viewingExercise.muscleGroup ? viewingExercise.muscleGroup.charAt(0).toUpperCase() + viewingExercise.muscleGroup.slice(1) : 'FullBody'}`)}
+              </Badge>
+              {viewingExercise.equipment && (
+                <Badge color="gray" variant="light">
+                  {viewingExercise.equipment}
+                </Badge>
+              )}
+            </Group>
+
+            {viewingExercise.description && (
+              <Stack gap="xs">
+                <Text fw={600} size="sm">{t('trainer.library.description')}</Text>
+                <Text size="sm">{viewingExercise.description}</Text>
+              </Stack>
+            )}
+
+            {viewingExercise.startingPosition && (
+              <Stack gap="xs">
+                <Text fw={600} size="sm">{t('trainer.library.startingPosition')}</Text>
+                <Text size="sm">{viewingExercise.startingPosition}</Text>
+              </Stack>
+            )}
+
+            {viewingExercise.executionInstructions && (
+              <Stack gap="xs">
+                <Text fw={600} size="sm">{t('trainer.library.execution')}</Text>
+                <Text size="sm">{viewingExercise.executionInstructions}</Text>
+              </Stack>
+            )}
+
+            {viewingExercise.notes && (
+              <Stack gap="xs">
+                <Text fw={600} size="sm">{t('trainer.library.notes')}</Text>
+                <Text size="sm">{viewingExercise.notes}</Text>
+              </Stack>
+            )}
+
+            {viewingExercise.videoUrl && (
+              <Stack gap="xs">
+                <Text fw={600} size="sm">{t('trainer.library.video')}</Text>
+                <Text size="sm" c="blue" component="a" href={viewingExercise.videoUrl} target="_blank">
+                  {viewingExercise.videoUrl}
+                </Text>
+              </Stack>
+            )}
+
+            <Group justify="flex-end" mt="md">
+              <Button variant="default" onClick={closeViewExerciseModal}>
+                {t('common.close')}
+              </Button>
+            </Group>
+          </Stack>
+        )}
       </Modal>
     </Group>
   )

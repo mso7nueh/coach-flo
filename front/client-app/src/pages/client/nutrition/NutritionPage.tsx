@@ -39,22 +39,11 @@ export const NutritionContent = ({ embedded = false, clientId }: { embedded?: bo
     if (clientId) {
       // Если передан clientId, загружаем данные для клиента
       const loadClientNutrition = async () => {
-        try {
-          // Прямой вызов API с client_id (который мы добавили в client.ts)
-          const entries = await apiClient.getNutritionEntries({
-            start_date: startDate,
-            end_date: endDate,
-            client_id: clientId
-          })
-          // Диспатчим в стор, чтобы использовать существующую логику отображения
-          // Используем fetchNutritionEntries.fulfilled action creator или просто type
-          dispatch({
-            type: 'metrics/fetchNutritionEntries/fulfilled',
-            payload: entries
-          } as any)
-        } catch (error) {
-          console.error('Error loading nutrition entries:', error)
-        }
+        dispatch(fetchNutritionEntries({
+          start_date: startDate,
+          end_date: endDate,
+          client_id: clientId
+        }))
       }
       loadClientNutrition()
     } else {

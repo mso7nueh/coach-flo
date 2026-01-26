@@ -289,8 +289,34 @@ async def update_workout(
             raise HTTPException(status_code=403, detail="Нет доступа к этой тренировке")
     
     update_data = workout_update.model_dump(exclude_unset=True)
+    
+    # Check if we need to update balance
+    status_changed_to_completed = (
+        "attendance" in update_data and 
+        update_data["attendance"] == models.AttendanceStatus.COMPLETED and
+        workout.attendance != models.AttendanceStatus.COMPLETED
+    )
+    
     for field, value in update_data.items():
         setattr(workout, field, value)
+    
+    # Deduct from package if status changed to completed
+    if status_changed_to_completed:
+        client = db.query(models.User).filter(models.User.id == workout.user_id).first()
+        if client and client.workouts_package is not None and client.workouts_package > 0:
+            client.workouts_package -= 1
+            
+        # Также списываем с конкретного платежа (самого старого активного пакета)
+        active_payment = db.query(models.Payment).filter(
+            and_(
+                models.Payment.client_id == workout.user_id,
+                models.Payment.type == models.PaymentType.PACKAGE,
+                models.Payment.remaining_sessions > 0
+            )
+        ).order_by(models.Payment.date.asc()).first()
+        
+        if active_payment:
+            active_payment.remaining_sessions -= 1
     
     db.commit()
     db.refresh(workout)

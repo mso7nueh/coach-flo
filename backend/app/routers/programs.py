@@ -11,6 +11,135 @@ import uuid
 router = APIRouter()
 
 
+@router.post("/{program_id}/copy", response_model=schemas.TrainingProgramResponse, status_code=status.HTTP_201_CREATED)
+async def copy_program(
+    program_id: str,
+    target_user_id: Optional[str] = Query(None, description="ID пользователя назначения (для тренеров)"),
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Копировать программу (назначить клиенту или копировать себе).
+    Создает полную копию программы, дней, блоков и упражнений.
+    """
+    # Исходная программа
+    source_program = db.query(models.TrainingProgram).filter(
+        models.TrainingProgram.id == program_id
+    ).first()
+    
+    if not source_program:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    
+    # Проверка доступа к исходной программе
+    if not _check_program_access(source_program, current_user, db):
+        raise HTTPException(status_code=403, detail="Нет доступа к этой программе")
+
+    # Определяем владельца и целевого пользователя новой программы
+    new_owner = source_program.owner
+    new_user_id = current_user.id
+    
+    if current_user.role == models.UserRole.TRAINER:
+        if target_user_id:
+            # Тренер назначает программу клиенту
+            client = db.query(models.User).filter(
+                and_(
+                    models.User.id == target_user_id,
+                    models.User.trainer_id == current_user.id
+                )
+            ).first()
+            if not client:
+                raise HTTPException(status_code=404, detail="Клиент не найден")
+            new_user_id = target_user_id
+            # Если тренер назначает, владелец остается 'trainer', чтобы клиент не мог удалить
+            new_owner = "trainer" 
+        else:
+            # Тренер копирует себе
+            new_owner = "trainer"
+    else:
+        # Клиент копирует себе
+        new_owner = "client"
+
+    # Копируем программу
+    new_program_id = str(uuid.uuid4())
+    new_title = source_program.title
+    
+    # Если это назначение клиенту, можно добавить префикс или оставить как есть
+    # ТЗ: "Программа тренера" vs "Моя программа"
+    # Это лучше решать на фронте при отображении, но здесь мы просто копируем название
+    
+    db_program = models.TrainingProgram(
+        id=new_program_id,
+        user_id=new_user_id,
+        title=new_title,
+        description=source_program.description,
+        owner=new_owner
+    )
+    db.add(db_program)
+    db.flush() # чтобы получить ID
+    
+    # Копируем дни
+    source_days = db.query(models.ProgramDay).filter(
+        models.ProgramDay.program_id == program_id
+    ).order_by(models.ProgramDay.order).all()
+    
+    for day in source_days:
+        new_day_id = str(uuid.uuid4())
+        db_day = models.ProgramDay(
+            id=new_day_id,
+            program_id=new_program_id,
+            name=day.name,
+            order=day.order,
+            notes=day.notes,
+            owner=new_owner,
+            source_template_id=day.id # Ссылка на исходный день, может пригодиться
+        )
+        db.add(db_day)
+        db.flush()
+        
+        # Копируем блоки
+        source_blocks = db.query(models.ProgramBlock).filter(
+            models.ProgramBlock.day_id == day.id
+        ).order_by(models.ProgramBlock.order).all()
+        
+        for block in source_blocks:
+            new_block_id = str(uuid.uuid4())
+            db_block = models.ProgramBlock(
+                id=new_block_id,
+                day_id=new_day_id,
+                type=block.type,
+                title=block.title,
+                order=block.order
+            )
+            db.add(db_block)
+            db.flush()
+            
+            # Копируем упражнения
+            source_exercises = db.query(models.ProgramExercise).filter(
+                models.ProgramExercise.block_id == block.id
+            ).order_by(models.ProgramExercise.order).all()
+            
+            for ex in source_exercises:
+                new_ex_id = str(uuid.uuid4())
+                db_ex = models.ProgramExercise(
+                    id=new_ex_id,
+                    block_id=new_block_id,
+                    title=ex.title,
+                    sets=ex.sets,
+                    reps=ex.reps,
+                    duration=ex.duration,
+                    rest=ex.rest,
+                    weight=ex.weight,
+                    description=ex.description,
+                    video_url=ex.video_url,
+                    order=ex.order
+                )
+                db.add(db_ex)
+    
+    db.commit()
+    db.refresh(db_program)
+    return db_program
+
+
 # Request schemas for program exercises (numeric format)
 class ProgramExerciseCreateNumeric(BaseModel):
     title: str

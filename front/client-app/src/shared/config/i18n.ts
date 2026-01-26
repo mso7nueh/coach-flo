@@ -283,6 +283,8 @@ const resources = {
                 addFromTemplate: 'Шаблон',
                 newProgramTrainer: 'Программа',
                 newProgramClient: 'Моя программа {{count}}',
+                coachProgram: 'Программа Тренера',
+                myProgram: 'Моя Программа',
                 owner: {
                     trainer: 'Тренер',
                     client: 'Моя программа',
@@ -325,6 +327,7 @@ const resources = {
                     updateExercise: 'Ошибка обновления упражнения',
                     updateProgram: 'Ошибка обновления программы',
                     deleteProgram: 'Ошибка удаления программы',
+                    deleteRestricted: 'Вы не можете удалить программу, назначенную тренером',
                 },
             },
             metricsPage: {
@@ -845,6 +848,12 @@ const resources = {
                 markAsRead: 'Отметить как прочитанное',
                 deleted: 'Уведомление удалено',
                 workoutRescheduled: 'Клиент перенес тренировку',
+            },
+            library: {
+                calendar: {
+                    template: 'Шаблон',
+                    selectTemplate: 'Выберите шаблон...',
+                },
             },
         },
     },

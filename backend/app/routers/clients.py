@@ -269,9 +269,10 @@ async def get_client_onboarding(
     )
 
 
-@router.get("/{client_id}/stats")
+@router.get("/{client_id}/stats", response_model=schemas.DashboardStats)
 async def get_client_stats(
     client_id: str,
+    period: str = Query("7d", description="Период статистики (7d, 14d, 30d)"),
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -289,38 +290,81 @@ async def get_client_stats(
     if not client:
         raise HTTPException(status_code=404, detail="Клиент не найден")
     
-    # Статистика тренировок
-    total_workouts = db.query(func.count(models.Workout.id)).filter(
-        models.Workout.user_id == client_id
-    ).scalar() or 0
+    # Определяем дату начала периода
+    today = datetime.now()
+    if period == "7d":
+        start_date = today - timedelta(days=7)
+    elif period == "14d":
+        start_date = today - timedelta(days=14)
+    elif period == "30d":
+        start_date = today - timedelta(days=30)
+    else:
+        start_date = today - timedelta(days=7)
     
-    completed_workouts = db.query(func.count(models.Workout.id)).filter(
+    # Статистика тренировок за период
+    period_workouts_query = db.query(models.Workout).filter(
         and_(
             models.Workout.user_id == client_id,
-            models.Workout.attendance == models.AttendanceStatus.COMPLETED
+            models.Workout.start >= start_date,
+            models.Workout.start <= today
         )
-    ).scalar() or 0
+    )
+    
+    total_workouts = period_workouts_query.count()
+    completed_workouts = period_workouts_query.filter(
+        models.Workout.attendance == models.AttendanceStatus.COMPLETED
+    ).count()
     
     attendance_rate = (completed_workouts / total_workouts * 100) if total_workouts > 0 else 0
     
-    # Последняя тренировка
-    last_workout = db.query(models.Workout).filter(
-        models.Workout.user_id == client_id
-    ).order_by(models.Workout.start.desc()).first()
+    # Тренировки на сегодня
+    today_start = today.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today.replace(hour=23, minute=59, second=59, microsecond=999999)
+    
+    today_workouts = db.query(models.Workout).filter(
+        and_(
+            models.Workout.user_id == client_id,
+            models.Workout.start >= today_start,
+            models.Workout.start <= today_end
+        )
+    ).count()
     
     # Ближайшая тренировка
     next_workout = db.query(models.Workout).filter(
         and_(
             models.Workout.user_id == client_id,
-            models.Workout.start >= datetime.now()
+            models.Workout.start >= today
         )
     ).order_by(models.Workout.start.asc()).first()
     
-    return {
-        "total_workouts": total_workouts,
-        "completed_workouts": completed_workouts,
-        "attendance_rate": round(attendance_rate, 2),
-        "last_workout": last_workout.start.isoformat() if last_workout else None,
-        "next_workout": next_workout.start.isoformat() if next_workout else None
-    }
+    # Цель (берем первую активную)
+    user_goal = db.query(models.UserGoal).filter(
+        models.UserGoal.user_id == client_id
+    ).order_by(models.UserGoal.created_at.desc()).first()
+    
+    goal_response = None
+    if user_goal:
+        days_left = (user_goal.target_date.date() - today.date()).days
+        goal_response = schemas.GoalResponse(
+            headline=user_goal.headline,
+            description=user_goal.description,
+            milestone=user_goal.milestone,
+            days_left=days_left if days_left > 0 else 0,
+            progress=user_goal.progress
+        )
+    
+    # Фото прогресса (последние 4)
+    photos = db.query(models.ProgressPhoto).filter(
+        models.ProgressPhoto.user_id == client_id
+    ).order_by(models.ProgressPhoto.date.desc()).limit(4).all()
+    
+    return schemas.DashboardStats(
+        total_workouts=total_workouts,
+        completed_workouts=completed_workouts,
+        attendance_rate=round(attendance_rate, 2),
+        today_workouts=today_workouts,
+        next_workout=next_workout,
+        goal=goal_response,
+        progress_photos=photos
+    )
 

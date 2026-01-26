@@ -716,7 +716,12 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                         onChange={(value) => {
                             const template = libraryWorkouts.find((w) => w.id === value)
                             if (template) {
-                                setFormState({ ...formState, templateId: value || undefined, title: template.name })
+                                // Only update title if it's empty
+                                setFormState({
+                                    ...formState,
+                                    templateId: value || undefined,
+                                    title: formState.title ? formState.title : template.name
+                                })
                             } else {
                                 setFormState({ ...formState, templateId: value || undefined })
                             }

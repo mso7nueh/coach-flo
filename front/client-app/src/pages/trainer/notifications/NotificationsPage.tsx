@@ -165,13 +165,7 @@ function UnstyledNotificationItem({
                         </ActionIcon>
                     </Tooltip>
                 )}
-                {notification.link && (
-                    <Tooltip label={t('common.view')}>
-                        <ActionIcon variant="light" color="gray" onClick={onClick}>
-                            <IconExternalLink size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
+
                 <Tooltip label={t('common.delete')}>
                     <ActionIcon variant="light" color="red" onClick={onDelete}>
                         <IconTrash size={16} />
