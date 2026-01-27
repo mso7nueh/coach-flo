@@ -1099,8 +1099,20 @@ export const ProgramPage = () => {
 
                                 if (fullExercise) {
                                   setViewingExercise(fullExercise)
-                                  openViewExerciseModal()
+                                } else {
+                                  // Create fallback exercise from program exercise data
+                                  const fallbackExercise: Exercise = {
+                                    id: exercise.id || '',
+                                    name: exercise.title,
+                                    muscleGroup: 'full_body',
+                                    equipment: [],
+                                    description: exercise.description,
+                                    videoUrl: exercise.videoUrl,
+                                    visibility: 'all',
+                                  }
+                                  setViewingExercise(fallbackExercise)
                                 }
+                                openViewExerciseModal()
                               }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = 'translateY(-2px)'

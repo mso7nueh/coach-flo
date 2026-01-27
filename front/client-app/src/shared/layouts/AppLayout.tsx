@@ -51,7 +51,6 @@ export const AppLayout = () => {
         { to: '/trainer/calendar', label: t('common.trainerCalendar'), icon: IconCalendarStats },
         { to: '/trainer/notifications', label: t('notificationsPage.title'), icon: IconBell },
         { to: '/trainer/finances', label: t('common.finances'), icon: IconCurrencyRubel },
-        { to: '/trainer/subscription', label: 'Подписка', icon: IconCreditCard },
     ]
 
     const items = isClient ? clientItems : trainerItems
@@ -200,15 +199,6 @@ export const AppLayout = () => {
                                 </Text>
                             </Group>
                             <Group gap="lg">
-                                <Button
-                                    variant="light"
-                                    color="violet"
-                                    size="xs"
-                                    component={NavLink}
-                                    to="/trainer/subscription"
-                                >
-                                    Подписка
-                                </Button>
                                 <SegmentedControl
                                     aria-labelledby={labelId}
                                     value={locale}
@@ -275,8 +265,8 @@ export const AppLayout = () => {
                     )}
                 </Group>
             </AppShell.Header>
-            <AppShell.Navbar p="md">
-                <Stack gap="xs">
+            <AppShell.Navbar p="md" style={{ display: 'flex', flexDirection: 'column' }}>
+                <Stack gap="xs" style={{ flex: 1 }}>
                     {items.map((item) => {
                         const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/')
                         const Icon = item.icon
@@ -313,6 +303,30 @@ export const AppLayout = () => {
                         )
                     })}
                 </Stack>
+                {!isClient && (
+                    <Box mt="auto" pt="md">
+                        <UnstyledButton
+                            component={NavLink}
+                            to="/trainer/subscription"
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: '8px',
+                                background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
+                                color: 'white',
+                                textDecoration: 'none',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.3)',
+                            }}
+                        >
+                            <Group gap="sm" justify="center">
+                                <IconCreditCard size={18} />
+                                <Text fw={600} size="sm">Подписка</Text>
+                            </Group>
+                        </UnstyledButton>
+                    </Box>
+                )}
             </AppShell.Navbar>
             <AppShell.Main
                 style={{

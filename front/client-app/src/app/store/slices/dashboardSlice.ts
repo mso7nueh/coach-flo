@@ -173,6 +173,31 @@ const dashboardSlice = createSlice({
         setStats(state, action: PayloadAction<DashboardStats>) {
             state.stats = action.payload
         },
+        syncAvailableTiles(state, action: PayloadAction<{ metricId: string; label: string }[]>) {
+            // Базовые тайлы (хардкодированные)
+            const baseTiles: DashboardTile[] = [
+                { id: 'weight', labelKey: 'dashboard.bodyOverview.weight', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: false },
+                { id: 'sleep', labelKey: 'dashboard.bodyOverview.sleep', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+                { id: 'heartRate', labelKey: 'dashboard.bodyOverview.heartRate', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+                { id: 'steps', labelKey: 'dashboard.bodyOverview.steps', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+                { id: 'water', labelKey: 'metricsPage.water.title', value: '—', period: '7d', category: 'vitals', highlight: true, showTodayValue: true },
+            ]
+
+            // Добавляем динамические метрики
+            const dynamicTiles: DashboardTile[] = action.payload
+                .filter(m => !['weight', 'sleep', 'heartRate', 'steps', 'water'].includes(m.metricId))
+                .map(m => ({
+                    id: m.metricId,
+                    labelKey: m.label, // Для динамических метрик используем label напрямую
+                    value: '—',
+                    period: '7d' as MetricPeriod,
+                    category: 'vitals' as const,
+                    highlight: false,
+                    showTodayValue: true,
+                }))
+
+            state.availableTiles = [...baseTiles, ...dynamicTiles]
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -221,6 +246,7 @@ export const {
     closeConfiguration,
     setMetricGoal,
     setStats,
+    syncAvailableTiles,
 } = dashboardSlice.actions
 export default dashboardSlice.reducer
 

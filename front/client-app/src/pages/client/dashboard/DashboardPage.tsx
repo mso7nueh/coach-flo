@@ -59,6 +59,7 @@ import {
     createNoteApi,
     updateNoteApi,
     removeTrainerNote,
+    syncAvailableTiles,
     type MetricPeriod,
 } from '@/app/store/slices/dashboardSlice'
 import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
@@ -249,6 +250,13 @@ export const DashboardPage = () => {
         const metricsStartDate = dayjs().subtract(parseInt(period.replace('d', '')), 'days').toISOString()
         dispatch(fetchBodyMetricEntries({ start_date: metricsStartDate, end_date: endDate }))
     }, [dispatch, period])
+
+    // Синхронизируем availableTiles с bodyMetrics для выбора всех метрик
+    useEffect(() => {
+        if (bodyMetrics.length > 0) {
+            dispatch(syncAvailableTiles(bodyMetrics.map(m => ({ metricId: m.id, label: m.label }))))
+        }
+    }, [dispatch, bodyMetrics])
 
     const upcoming = useMemo(
         () =>
@@ -1255,7 +1263,7 @@ export const DashboardPage = () => {
                                                     <Group justify="space-between">
                                                         <Group gap="sm">
                                                             <IconGripVertical size={16} />
-                                                            <Text fw={600}>{t(tile.labelKey)}</Text>
+                                                            <Text fw={600}>{tile.labelKey.includes('.') ? t(tile.labelKey) : tile.labelKey}</Text>
                                                         </Group>
                                                         <Badge>{t(`dashboard.periods.${tile.period}`)}</Badge>
                                                     </Group>
@@ -1279,7 +1287,7 @@ export const DashboardPage = () => {
                                     rightSection={active ? <IconDotsVertical size={16} /> : <IconPlus size={16} />}
                                     onClick={() => dispatch(toggleTile(tile.id))}
                                 >
-                                    {t(tile.labelKey)}
+                                    {tile.labelKey.includes('.') ? t(tile.labelKey) : tile.labelKey}
                                 </Button>
                             )
                         })}
