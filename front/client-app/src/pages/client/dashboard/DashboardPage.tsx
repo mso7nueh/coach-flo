@@ -751,7 +751,7 @@ export const DashboardPage = () => {
                             { value: '30d', label: t('dashboard.periods.30d') },
                         ]}
                         style={{ width: '120px' }}
-                        onChange={(val) => val && dispatch(setDashboardPeriod(val as MetricPeriod))}
+                        onChange={(val) => val && handleSetPeriod(val as MetricPeriod)}
                     />
                     <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={() => dispatch(openConfiguration())}>
                         {t('dashboard.configureMetrics')}
