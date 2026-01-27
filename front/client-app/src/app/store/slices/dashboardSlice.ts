@@ -213,7 +213,17 @@ const dashboardSlice = createSlice({
 
             // Добавляем динамические метрики
             const dynamicTiles: DashboardTile[] = action.payload
-                .filter(m => !['weight', 'sleep', 'heartRate', 'steps', 'water'].includes(m.metricId))
+                .filter(m => {
+                    const label = m.label.toLowerCase()
+                    const isBase = [
+                        'weight', 'вес',
+                        'sleep', 'сон',
+                        'heart', 'пульс',
+                        'step', 'шаг',
+                        'water', 'вода'
+                    ].some(keyword => label.includes(keyword))
+                    return !isBase
+                })
                 .map(m => ({
                     id: m.metricId,
                     labelKey: m.label, // Для динамических метрик используем label напрямую

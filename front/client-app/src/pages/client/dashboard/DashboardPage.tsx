@@ -398,11 +398,26 @@ export const DashboardPage = () => {
     )
 
     // Получаем метрики для отображения
-    const weightMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('вес') || m.label.toLowerCase().includes('weight')), [bodyMetrics])
-    const sleepMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('сон') || m.label.toLowerCase().includes('sleep')), [bodyMetrics])
-    const heartRateMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('пульс') || m.label.toLowerCase().includes('heart')), [bodyMetrics])
-    const stepsMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('шаг') || m.label.toLowerCase().includes('step')), [bodyMetrics])
-    const waterMetric = useMemo(() => bodyMetrics.find(m => m.label.toLowerCase().includes('вода') || m.label.toLowerCase().includes('water')), [bodyMetrics])
+    const weightMetric = useMemo(() =>
+        bodyMetrics.find(m => m.label.toLowerCase() === 'вес' || m.label.toLowerCase() === 'weight') ||
+        bodyMetrics.find(m => m.label.toLowerCase().includes('вес') || m.label.toLowerCase().includes('weight')),
+        [bodyMetrics])
+    const sleepMetric = useMemo(() =>
+        bodyMetrics.find(m => m.label.toLowerCase() === 'сон' || m.label.toLowerCase() === 'sleep') ||
+        bodyMetrics.find(m => m.label.toLowerCase().includes('сон') || m.label.toLowerCase().includes('sleep')),
+        [bodyMetrics])
+    const heartRateMetric = useMemo(() =>
+        bodyMetrics.find(m => m.label.toLowerCase() === 'пульс в покое' || m.label.toLowerCase() === 'heart rate') ||
+        bodyMetrics.find(m => m.label.toLowerCase().includes('пульс') || m.label.toLowerCase().includes('heart')),
+        [bodyMetrics])
+    const stepsMetric = useMemo(() =>
+        bodyMetrics.find(m => m.label.toLowerCase() === 'шаги' || m.label.toLowerCase() === 'steps') ||
+        bodyMetrics.find(m => m.label.toLowerCase().includes('шаг') || m.label.toLowerCase().includes('step')),
+        [bodyMetrics])
+    const waterMetric = useMemo(() =>
+        bodyMetrics.find(m => m.label.toLowerCase() === 'вода' || m.label.toLowerCase() === 'water') ||
+        bodyMetrics.find(m => m.label.toLowerCase().includes('вода') || m.label.toLowerCase().includes('water')),
+        [bodyMetrics])
 
     // Получаем последние значения метрик
     const getLatestMetricValue = (metricId: string | undefined) => {
@@ -746,8 +761,6 @@ export const DashboardPage = () => {
 
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
                 {tiles.map((tile) => {
-                    const isTrend = tile.secondaryValue?.includes('↑') || tile.secondaryValue?.includes('↓') || (tile.id === 'weight' && weightChange) || (tile.id === 'sleep' && sleepChange) || (tile.id === 'heartRate' && heartRateChange) || (tile.id === 'steps' && stepsChange)
-
                     // Derive values dynamically
                     let displayValue = tile.value
                     let displaySecondary = tile.secondaryValue
@@ -781,9 +794,34 @@ export const DashboardPage = () => {
                     } else if (tile.id === 'water') {
                         displayValue = waterToday ? `${waterToday.value} ${t('metricsPage.water.unit')}` : `0 ${t('metricsPage.water.unit')}`
                         chartColor = '#3b82f6'
+                    } else {
+                        // Динамические метрики
+                        const val = getLatestMetricValue(tile.id)
+                        const metric = bodyMetrics.find(m => m.id === tile.id)
+                        if (val && metric) {
+                            displayValue = `${val.value} ${metric.unit || ''}`
+                        }
+                        const change = getMetricChange(tile.id, periodDays)
+                        if (change) {
+                            displaySecondary = `${change.isPositive ? '↑' : '↓'} ${Math.abs(change.changePercent).toFixed(1)}%`
+                        }
+                        chartData = bodyMetricEntries
+                            .filter(e => e.metricId === tile.id)
+                            .sort((a, b) => dayjs(a.recordedAt).diff(dayjs(b.recordedAt)))
+                            .filter(e => dayjs(e.recordedAt).isAfter(dayjs().subtract(periodDays, 'day')))
+                            .map(entry => ({
+                                label: dayjs(entry.recordedAt).format('DD MMM'),
+                                value: entry.value,
+                            }))
                     }
 
-                    const trendUp = displaySecondary?.includes('↑') || (tile.id === 'weight' && weightChange?.isPositive) || (tile.id === 'heartRate' && heartRateChange?.isPositive) || (tile.id === 'steps' && stepsChange?.isPositive) || (tile.id === 'sleep' && sleepChange?.isPositive)
+                    const dynamicChange = (tile.id !== 'weight' && tile.id !== 'sleep' && tile.id !== 'heartRate' && tile.id !== 'steps' && tile.id !== 'water')
+                        ? getMetricChange(tile.id, periodDays)
+                        : null
+
+                    const trendUp = displaySecondary?.includes('↑') || (tile.id === 'weight' && weightChange?.isPositive) || (tile.id === 'heartRate' && heartRateChange?.isPositive) || (tile.id === 'steps' && stepsChange?.isPositive) || (tile.id === 'sleep' && sleepChange?.isPositive) || (dynamicChange?.isPositive)
+                    const isTrend = displaySecondary?.includes('↑') || displaySecondary?.includes('↓') || (tile.id === 'weight' && weightChange) || (tile.id === 'sleep' && sleepChange) || (tile.id === 'heartRate' && heartRateChange) || (tile.id === 'steps' && stepsChange) || dynamicChange
+
                     const showToday = (tile.showTodayValue || tile.id === 'water' || tile.id === 'sleep' || tile.id === 'heartRate' || tile.id === 'steps') && displayTodayValue
 
                     return (
