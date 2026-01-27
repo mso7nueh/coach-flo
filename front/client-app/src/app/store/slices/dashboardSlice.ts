@@ -50,8 +50,19 @@ const defaultTiles: DashboardTile[] = [
 ]
 
 const savedPeriod = typeof window !== 'undefined' ? localStorage.getItem('dashboard_period') as MetricPeriod : null;
+const savedTileIds = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('dashboard_tiles') || 'null') as string[] | null : null;
+
+// Helper function to save tile IDs to localStorage
+const saveTileIds = (tiles: DashboardTile[]) => {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('dashboard_tiles', JSON.stringify(tiles.map(t => t.id)))
+    }
+}
+
 const initialState: DashboardState = {
-    tiles: [...defaultTiles],
+    tiles: savedTileIds
+        ? defaultTiles.filter(t => savedTileIds.includes(t.id))
+        : [...defaultTiles],
     availableTiles: [...defaultTiles],
     period: savedPeriod || '7d',
     trainerNotes: [],
@@ -123,6 +134,21 @@ export const deleteNoteApi = createAsyncThunk(
     }
 )
 
+// Dashboard settings API
+export const fetchDashboardSettings = createAsyncThunk(
+    'dashboard/fetchSettings',
+    async () => {
+        return await apiClient.getDashboardSettings()
+    }
+)
+
+export const saveDashboardSettings = createAsyncThunk(
+    'dashboard/saveSettings',
+    async (settings: { tile_ids?: string[]; period?: string }) => {
+        return await apiClient.updateDashboardSettings(settings)
+    }
+)
+
 const dashboardSlice = createSlice({
     name: 'dashboard',
     initialState,
@@ -141,6 +167,7 @@ const dashboardSlice = createSlice({
                     state.tiles.push(toAdd)
                 }
             }
+            saveTileIds(state.tiles)
         },
         reorderTiles(state, action: PayloadAction<{ from: number; to: number }>) {
             const { from, to } = action.payload
@@ -149,6 +176,7 @@ const dashboardSlice = createSlice({
             }
             const [moved] = state.tiles.splice(from, 1)
             state.tiles.splice(to, 0, moved)
+            saveTileIds(state.tiles)
         },
         updateTrainerNote(state, action: PayloadAction<TrainerNote>) {
             const index = state.trainerNotes.findIndex((note) => note.id === action.payload.id)
@@ -197,6 +225,20 @@ const dashboardSlice = createSlice({
                 }))
 
             state.availableTiles = [...baseTiles, ...dynamicTiles]
+
+            // Восстанавливаем динамические тайлы из localStorage
+            const savedIds = typeof window !== 'undefined'
+                ? JSON.parse(localStorage.getItem('dashboard_tiles') || 'null') as string[] | null
+                : null
+
+            if (savedIds) {
+                // Добавляем динамические тайлы которые были сохранены, но ещё не в tiles
+                for (const tile of dynamicTiles) {
+                    if (savedIds.includes(tile.id) && !state.tiles.some(t => t.id === tile.id)) {
+                        state.tiles.push(tile)
+                    }
+                }
+            }
         },
     },
     extraReducers: (builder) => {
@@ -232,6 +274,22 @@ const dashboardSlice = createSlice({
             })
             .addCase(deleteNoteApi.fulfilled, (state, action) => {
                 state.trainerNotes = state.trainerNotes.filter((note) => note.id !== action.payload)
+            })
+            // Dashboard settings from API
+            .addCase(fetchDashboardSettings.fulfilled, (state, action) => {
+                const { tile_ids, period } = action.payload
+                if (tile_ids && tile_ids.length > 0) {
+                    // Восстанавливаем тайлы по их ID из availableTiles
+                    const restoredTiles = tile_ids
+                        .map(id => state.availableTiles.find(t => t.id === id))
+                        .filter((t): t is DashboardTile => t !== undefined)
+                    if (restoredTiles.length > 0) {
+                        state.tiles = restoredTiles
+                    }
+                }
+                if (period) {
+                    state.period = period as MetricPeriod
+                }
             })
     },
 })

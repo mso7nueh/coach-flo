@@ -60,6 +60,8 @@ import {
     updateNoteApi,
     removeTrainerNote,
     syncAvailableTiles,
+    fetchDashboardSettings,
+    saveDashboardSettings,
     type MetricPeriod,
 } from '@/app/store/slices/dashboardSlice'
 import { fetchWorkouts } from '@/app/store/slices/calendarSlice'
@@ -126,14 +128,21 @@ export const DashboardPage = () => {
     const handleOpenQuickLog = async (metricId: string) => {
         // Find metric by analyzing tiles or bodyMetrics
         let metric: BodyMetricDescriptor | undefined
-        if (metricId === 'weight') metric = weightMetric
-        else if (metricId === 'sleep') metric = sleepMetric
-        else if (metricId === 'heartRate') metric = heartRateMetric
-        else if (metricId === 'steps') metric = stepsMetric
-        else if (metricId === 'water') metric = waterMetric
+
+        // Сначала ищем в bodyMetrics по ID (для динамических метрик)
+        metric = bodyMetrics.find(m => m.id === metricId)
+
+        // Если не найдена, ищем по хардкодированным ключам
+        if (!metric) {
+            if (metricId === 'weight') metric = weightMetric
+            else if (metricId === 'sleep') metric = sleepMetric
+            else if (metricId === 'heartRate') metric = heartRateMetric
+            else if (metricId === 'steps') metric = stepsMetric
+            else if (metricId === 'water') metric = waterMetric
+        }
 
         if (!metric) {
-            // Если метрика не найдена, создаем её
+            // Если метрика не найдена, создаем её (только для базовых)
             try {
                 const defaults: Record<string, { label: string; unit: string }> = {
                     weight: { label: 'Вес', unit: 'kg' },
@@ -162,9 +171,12 @@ export const DashboardPage = () => {
             setQuickLogDate(new Date())
             openQuickLog()
         } else {
+            // Ищем label метрики для сообщения об ошибке
+            const tile = availableTiles.find(t => t.id === metricId)
+            const metricLabel = tile ? (tile.labelKey.includes('.') ? t(tile.labelKey) : tile.labelKey) : metricId
             notifications.show({
                 title: t('common.error'),
-                message: t('dashboard.errors.metricNotFound', { metric: t(`dashboard.bodyOverview.${metricId}`) }),
+                message: t('dashboard.errors.metricNotFound', { metric: metricLabel }),
                 color: 'red',
             })
         }
@@ -251,12 +263,40 @@ export const DashboardPage = () => {
         dispatch(fetchBodyMetricEntries({ start_date: metricsStartDate, end_date: endDate }))
     }, [dispatch, period])
 
-    // Синхронизируем availableTiles с bodyMetrics для выбора всех метрик
+    // Синхронизируем availableTiles с bodyMetrics и загружаем настройки
     useEffect(() => {
         if (bodyMetrics.length > 0) {
             dispatch(syncAvailableTiles(bodyMetrics.map(m => ({ metricId: m.id, label: m.label }))))
+            // После синхронизации загружаем настройки с бэкенда
+            dispatch(fetchDashboardSettings())
         }
     }, [dispatch, bodyMetrics])
+
+    // Обработчики для сохранения настроек на бэкенд
+    const handleToggleTile = (tileId: string) => {
+        dispatch(toggleTile(tileId))
+        // Вычисляем новый список tiles после toggle
+        const currentIds = tiles.map(t => t.id)
+        const newIds = currentIds.includes(tileId)
+            ? currentIds.filter(id => id !== tileId)
+            : [...currentIds, tileId]
+        dispatch(saveDashboardSettings({ tile_ids: newIds }))
+    }
+
+    const handleReorderTiles = (from: number, to: number) => {
+        dispatch(reorderTiles({ from, to }))
+        // Вычисляем новый порядок
+        const newTiles = [...tiles]
+        const [moved] = newTiles.splice(from, 1)
+        newTiles.splice(to, 0, moved)
+        dispatch(saveDashboardSettings({ tile_ids: newTiles.map(t => t.id) }))
+    }
+
+    const handleSetPeriod = (newPeriod: MetricPeriod) => {
+        dispatch(setDashboardPeriod(newPeriod))
+        dispatch(saveDashboardSettings({ period: newPeriod }))
+    }
+
 
     const upcoming = useMemo(
         () =>
@@ -608,7 +648,7 @@ export const DashboardPage = () => {
                             key={item.value}
                             size="xs"
                             variant={item.value === period ? 'filled' : 'light'}
-                            onClick={() => dispatch(setDashboardPeriod(item.value))}
+                            onClick={() => handleSetPeriod(item.value)}
                         >
                             {t(`dashboard.periods.${item.value}`)}
                         </Button>
@@ -1239,7 +1279,7 @@ export const DashboardPage = () => {
                                 key={item.value}
                                 size="xs"
                                 variant={item.value === period ? 'filled' : 'light'}
-                                onClick={() => dispatch(setDashboardPeriod(item.value))}
+                                onClick={() => handleSetPeriod(item.value)}
                             >
                                 {t(`dashboard.periods.${item.value}`)}
                             </Button>
@@ -1285,7 +1325,7 @@ export const DashboardPage = () => {
                                     key={tile.id}
                                     variant={active ? 'light' : 'outline'}
                                     rightSection={active ? <IconDotsVertical size={16} /> : <IconPlus size={16} />}
-                                    onClick={() => dispatch(toggleTile(tile.id))}
+                                    onClick={() => handleToggleTile(tile.id)}
                                 >
                                     {tile.labelKey.includes('.') ? t(tile.labelKey) : tile.labelKey}
                                 </Button>

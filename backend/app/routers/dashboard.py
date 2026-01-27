@@ -154,3 +154,78 @@ async def get_dashboard_stats(
         ]
     }
 
+
+@router.get(
+    "/settings",
+    response_model=schemas.DashboardSettingsResponse,
+    summary="Получить настройки дашборда",
+    description="Получить настройки дашборда пользователя (выбранные тайлы и период)."
+)
+async def get_dashboard_settings(
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Получить настройки дашборда"""
+    import json
+    
+    settings = db.query(models.DashboardSettings).filter(
+        models.DashboardSettings.user_id == current_user.id
+    ).first()
+    
+    if not settings:
+        # Возвращаем дефолтные настройки
+        return schemas.DashboardSettingsResponse(
+            tile_ids=["weight", "sleep", "heartRate", "steps", "water"],
+            period="7d"
+        )
+    
+    tile_ids = json.loads(settings.tile_ids) if settings.tile_ids else []
+    return schemas.DashboardSettingsResponse(
+        tile_ids=tile_ids,
+        period=settings.period or "7d"
+    )
+
+
+@router.put(
+    "/settings",
+    response_model=schemas.DashboardSettingsResponse,
+    summary="Обновить настройки дашборда",
+    description="Обновить настройки дашборда пользователя (выбранные тайлы и период)."
+)
+async def update_dashboard_settings(
+    data: schemas.DashboardSettingsUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Обновить настройки дашборда"""
+    import json
+    import uuid
+    
+    settings = db.query(models.DashboardSettings).filter(
+        models.DashboardSettings.user_id == current_user.id
+    ).first()
+    
+    if not settings:
+        # Создаем новые настройки
+        settings = models.DashboardSettings(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            tile_ids=json.dumps(data.tile_ids) if data.tile_ids else None,
+            period=data.period or "7d"
+        )
+        db.add(settings)
+    else:
+        # Обновляем существующие
+        if data.tile_ids is not None:
+            settings.tile_ids = json.dumps(data.tile_ids)
+        if data.period is not None:
+            settings.period = data.period
+    
+    db.commit()
+    db.refresh(settings)
+    
+    tile_ids = json.loads(settings.tile_ids) if settings.tile_ids else []
+    return schemas.DashboardSettingsResponse(
+        tile_ids=tile_ids,
+        period=settings.period or "7d"
+    )

@@ -475,3 +475,16 @@ class Notification(Base):
     user = relationship("User", foreign_keys=[user_id])
     sender = relationship("User", foreign_keys=[sender_id])
 
+
+class DashboardSettings(Base):
+    __tablename__ = "dashboard_settings"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    tile_ids = Column(Text, nullable=True)  # JSON array of tile IDs
+    period = Column(String(10), default="7d")  # 7d, 14d, 30d
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User")
+

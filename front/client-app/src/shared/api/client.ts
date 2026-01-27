@@ -739,6 +739,21 @@ export const getDashboardStats = async (period?: '7d' | '14d' | '30d'): Promise<
   return data
 }
 
+export interface DashboardSettings {
+  tile_ids: string[]
+  period: string
+}
+
+export const getDashboardSettings = async (): Promise<DashboardSettings> => {
+  const { data } = await api.get<DashboardSettings>('/api/dashboard/settings')
+  return data
+}
+
+export const updateDashboardSettings = async (settings: Partial<DashboardSettings>): Promise<DashboardSettings> => {
+  const { data } = await api.put<DashboardSettings>('/api/dashboard/settings', settings)
+  return data
+}
+
 // Progress Photos API
 export interface ProgressPhoto {
   id: string
@@ -1280,6 +1295,8 @@ export const apiClient = {
   updateNutritionEntry,
   deleteNutritionEntry,
   getDashboardStats,
+  getDashboardSettings,
+  updateDashboardSettings,
   getProgressPhotos,
   uploadProgressPhoto,
   deleteProgressPhoto,

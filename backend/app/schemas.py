@@ -565,3 +565,17 @@ class NotificationResponse(NotificationBase):
 
 class NotificationUpdate(BaseModel):
     is_read: Optional[bool] = None
+
+
+# Dashboard Settings schemas
+class DashboardSettingsUpdate(BaseModel):
+    tile_ids: Optional[List[str]] = None
+    period: Optional[str] = None  # 7d, 14d, 30d
+
+
+class DashboardSettingsResponse(BaseModel):
+    tile_ids: List[str] = []
+    period: str = "7d"
+
+    class Config:
+        from_attributes = True
