@@ -359,6 +359,8 @@ const resources = {
                     renameProgram: 'Ошибка переименования программы',
                     duplicateProgram: 'Ошибка копирования программы',
                 },
+                trainerAssigned: 'Эта программа назначена тренером',
+                trainerAssignedDescription: 'Вы можете просматривать упражнения и тренировки, но не можете их редактировать или удалять',
             },
             metricsPage: {
                 title: 'Метрики клиента',
@@ -1220,6 +1222,8 @@ const resources = {
                     renameProgram: 'Error renaming program',
                     duplicateProgram: 'Error duplicating program',
                 },
+                trainerAssigned: 'This program was assigned by your trainer',
+                trainerAssignedDescription: 'You can view exercises and workouts, but cannot edit or delete them',
             },
             metricsPage: {
                 title: 'Client metrics',

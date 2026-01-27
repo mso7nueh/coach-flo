@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Badge,
   Button,
   Card,
@@ -778,6 +779,12 @@ export const ProgramPage = () => {
               )}
             </Group>
           </Group>
+          {/* Read-only banner for trainer-assigned programs */}
+          {role === 'client' && selectedProgram && selectedProgram.owner === 'trainer' && (
+            <Alert variant="light" color="blue" title={t('program.trainerAssigned')} icon={<IconInfoCircle size={20} />}>
+              {t('program.trainerAssignedDescription')}
+            </Alert>
+          )}
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="program-days">
               {(provided) => (
