@@ -31,6 +31,7 @@ import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useEffect, useState, useMemo } from 'react'
 import {
     IconArrowLeft,
+    IconBooks,
     IconCalendar,
     IconBarbell,
     IconEdit,
@@ -539,7 +540,10 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                             {t('trainer.clients.program.addDay')}
                         </Button>
                         <Button variant="dashed" color="blue" leftSection={<IconTemplate size={16} />} size="sm" radius="xl" onClick={() => { dispatch(fetchWorkoutTemplates()); openTemplatePicker(); }}>
-                            {t('program.addFromTemplate')}
+                            {t('program.addTrainingFromTemplate')}
+                        </Button>
+                        <Button variant="dashed" color="green" leftSection={<IconBooks size={16} />} size="sm" radius="xl" onClick={openSelectProgramModal}>
+                            {t('program.addProgramFromTemplate')}
                         </Button>
                     </Group>
                 </ScrollArea>
