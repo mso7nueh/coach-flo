@@ -1195,6 +1195,7 @@ export const ProgramPage = () => {
                                       target="_blank"
                                       color={config.color}
                                       style={{ width: 'fit-content' }}
+                                      onClick={(e) => e.stopPropagation()}
                                     >
                                       {t('program.viewVideo')}
                                     </Button>
@@ -1206,7 +1207,10 @@ export const ProgramPage = () => {
                                       variant="subtle"
                                       size="sm"
                                       color={config.color}
-                                      onClick={() => handleEditExercise(exercise, block.id)}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleEditExercise(exercise, block.id)
+                                      }}
                                     >
                                       <IconEdit size={14} />
                                     </ActionIcon>
@@ -1214,7 +1218,10 @@ export const ProgramPage = () => {
                                       variant="subtle"
                                       size="sm"
                                       color="red"
-                                      onClick={() => handleDeleteExercise(exercise.id, block.id)}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDeleteExercise(exercise.id, block.id)
+                                      }}
                                     >
                                       <IconTrash size={14} />
                                     </ActionIcon>
