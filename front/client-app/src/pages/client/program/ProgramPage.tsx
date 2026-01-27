@@ -147,6 +147,7 @@ export const ProgramPage = () => {
   }, [libraryWorkouts, role, userId])
 
   const [viewingExercise, setViewingExercise] = useState<Exercise | null>(null)
+  const [viewingProgramExercise, setViewingProgramExercise] = useState<ProgramExercise | null>(null)
   const [viewExerciseModalOpened, { open: openViewExerciseModal, close: closeViewExerciseModal }] = useDisclosure(false)
   const selectedProgram = useMemo(() => programs.find(p => p.id === selectedProgramId) || null, [programs, selectedProgramId])
   const canEditSelectedProgram = Boolean(selectedProgram && (role === 'trainer' || selectedProgram.owner === 'client'))
@@ -1097,6 +1098,7 @@ export const ProgramPage = () => {
                                   ? libraryExercises.find(e => e.id === exercise.exerciseId)
                                   : libraryExercises.find(e => e.name === exercise.title)
 
+                                setViewingProgramExercise(exercise)
                                 if (fullExercise) {
                                   setViewingExercise(fullExercise)
                                 } else {
@@ -1534,6 +1536,41 @@ export const ProgramPage = () => {
                 </Badge>
               )}
             </Group>
+
+            {viewingProgramExercise && (
+              <Card withBorder padding="sm" radius="md" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                <Group grow>
+                  <Stack gap={0}>
+                    <Text size="xs" c="dimmed" fw={500}>{t('common.sets')}</Text>
+                    <Text fw={700}>{viewingProgramExercise.sets}</Text>
+                  </Stack>
+                  {viewingProgramExercise.reps && (
+                    <Stack gap={0}>
+                      <Text size="xs" c="dimmed" fw={500}>{t('common.reps')}</Text>
+                      <Text fw={700}>{viewingProgramExercise.reps}</Text>
+                    </Stack>
+                  )}
+                  {viewingProgramExercise.weight && (
+                    <Stack gap={0}>
+                      <Text size="xs" c="dimmed" fw={500}>{t('common.weight')}</Text>
+                      <Text fw={700}>{viewingProgramExercise.weight}</Text>
+                    </Stack>
+                  )}
+                  {viewingProgramExercise.duration && (
+                    <Stack gap={0}>
+                      <Text size="xs" c="dimmed" fw={500}>{t('common.duration')}</Text>
+                      <Text fw={700}>{viewingProgramExercise.duration}</Text>
+                    </Stack>
+                  )}
+                  {viewingProgramExercise.rest && (
+                    <Stack gap={0}>
+                      <Text size="xs" c="dimmed" fw={500}>{t('common.rest')}</Text>
+                      <Text fw={700}>{viewingProgramExercise.rest}</Text>
+                    </Stack>
+                  )}
+                </Group>
+              </Card>
+            )}
 
             {viewingExercise.description && (
               <Stack gap="xs">
