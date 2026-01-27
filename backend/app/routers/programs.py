@@ -517,6 +517,14 @@ async def delete_program(
     if current_user.role == models.UserRole.CLIENT and program.owner == "trainer":
         raise HTTPException(status_code=403, detail="Нельзя удалить программу, созданную тренером")
     
+    # Обнуляем program_day_id в тренировках, связанных с днями этой программы
+    day_ids = db.query(models.ProgramDay.id).filter(
+        models.ProgramDay.program_id == program_id
+    ).subquery()
+    db.query(models.Workout).filter(
+        models.Workout.program_day_id.in_(day_ids)
+    ).update({models.Workout.program_day_id: None}, synchronize_session='fetch')
+    
     db.delete(program)
     db.commit()
     return None
@@ -561,6 +569,11 @@ async def delete_program_day(
     # Обычно в программе тренера дни тоже 'trainer'. 
     # Если клиент добавляет день в программу тренера, он становится 'client' (см. create_program_day).
     # Так что проверка day.owner должна быть достаточной.
+    
+    # Обнуляем program_day_id в связанных тренировках, чтобы избежать FK constraint violation
+    db.query(models.Workout).filter(
+        models.Workout.program_day_id == day_id
+    ).update({models.Workout.program_day_id: None})
     
     db.delete(day)
     db.commit()
