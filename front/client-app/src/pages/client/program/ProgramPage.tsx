@@ -13,6 +13,9 @@ import {
   Text,
   TextInput,
   Title,
+  Divider,
+  SimpleGrid,
+  Anchor,
 } from '@mantine/core'
 import { DateInput, TimeInput } from '@mantine/dates'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
@@ -34,6 +37,10 @@ import {
   IconBooks,
   IconVideo,
   IconInfoCircle,
+  IconExternalLink,
+  IconNote,
+  IconBolt,
+  IconPlayerPlay,
 } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { useMemo, useState, useEffect } from 'react'
@@ -1533,98 +1540,150 @@ export const ProgramPage = () => {
         </Stack>
       </Modal>
 
-      <Modal opened={viewExerciseModalOpened} onClose={closeViewExerciseModal} title={t('trainer.library.viewExercise')} size="lg">
+      <Modal opened={viewExerciseModalOpened} onClose={closeViewExerciseModal} title={t('library.viewExercise')} size="lg" radius="md">
         {viewingExercise && (
-          <Stack gap="md">
-            <Text size="xl" fw={700}>
-              {viewingExercise.name}
-            </Text>
-
-            <Group gap="xs">
-              <Badge color="blue" variant="light">
-                {t(`trainer.library.muscle${viewingExercise.muscleGroup ? viewingExercise.muscleGroup.charAt(0).toUpperCase() + viewingExercise.muscleGroup.slice(1) : 'FullBody'}`)}
-              </Badge>
-              {viewingExercise.equipment && (
-                <Badge color="gray" variant="light">
-                  {viewingExercise.equipment}
+          <Stack gap="xl">
+            <Stack gap="xs">
+              <Title order={2} style={{ color: 'var(--mantine-color-violet-7)' }}>
+                {viewingExercise.name}
+              </Title>
+              <Group gap="xs">
+                <Badge color="violet" variant="light" size="lg" radius="sm">
+                  {t(`library.muscle${viewingExercise.muscleGroup ? viewingExercise.muscleGroup.charAt(0).toUpperCase() + viewingExercise.muscleGroup.slice(1) : 'FullBody'}`)}
                 </Badge>
-              )}
-            </Group>
+                {viewingExercise.equipment && (Array.isArray(viewingExercise.equipment) ? viewingExercise.equipment : [viewingExercise.equipment]).map((eq: string) => (
+                  <Badge key={eq} color="gray" variant="outline" size="lg" radius="sm">
+                    {t(`library.equipment.${eq}`)}
+                  </Badge>
+                ))}
+              </Group>
+            </Stack>
 
             {viewingProgramExercise && (
-              <Card withBorder padding="sm" radius="md" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
-                <Group grow>
-                  <Stack gap={0}>
-                    <Text size="xs" c="dimmed" fw={500}>{t('common.sets')}</Text>
-                    <Text fw={700}>{viewingProgramExercise.sets}</Text>
+              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                <Card withBorder padding="md" radius="md" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-violet-0)', borderColor: 'var(--mantine-color-violet-2)' }}>
+                  <IconRepeat size={24} color="var(--mantine-color-violet-6)" style={{ margin: '0 auto 8px' }} />
+                  <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{t('common.sets')}</Text>
+                  <Text fw={800} size="xl" c="violet.9">{viewingProgramExercise.sets}</Text>
+                </Card>
+                {viewingProgramExercise.reps && (
+                  <Card withBorder padding="md" radius="md" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-blue-0)', borderColor: 'var(--mantine-color-blue-2)' }}>
+                    <IconBarbell size={24} color="var(--mantine-color-blue-6)" style={{ margin: '0 auto 8px' }} />
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{t('common.reps')}</Text>
+                    <Text fw={800} size="xl" c="blue.9">{viewingProgramExercise.reps}</Text>
+                  </Card>
+                )}
+                {viewingProgramExercise.rest && (
+                  <Card withBorder padding="md" radius="md" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-green-0)', borderColor: 'var(--mantine-color-green-2)' }}>
+                    <IconClock size={24} color="var(--mantine-color-green-6)" style={{ margin: '0 auto 8px' }} />
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{t('common.rest')}</Text>
+                    <Text fw={800} size="xl" c="green.9">{viewingProgramExercise.rest}</Text>
+                  </Card>
+                )}
+              </SimpleGrid>
+            )}
+
+            <Divider />
+
+            <Stack gap="lg">
+              {viewingExercise.description && (
+                <Group align="flex-start" wrap="nowrap" gap="md">
+                  <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-blue-0)' }}>
+                    <IconInfoCircle size={24} color="var(--mantine-color-blue-6)" />
+                  </div>
+                  <Stack gap={4}>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.description')}</Text>
+                    <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.description}</Text>
                   </Stack>
-                  {viewingProgramExercise.reps && (
-                    <Stack gap={0}>
-                      <Text size="xs" c="dimmed" fw={500}>{t('common.reps')}</Text>
-                      <Text fw={700}>{viewingProgramExercise.reps}</Text>
-                    </Stack>
-                  )}
-                  {viewingProgramExercise.weight && (
-                    <Stack gap={0}>
-                      <Text size="xs" c="dimmed" fw={500}>{t('common.weight')}</Text>
-                      <Text fw={700}>{viewingProgramExercise.weight}</Text>
-                    </Stack>
-                  )}
-                  {viewingProgramExercise.duration && (
-                    <Stack gap={0}>
-                      <Text size="xs" c="dimmed" fw={500}>{t('common.duration')}</Text>
-                      <Text fw={700}>{viewingProgramExercise.duration}</Text>
-                    </Stack>
-                  )}
-                  {viewingProgramExercise.rest && (
-                    <Stack gap={0}>
-                      <Text size="xs" c="dimmed" fw={500}>{t('common.rest')}</Text>
-                      <Text fw={700}>{viewingProgramExercise.rest}</Text>
-                    </Stack>
-                  )}
                 </Group>
-              </Card>
-            )}
+              )}
 
-            {viewingExercise.description && (
-              <Stack gap="xs">
-                <Text fw={600} size="sm">{t('trainer.library.description')}</Text>
-                <Text size="sm">{viewingExercise.description}</Text>
-              </Stack>
-            )}
+              {viewingExercise.startingPosition && (
+                <Group align="flex-start" wrap="nowrap" gap="md">
+                  <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-teal-0)' }}>
+                    <IconStretching size={24} color="var(--mantine-color-teal-6)" />
+                  </div>
+                  <Stack gap={4}>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.startingPosition')}</Text>
+                    <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.startingPosition}</Text>
+                  </Stack>
+                </Group>
+              )}
 
-            {viewingExercise.startingPosition && (
-              <Stack gap="xs">
-                <Text fw={600} size="sm">{t('trainer.library.startingPosition')}</Text>
-                <Text size="sm">{viewingExercise.startingPosition}</Text>
-              </Stack>
-            )}
+              {viewingExercise.executionInstructions && (
+                <Group align="flex-start" wrap="nowrap" gap="md">
+                  <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-orange-0)' }}>
+                    <IconBolt size={24} color="var(--mantine-color-orange-6)" />
+                  </div>
+                  <Stack gap={4}>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.executionInstructions')}</Text>
+                    <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.executionInstructions}</Text>
+                  </Stack>
+                </Group>
+              )}
 
-            {viewingExercise.executionInstructions && (
-              <Stack gap="xs">
-                <Text fw={600} size="sm">{t('trainer.library.execution')}</Text>
-                <Text size="sm">{viewingExercise.executionInstructions}</Text>
-              </Stack>
-            )}
+              {viewingExercise.notes && (
+                <Group align="flex-start" wrap="nowrap" gap="md">
+                  <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-yellow-0)' }}>
+                    <IconNote size={24} color="var(--mantine-color-yellow-6)" />
+                  </div>
+                  <Stack gap={4}>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.notes')}</Text>
+                    <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.notes}</Text>
+                  </Stack>
+                </Group>
+              )}
 
-            {viewingExercise.notes && (
-              <Stack gap="xs">
-                <Text fw={600} size="sm">{t('trainer.library.notes')}</Text>
-                <Text size="sm">{viewingExercise.notes}</Text>
-              </Stack>
-            )}
+              {viewingExercise.videoUrl && (
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <Group gap="md">
+                      <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-red-0)' }}>
+                        <IconVideo size={24} color="var(--mantine-color-red-6)" />
+                      </div>
+                      <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.video')}</Text>
+                    </Group>
+                    <Anchor href={viewingExercise.videoUrl} target="_blank" size="sm" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <IconExternalLink size={14} />
+                      {t('library.exerciseForm.openInNewTab')}
+                    </Anchor>
+                  </Group>
 
-            {viewingExercise.videoUrl && (
-              <Stack gap="xs">
-                <Text fw={600} size="sm">{t('trainer.library.video')}</Text>
-                <Text size="sm" c="blue" component="a" href={viewingExercise.videoUrl} target="_blank">
-                  {viewingExercise.videoUrl}
-                </Text>
-              </Stack>
-            )}
+                  {/* YouTube Embed placeholder or actual embed if possible */}
+                  {viewingExercise.videoUrl.includes('youtube.com') || viewingExercise.videoUrl.includes('youtu.be') ? (
+                    <div style={{
+                      position: 'relative',
+                      paddingBottom: '56.25%',
+                      height: 0,
+                      overflow: 'hidden',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--mantine-color-gray-1)'
+                    }}>
+                      <iframe
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+                        src={`https://www.youtube.com/embed/${viewingExercise.videoUrl.split('v=')[1]?.split('&')[0] || viewingExercise.videoUrl.split('/').pop()}`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <Button
+                      variant="light"
+                      color="red"
+                      leftSection={<IconPlayerPlay size={16} />}
+                      component="a"
+                      href={viewingExercise.videoUrl}
+                      target="_blank"
+                    >
+                      {t('library.exerciseForm.openVideo')}
+                    </Button>
+                  )}
+                </Stack>
+              )}
+            </Stack>
 
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={closeViewExerciseModal}>
+            <Group justify="flex-end" mt="xl">
+              <Button variant="filled" color="violet" size="md" radius="md" onClick={closeViewExerciseModal}>
                 {t('common.close')}
               </Button>
             </Group>
