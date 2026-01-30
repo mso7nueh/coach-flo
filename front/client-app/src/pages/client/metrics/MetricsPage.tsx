@@ -76,7 +76,12 @@ interface ExerciseMetricForm {
 
 type ExerciseChartMode = 'weight' | 'reps' | 'volume'
 
-export const MetricsPage = () => {
+interface MetricsPageProps {
+  clientId?: string
+  readOnly?: boolean
+}
+
+export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) => {
   const { t } = useTranslation()
   const dispatch = useAppDispatch()
   const {
@@ -137,8 +142,8 @@ export const MetricsPage = () => {
       try {
         // Загружаем списки метрик параллельно
         await Promise.all([
-          dispatch(fetchBodyMetrics()).unwrap(),
-          dispatch(fetchExerciseMetrics()).unwrap(),
+          dispatch(fetchBodyMetrics({ user_id: clientId })).unwrap(),
+          dispatch(fetchExerciseMetrics({ user_id: clientId })).unwrap(),
         ])
       } catch (error: any) {
         console.error('Error loading metrics:', error)
@@ -147,7 +152,7 @@ export const MetricsPage = () => {
     }
 
     loadMetrics()
-  }, [dispatch])
+  }, [dispatch, clientId])
 
   // Загружаем записи метрик при изменении периода
   useEffect(() => {
@@ -168,8 +173,8 @@ export const MetricsPage = () => {
         }
 
         await Promise.all([
-          dispatch(fetchBodyMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
-          dispatch(fetchExerciseMetricEntries({ start_date: startDate, end_date: endDate })).unwrap(),
+          dispatch(fetchBodyMetricEntries({ start_date: startDate, end_date: endDate, user_id: clientId })).unwrap(),
+          dispatch(fetchExerciseMetricEntries({ start_date: startDate, end_date: endDate, user_id: clientId })).unwrap(),
         ])
       } catch (error: any) {
         console.error('Error loading metric entries:', error)
@@ -180,7 +185,7 @@ export const MetricsPage = () => {
     if (bodyMetrics.length > 0 || exerciseMetrics.length > 0) {
       loadMetricEntries()
     }
-  }, [dispatch, period, bodyMetrics.length, exerciseMetrics.length])
+  }, [dispatch, period, bodyMetrics.length, exerciseMetrics.length, clientId])
 
   // Обновляем выбранные метрики при загрузке данных
   useEffect(() => {
@@ -514,9 +519,11 @@ export const MetricsPage = () => {
             size="sm"
             color="violet"
           />
-          <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openBulkModal}>
-            {t('metricsPage.bulkUpdate')}
-          </Button>
+          {!readOnly && (
+            <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openBulkModal}>
+              {t('metricsPage.bulkUpdate')}
+            </Button>
+          )}
         </Group>
       </Group>
 
@@ -532,14 +539,16 @@ export const MetricsPage = () => {
               <Stack gap="md">
                 <Group justify="space-between">
                   <Title order={4}>{t('metricsPage.bodyMetrics')}</Title>
-                  <Group gap="xs">
-                    <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateBodyMetricModal}>
-                      {t('metricsPage.createMetric')}
-                    </Button>
-                    <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openBodyModal} disabled={bodyMetrics.length === 0}>
-                      {t('common.add')}
-                    </Button>
-                  </Group>
+                  {!readOnly && (
+                    <Group gap="xs">
+                      <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateBodyMetricModal}>
+                        {t('metricsPage.createMetric')}
+                      </Button>
+                      <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openBodyModal} disabled={bodyMetrics.length === 0}>
+                        {t('common.add')}
+                      </Button>
+                    </Group>
+                  )}
                 </Group>
                 <ScrollArea h={600}>
                   <Stack gap="xs">
@@ -549,9 +558,11 @@ export const MetricsPage = () => {
                           <Text size="sm" c="dimmed" ta="center">
                             {t('metricsPage.noMetrics')}
                           </Text>
-                          <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateBodyMetricModal}>
-                            {t('metricsPage.createFirstMetric')}
-                          </Button>
+                          {!readOnly && (
+                            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateBodyMetricModal}>
+                              {t('metricsPage.createFirstMetric')}
+                            </Button>
+                          )}
                         </Stack>
                       </Card>
                     ) : (
@@ -587,15 +598,17 @@ export const MetricsPage = () => {
                                 <Text fw={600} size="sm">
                                   {metric.label}
                                 </Text>
-                                <div
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleOpenBodyGoalModal(metric.id)
-                                  }}
-                                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                                >
-                                  <IconTarget size={14} />
-                                </div>
+                                {!readOnly && (
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleOpenBodyGoalModal(metric.id)
+                                    }}
+                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
+                                  >
+                                    <IconTarget size={14} />
+                                  </div>
+                                )}
                               </Group>
                               <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
                                 {latest ? `${latest.value.toFixed(2)} ${metric.unit}` : `— ${metric.unit}`}
@@ -645,15 +658,18 @@ export const MetricsPage = () => {
                           </Badge>
                         )}
                       </Group>
+
                       <Group gap="xs">
-                        <Button
-                          variant="light"
-                          size="xs"
-                          leftSection={<IconTarget size={14} />}
-                          onClick={() => selectedMetric && handleOpenBodyGoalModal(selectedMetric.id)}
-                        >
-                          {t('metricsPage.setGoal')}
-                        </Button>
+                        {!readOnly && (
+                          <Button
+                            variant="light"
+                            size="xs"
+                            leftSection={<IconTarget size={14} />}
+                            onClick={() => selectedMetric && handleOpenBodyGoalModal(selectedMetric.id)}
+                          >
+                            {t('metricsPage.setGoal')}
+                          </Button>
+                        )}
                         <Button
                           variant="light"
                           size="xs"
@@ -665,47 +681,49 @@ export const MetricsPage = () => {
                         >
                           {t('common.history')}
                         </Button>
-                        <Button
-                          variant="light"
-                          color="violet"
-                          leftSection={<IconCalendarCheck size={16} />}
-                          onClick={() => {
-                            if (!selectedMetric) return
-                            const today = new Date()
-                            const existingEntry = bodyMetricEntries
+                        {!readOnly && (
+                          <Button
+                            variant="light"
+                            color="violet"
+                            leftSection={<IconCalendarCheck size={16} />}
+                            onClick={() => {
+                              if (!selectedMetric) return
+                              const today = new Date()
+                              const existingEntry = bodyMetricEntries
+                                .filter((entry) => entry.metricId === selectedMetric.id)
+                                .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(today), 'day'))
+
+                              const latestEntry = latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.latest
+
+                              if (existingEntry) {
+                                setBodyForm({
+                                  metricId: selectedMetric.id,
+                                  value: existingEntry.value,
+                                  recordedAt: today,
+                                })
+                              } else if (latestEntry) {
+                                setBodyForm({
+                                  metricId: selectedMetric.id,
+                                  value: latestEntry.value,
+                                  recordedAt: today,
+                                })
+                              } else {
+                                setBodyForm({
+                                  metricId: selectedMetric.id,
+                                  value: 0,
+                                  recordedAt: today,
+                                })
+                              }
+                              openBodyModal()
+                            }}
+                          >
+                            {selectedMetric && bodyMetricEntries
                               .filter((entry) => entry.metricId === selectedMetric.id)
-                              .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(today), 'day'))
-
-                            const latestEntry = latestBodyValues.find((v) => v.metric.id === selectedMetric.id)?.latest
-
-                            if (existingEntry) {
-                              setBodyForm({
-                                metricId: selectedMetric.id,
-                                value: existingEntry.value,
-                                recordedAt: today,
-                              })
-                            } else if (latestEntry) {
-                              setBodyForm({
-                                metricId: selectedMetric.id,
-                                value: latestEntry.value,
-                                recordedAt: today,
-                              })
-                            } else {
-                              setBodyForm({
-                                metricId: selectedMetric.id,
-                                value: 0,
-                                recordedAt: today,
-                              })
-                            }
-                            openBodyModal()
-                          }}
-                        >
-                          {selectedMetric && bodyMetricEntries
-                            .filter((entry) => entry.metricId === selectedMetric.id)
-                            .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(), 'day'))
-                            ? t('metricsPage.updateToday')
-                            : t('metricsPage.addToday')}
-                        </Button>
+                              .find((entry) => dayjs(entry.recordedAt).isSame(dayjs(), 'day'))
+                              ? t('metricsPage.updateToday')
+                              : t('metricsPage.addToday')}
+                          </Button>
+                        )}
                       </Group>
                     </Group>
                     {chartData.length > 0 ? (
@@ -801,9 +819,11 @@ export const MetricsPage = () => {
                         <Text c="dimmed" size="lg">
                           {t('metricsPage.noData')}
                         </Text>
-                        <Button leftSection={<IconPlus size={16} />} onClick={openBodyModal}>
-                          {t('metricsPage.addValue')}
-                        </Button>
+                        {!readOnly && (
+                          <Button leftSection={<IconPlus size={16} />} onClick={openBodyModal}>
+                            {t('metricsPage.addValue')}
+                          </Button>
+                        )}
                       </Stack>
                     )}
                   </>
@@ -821,14 +841,16 @@ export const MetricsPage = () => {
               <Stack gap="md">
                 <Group justify="space-between">
                   <Title order={4}>{t('metricsPage.tabs.exercises')}</Title>
-                  <Group gap="xs">
-                    <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateExerciseMetricModal}>
-                      {t('metricsPage.createExerciseMetric')}
-                    </Button>
-                    <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openExerciseModal} disabled={exerciseMetrics.length === 0}>
-                      {t('common.add')}
-                    </Button>
-                  </Group>
+                  {!readOnly && (
+                    <Group gap="xs">
+                      <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateExerciseMetricModal}>
+                        {t('metricsPage.createExerciseMetric')}
+                      </Button>
+                      <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openExerciseModal} disabled={exerciseMetrics.length === 0}>
+                        {t('common.add')}
+                      </Button>
+                    </Group>
+                  )}
                 </Group>
                 <ScrollArea h={600}>
                   <Stack gap="xs">
@@ -838,9 +860,11 @@ export const MetricsPage = () => {
                           <Text size="sm" c="dimmed" ta="center">
                             {t('metricsPage.noExerciseMetrics')}
                           </Text>
-                          <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateExerciseMetricModal}>
-                            {t('metricsPage.createFirstExerciseMetric')}
-                          </Button>
+                          {!readOnly && (
+                            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={openCreateExerciseMetricModal}>
+                              {t('metricsPage.createFirstExerciseMetric')}
+                            </Button>
+                          )}
                         </Stack>
                       </Card>
                     ) : (
@@ -881,15 +905,17 @@ export const MetricsPage = () => {
                                   )}
                                 </Group>
                                 <Group gap="xs">
-                                  <div
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleOpenExerciseGoalModal(exercise.id)
-                                    }}
-                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                                  >
-                                    <IconTarget size={14} />
-                                  </div>
+                                  {!readOnly && (
+                                    <div
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenExerciseGoalModal(exercise.id)
+                                      }}
+                                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
+                                    >
+                                      <IconTarget size={14} />
+                                    </div>
+                                  )}
                                   <Badge size="xs" variant="light">
                                     {exercise.muscleGroup}
                                   </Badge>
@@ -913,41 +939,43 @@ export const MetricsPage = () => {
                                   <Text size="xs" c="dimmed">
                                     {dayjs(summary.latest.date).format('D MMM YYYY')}
                                   </Text>
-                                  <div
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      const today = new Date()
-                                      if (todayEntry) {
-                                        setExerciseForm({
-                                          exerciseId: exercise.id,
-                                          date: today,
-                                          weight: todayEntry.weight,
-                                          repetitions: todayEntry.repetitions,
-                                          sets: todayEntry.sets,
-                                        })
-                                      } else if (summary.latest) {
-                                        setExerciseForm({
-                                          exerciseId: exercise.id,
-                                          date: today,
-                                          weight: summary.latest.weight,
-                                          repetitions: summary.latest.repetitions,
-                                          sets: summary.latest.sets,
-                                        })
-                                      } else {
-                                        setExerciseForm({
-                                          exerciseId: exercise.id,
-                                          date: today,
-                                          weight: 0,
-                                          repetitions: 0,
-                                          sets: 1,
-                                        })
-                                      }
-                                      openExerciseModal()
-                                    }}
-                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                                  >
-                                    <IconPlus size={12} />
-                                  </div>
+                                  {!readOnly && (
+                                    <div
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        const today = new Date()
+                                        if (todayEntry) {
+                                          setExerciseForm({
+                                            exerciseId: exercise.id,
+                                            date: today,
+                                            weight: todayEntry.weight,
+                                            repetitions: todayEntry.repetitions,
+                                            sets: todayEntry.sets,
+                                          })
+                                        } else if (summary.latest) {
+                                          setExerciseForm({
+                                            exerciseId: exercise.id,
+                                            date: today,
+                                            weight: summary.latest.weight,
+                                            repetitions: summary.latest.repetitions,
+                                            sets: summary.latest.sets,
+                                          })
+                                        } else {
+                                          setExerciseForm({
+                                            exerciseId: exercise.id,
+                                            date: today,
+                                            weight: 0,
+                                            repetitions: 0,
+                                            sets: 1,
+                                          })
+                                        }
+                                        openExerciseModal()
+                                      }}
+                                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
+                                    >
+                                      <IconPlus size={12} />
+                                    </div>
+                                  )}
                                 </Group>
                               )}
                               {summary && summary.change !== 0 && (
@@ -991,14 +1019,16 @@ export const MetricsPage = () => {
                           )}
                       </Group>
                       <Group gap="xs">
-                        <Button
-                          variant="light"
-                          size="xs"
-                          leftSection={<IconTarget size={14} />}
-                          onClick={() => selectedExercise && handleOpenExerciseGoalModal(selectedExercise.id)}
-                        >
-                          {t('metricsPage.setGoal')}
-                        </Button>
+                        {!readOnly && (
+                          <Button
+                            variant="light"
+                            size="xs"
+                            leftSection={<IconTarget size={14} />}
+                            onClick={() => selectedExercise && handleOpenExerciseGoalModal(selectedExercise.id)}
+                          >
+                            {t('metricsPage.setGoal')}
+                          </Button>
+                        )}
                         <Button
                           variant="light"
                           size="xs"
@@ -1010,53 +1040,55 @@ export const MetricsPage = () => {
                         >
                           {t('common.history')}
                         </Button>
-                        <Button
-                          variant="light"
-                          color="violet"
-                          leftSection={<IconCalendarCheck size={16} />}
-                          onClick={() => {
-                            if (!selectedExercise) return
-                            const today = new Date()
-                            const existingEntry = exerciseMetricEntries
+                        {!readOnly && (
+                          <Button
+                            variant="light"
+                            color="violet"
+                            leftSection={<IconCalendarCheck size={16} />}
+                            onClick={() => {
+                              if (!selectedExercise) return
+                              const today = new Date()
+                              const existingEntry = exerciseMetricEntries
+                                .filter((entry) => entry.exerciseId === selectedExercise.id)
+                                .find((entry) => dayjs(entry.date).isSame(dayjs(today), 'day'))
+
+                              const summary = exerciseSummaries.find((s) => s.exercise.id === selectedExercise.id)
+
+                              if (existingEntry) {
+                                setExerciseForm({
+                                  exerciseId: selectedExercise.id,
+                                  date: today,
+                                  weight: existingEntry.weight,
+                                  repetitions: existingEntry.repetitions,
+                                  sets: existingEntry.sets,
+                                })
+                              } else if (summary?.latest) {
+                                setExerciseForm({
+                                  exerciseId: selectedExercise.id,
+                                  date: today,
+                                  weight: summary.latest.weight,
+                                  repetitions: summary.latest.repetitions,
+                                  sets: summary.latest.sets,
+                                })
+                              } else {
+                                setExerciseForm({
+                                  exerciseId: selectedExercise.id,
+                                  date: today,
+                                  weight: 0,
+                                  repetitions: 0,
+                                  sets: 1,
+                                })
+                              }
+                              openExerciseModal()
+                            }}
+                          >
+                            {selectedExercise && exerciseMetricEntries
                               .filter((entry) => entry.exerciseId === selectedExercise.id)
-                              .find((entry) => dayjs(entry.date).isSame(dayjs(today), 'day'))
-
-                            const summary = exerciseSummaries.find((s) => s.exercise.id === selectedExercise.id)
-
-                            if (existingEntry) {
-                              setExerciseForm({
-                                exerciseId: selectedExercise.id,
-                                date: today,
-                                weight: existingEntry.weight,
-                                repetitions: existingEntry.repetitions,
-                                sets: existingEntry.sets,
-                              })
-                            } else if (summary?.latest) {
-                              setExerciseForm({
-                                exerciseId: selectedExercise.id,
-                                date: today,
-                                weight: summary.latest.weight,
-                                repetitions: summary.latest.repetitions,
-                                sets: summary.latest.sets,
-                              })
-                            } else {
-                              setExerciseForm({
-                                exerciseId: selectedExercise.id,
-                                date: today,
-                                weight: 0,
-                                repetitions: 0,
-                                sets: 1,
-                              })
-                            }
-                            openExerciseModal()
-                          }}
-                        >
-                          {selectedExercise && exerciseMetricEntries
-                            .filter((entry) => entry.exerciseId === selectedExercise.id)
-                            .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
-                            ? t('metricsPage.updateToday')
-                            : t('metricsPage.addToday')}
-                        </Button>
+                              .find((entry) => dayjs(entry.date).isSame(dayjs(), 'day'))
+                              ? t('metricsPage.updateToday')
+                              : t('metricsPage.addToday')}
+                          </Button>
+                        )}
                       </Group>
                     </Group>
                     {exerciseChartDisplayData.length > 0 ? (
@@ -1219,9 +1251,11 @@ export const MetricsPage = () => {
                         <Text c="dimmed" size="lg">
                           {t('metricsPage.noData')}
                         </Text>
-                        <Button leftSection={<IconPlus size={16} />} onClick={openExerciseModal}>
-                          {t('metricsPage.addValue')}
-                        </Button>
+                        {!readOnly && (
+                          <Button leftSection={<IconPlus size={16} />} onClick={openExerciseModal}>
+                            {t('metricsPage.addValue')}
+                          </Button>
+                        )}
                       </Stack>
                     )}
                   </>

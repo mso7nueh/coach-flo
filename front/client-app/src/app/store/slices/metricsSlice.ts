@@ -132,15 +132,15 @@ const mapApiExerciseMetricEntryToState = (entry: any): ExerciseMetricEntry => ({
 
 export const fetchExerciseMetrics = createAsyncThunk(
   'metrics/fetchExerciseMetrics',
-  async () => {
-    const metrics = await apiClient.getExerciseMetrics()
+  async (params?: { user_id?: string }) => {
+    const metrics = await apiClient.getExerciseMetrics(params?.user_id)
     return metrics.map(mapApiExerciseMetricToState)
   }
 )
 
 export const fetchExerciseMetricEntries = createAsyncThunk(
   'metrics/fetchExerciseMetricEntries',
-  async (params?: { exercise_metric_id?: string; start_date?: string; end_date?: string }) => {
+  async (params?: { exercise_metric_id?: string; user_id?: string; start_date?: string; end_date?: string }) => {
     const entries = await apiClient.getExerciseMetricEntries(params)
     return entries.map(mapApiExerciseMetricEntryToState)
   }
