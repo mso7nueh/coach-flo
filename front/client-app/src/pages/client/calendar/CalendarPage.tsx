@@ -21,6 +21,7 @@ import 'dayjs/locale/ru'
 dayjs.extend(isoWeek)
 dayjs.locale('ru')
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { notifications } from '@mantine/notifications'
 import {
     IconCalendar,
@@ -109,6 +110,10 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     const programDays = useAppSelector((state) => state.program.days)
     const trainerInfo = useAppSelector((state) => state.user.trainer)
     const [modalOpened, { open, close }] = useDisclosure(false)
+    const [redirectModalOpened, { open: openRedirect, close: closeRedirect }] = useDisclosure(false)
+    const navigate = useNavigate()
+    const isTrainerViewingClient = role === 'trainer' && !!clientId
+
     const [formState, setFormState] = useState<WorkoutFormState>(
         buildFormState(selectedDate, { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }),
     )
@@ -187,6 +192,10 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     const isTrainerDrag = Boolean(activeDragWorkout && activeDragWorkout.withTrainer && activeDragWorkout.format === 'offline')
 
     const openCreateModal = (date?: Date) => {
+        if (isTrainerViewingClient) {
+            openRedirect()
+            return
+        }
         const targetDate = date ? dayjs(date) : dayjs(selectedDate)
         setFormState(buildFormState(targetDate.toISOString(), { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }))
         open()
@@ -227,6 +236,10 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     }
 
     const openEditModal = (id: string) => {
+        if (isTrainerViewingClient) {
+            openRedirect()
+            return
+        }
         const target = workouts.find((item) => item.id === id)
         if (!target) {
             return
@@ -340,6 +353,11 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     }
 
     const handleDragStart = (event: DragEvent<HTMLDivElement>, workout: ClientWorkout) => {
+        if (isTrainerViewingClient) {
+            event.preventDefault()
+            openRedirect()
+            return
+        }
         event.dataTransfer.setData('text/plain', workout.id)
         setActiveDragWorkout(workout)
     }
@@ -350,13 +368,18 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
 
 
     const handleDayDragOver = (event: DragEvent<HTMLDivElement>) => {
-        if (!activeDragWorkout) {
+        if (!activeDragWorkout || isTrainerViewingClient) {
             return
         }
         event.preventDefault()
     }
 
     const handleDropOnDay = (event: DragEvent<HTMLDivElement>, day: dayjs.Dayjs) => {
+        if (isTrainerViewingClient) {
+            event.preventDefault()
+            openRedirect()
+            return
+        }
         event.preventDefault()
         const droppedWorkoutId = event.dataTransfer.getData('text/plain') || activeDragWorkout?.id
         if (!droppedWorkoutId) {
@@ -549,6 +572,10 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                                         variant="subtle"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
+                                                                            if (isTrainerViewingClient) {
+                                                                                openRedirect()
+                                                                                return
+                                                                            }
                                                                             const { id, ...newWorkoutData } = workout
                                                                             dispatch(createWorkout({
                                                                                 title: newWorkoutData.title,
@@ -570,6 +597,10 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                                         color="red"
                                                                         onClick={async (e) => {
                                                                             e.stopPropagation()
+                                                                            if (isTrainerViewingClient) {
+                                                                                openRedirect()
+                                                                                return
+                                                                            }
                                                                             try {
                                                                                 await dispatch(deleteWorkoutApi({ workoutId: workout.id })).unwrap()
                                                                                 notifications.show({
@@ -911,12 +942,45 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             </Stack>
                         </Card>
                     )}
-                    <Group justify="space-between" mt="md">
-                        <Button variant="default" onClick={close}>
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="subtle" onClick={close}>
                             {t('common.cancel')}
                         </Button>
-                        <Button leftSection={<IconCheck size={16} />} onClick={handleSubmit} disabled={!formState.title.trim()}>
-                            {t('common.save')}
+                        <Button onClick={handleSubmit} disabled={!formState.title || !formState.date}>
+                            {formState.id ? t('common.save') : t('common.add')}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            <Modal
+                opened={redirectModalOpened}
+                onClose={closeRedirect}
+                title={t('calendar.redirectModal.title')}
+                centered
+                radius="lg"
+            >
+                <Stack gap="md">
+                    <Group gap="sm">
+                        <ActionIcon size="xl" radius="xl" variant="light" color="violet">
+                            <IconCalendar size={22} />
+                        </ActionIcon>
+                        <Text size="sm">
+                            {t('calendar.redirectModal.description')}
+                        </Text>
+                    </Group>
+                    <Group justify="flex-end" gap="sm">
+                        <Button variant="subtle" onClick={closeRedirect}>
+                            {t('calendar.redirectModal.cancel')}
+                        </Button>
+                        <Button
+                            color="violet"
+                            onClick={() => {
+                                closeRedirect()
+                                navigate(`/trainer/calendar?clientId=${clientId}`)
+                            }}
+                        >
+                            {t('calendar.redirectModal.goToCalendar')}
                         </Button>
                     </Group>
                 </Stack>
