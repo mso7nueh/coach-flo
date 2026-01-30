@@ -66,6 +66,10 @@ const initialState: ProgramState = {
   error: null,
 }
 
+export const resetProgramState = () => (dispatch: any) => {
+  dispatch(programSlice.actions.clearState())
+}
+
 // Маппинг API ProgramDay в локальный формат
 const mapApiProgramDayToState = (apiDay: ApiProgramDay, programId: string): ProgramDay => {
   return {
@@ -527,6 +531,14 @@ const programSlice = createSlice({
         }
       })
     },
+    clearState(state) {
+      state.programs = []
+      state.days = []
+      state.selectedProgramId = null
+      state.selectedDayId = null
+      state.loading = false
+      state.error = null
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -747,6 +759,7 @@ export const {
   updateExercise,
   removeExercise,
   reorderDays,
+  clearState,
 } = programSlice.actions
 export default programSlice.reducer
 

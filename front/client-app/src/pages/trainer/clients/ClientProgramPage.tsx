@@ -62,6 +62,7 @@ import {
     addExerciseToProgramDayApi,
     updateExerciseInProgramDayApi,
     removeExerciseFromProgramDayApi,
+    clearState,
     type ProgramExercise,
     type ProgramBlockInput,
 } from '@/app/store/slices/programSlice'
@@ -223,11 +224,11 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
 
     useEffect(() => {
         if (clientId) {
+            dispatch(clearState())
             dispatch(fetchPrograms(clientId)).then((result) => {
                 if (fetchPrograms.fulfilled.match(result) && result.payload.length > 0) {
                     const firstProgramId = result.payload[0].id
                     dispatch(selectProgram(firstProgramId))
-                    dispatch(fetchProgramDays(firstProgramId))
                 }
             })
             dispatch(fetchExercises())
@@ -484,7 +485,11 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
         </Stack>
     )
 
-    const selectedDay = days.find(d => d.id === selectedDayId)
+    const programDays = useMemo(() => {
+        return days.filter(d => d.programId === selectedProgramId)
+    }, [days, selectedProgramId])
+
+    const selectedDay = programDays.find(d => d.id === selectedDayId)
 
     return (
         <Stack gap="lg">
@@ -508,7 +513,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
             <Group justify="space-between" align="center">
                 <ScrollArea scrollbars="x" style={{ flex: 1 }}>
                     <Group gap="xs" wrap="nowrap">
-                        {days.map((day) => (
+                        {programDays.map((day) => (
                             <Group key={day.id} gap={4}>
                                 <Button
                                     variant={selectedDayId === day.id ? 'filled' : 'light'}
