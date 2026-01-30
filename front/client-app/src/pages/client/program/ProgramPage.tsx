@@ -16,6 +16,7 @@ import {
   Divider,
   SimpleGrid,
   Anchor,
+  Image,
 } from '@mantine/core'
 import { DateInput, TimeInput } from '@mantine/dates'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
@@ -1540,7 +1541,7 @@ export const ProgramPage = () => {
         </Stack>
       </Modal>
 
-      <Modal opened={viewExerciseModalOpened} onClose={closeViewExerciseModal} title={t('library.viewExercise')} size="lg" radius="md">
+      <Modal opened={viewExerciseModalOpened} onClose={closeViewExerciseModal} title={t('trainer.library.viewExercise')} size="lg" radius="md">
         {viewingExercise && (
           <Stack gap="xl">
             <Stack gap="xs">
@@ -1549,15 +1550,26 @@ export const ProgramPage = () => {
               </Title>
               <Group gap="xs">
                 <Badge color="violet" variant="light" size="lg" radius="sm">
-                  {t(`library.muscle${viewingExercise.muscleGroup ? viewingExercise.muscleGroup.charAt(0).toUpperCase() + viewingExercise.muscleGroup.slice(1) : 'FullBody'}`)}
+                  {t(`trainer.library.muscle${viewingExercise.muscleGroup ? viewingExercise.muscleGroup.charAt(0).toUpperCase() + viewingExercise.muscleGroup.slice(1) : 'FullBody'}`)}
                 </Badge>
                 {viewingExercise.equipment && (Array.isArray(viewingExercise.equipment) ? viewingExercise.equipment : [viewingExercise.equipment]).map((eq: string) => (
                   <Badge key={eq} color="gray" variant="outline" size="lg" radius="sm">
-                    {t(`library.equipment.${eq}`)}
+                    {t(`trainer.library.equipment.${eq}`)}
                   </Badge>
                 ))}
               </Group>
             </Stack>
+
+            {viewingExercise.imageUrl && (
+              <Card withBorder padding={0} radius="md" style={{ overflow: 'hidden' }}>
+                <Image
+                  src={viewingExercise.imageUrl}
+                  alt={viewingExercise.name}
+                  height={300}
+                  fallbackSrc="https://placehold.co/600x400?text=No+Image"
+                />
+              </Card>
+            )}
 
             {viewingProgramExercise && (
               <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
@@ -1592,7 +1604,7 @@ export const ProgramPage = () => {
                     <IconInfoCircle size={24} color="var(--mantine-color-blue-6)" />
                   </div>
                   <Stack gap={4}>
-                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.description')}</Text>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('trainer.library.exerciseForm.description')}</Text>
                     <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.description}</Text>
                   </Stack>
                 </Group>
@@ -1604,7 +1616,7 @@ export const ProgramPage = () => {
                     <IconStretching size={24} color="var(--mantine-color-teal-6)" />
                   </div>
                   <Stack gap={4}>
-                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.startingPosition')}</Text>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('trainer.library.exerciseForm.startingPosition')}</Text>
                     <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.startingPosition}</Text>
                   </Stack>
                 </Group>
@@ -1616,7 +1628,7 @@ export const ProgramPage = () => {
                     <IconBolt size={24} color="var(--mantine-color-orange-6)" />
                   </div>
                   <Stack gap={4}>
-                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.executionInstructions')}</Text>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('trainer.library.exerciseForm.executionInstructions')}</Text>
                     <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.executionInstructions}</Text>
                   </Stack>
                 </Group>
@@ -1628,7 +1640,7 @@ export const ProgramPage = () => {
                     <IconNote size={24} color="var(--mantine-color-yellow-6)" />
                   </div>
                   <Stack gap={4}>
-                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.notes')}</Text>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('trainer.library.exerciseForm.notes')}</Text>
                     <Text size="md" style={{ lineHeight: 1.6 }}>{viewingExercise.notes}</Text>
                   </Stack>
                 </Group>
@@ -1641,11 +1653,11 @@ export const ProgramPage = () => {
                       <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-red-0)' }}>
                         <IconVideo size={24} color="var(--mantine-color-red-6)" />
                       </div>
-                      <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('library.exerciseForm.video')}</Text>
+                      <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('trainer.library.exerciseForm.video')}</Text>
                     </Group>
                     <Anchor href={viewingExercise.videoUrl} target="_blank" size="sm" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <IconExternalLink size={14} />
-                      {t('library.exerciseForm.openInNewTab')}
+                      {t('trainer.library.exerciseForm.openInNewTab')}
                     </Anchor>
                   </Group>
 
@@ -1675,7 +1687,7 @@ export const ProgramPage = () => {
                       href={viewingExercise.videoUrl}
                       target="_blank"
                     >
-                      {t('library.exerciseForm.openVideo')}
+                      {t('trainer.library.exerciseForm.openVideo')}
                     </Button>
                   )}
                 </Stack>
