@@ -187,6 +187,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
     const [selectedTrainerProgramId, setSelectedTrainerProgramId] = useState<string | null>(null)
     const [isCopying, setIsCopying] = useState(false)
     const [exerciseTemplatePickerOpened, { open: openExerciseTemplatePicker, close: closeExerciseTemplatePicker }] = useDisclosure(false)
+    const [exerciseLibraryOpened, { open: openExerciseLibrary, close: closeExerciseLibrary }] = useDisclosure(false)
     const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
 
     // UI state for editing
@@ -477,6 +478,26 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
         })
     }, [exercises, clientId])
 
+    const handleAddExerciseFromLibrary = (exercise: any) => {
+        if (!selectedProgramId || !selectedDayId || !activeBlockId) return
+        dispatch(addExerciseToProgramDayApi({
+            programId: selectedProgramId,
+            dayId: selectedDayId,
+            blockId: activeBlockId,
+            exercise: {
+                title: exercise.name,
+                sets: 3,
+                reps: undefined,
+                weight: undefined,
+                duration: undefined,
+                rest: undefined,
+                description: exercise.description,
+                exerciseId: exercise.id
+            }
+        }))
+        closeExerciseLibrary()
+    }
+
     if (isLoadingClients && !client) return <Group justify="center" py="xl"><Loader /></Group>
     if (!client) return (
         <Stack gap="md" align="center" py="xl">
@@ -575,6 +596,11 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                             <Title order={4}>{block.title}</Title>
                                         </Group>
                                         <Group gap={4}>
+                                            <Tooltip label={t('program.addFromLibrary')}>
+                                                <ActionIcon variant="light" color="green" onClick={() => { setActiveBlockId(block.id); openExerciseLibrary(); }}>
+                                                    <IconBooks size={16} />
+                                                </ActionIcon>
+                                            </Tooltip>
                                             <Tooltip label={t('program.orAddFromTemplate')}>
                                                 <ActionIcon variant="light" color="blue" onClick={() => { setActiveBlockId(block.id); openExerciseTemplatePicker(); }}>
                                                     <IconTemplate size={16} />
@@ -746,6 +772,35 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                         </Card>
                                     )
                                 })}
+                            </SimpleGrid>
+                        )}
+                    </Stack>
+                </ScrollArea>
+            </Modal>
+
+            <Modal opened={exerciseLibraryOpened} onClose={closeExerciseLibrary} title={t('program.exerciseLibraryTitle')} size="lg">
+                <ScrollArea h={400}>
+                    <Stack gap="sm">
+                        {filteredExercises.length === 0 ? (
+                            <Text ta="center" c="dimmed" py="xl">{t('program.exerciseLibraryEmpty')}</Text>
+                        ) : (
+                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                                {filteredExercises.map((exercise) => (
+                                    <Card
+                                        key={exercise.id}
+                                        withBorder
+                                        padding="md"
+                                        radius="md"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => handleAddExerciseFromLibrary(exercise)}
+                                    >
+                                        <Stack gap={4}>
+                                            <Text fw={600}>{exercise.name}</Text>
+                                            <Text size="xs" c="dimmed" lineClamp={2}>{exercise.description}</Text>
+                                            <Badge size="xs" variant="light">{t(`trainer.library.muscle${exercise.muscleGroup.charAt(0).toUpperCase() + exercise.muscleGroup.slice(1)}`)}</Badge>
+                                        </Stack>
+                                    </Card>
+                                ))}
                             </SimpleGrid>
                         )}
                     </Stack>
