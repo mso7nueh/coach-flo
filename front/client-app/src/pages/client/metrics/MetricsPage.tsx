@@ -205,10 +205,10 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
 
   // Загружаем историю изменения цели при открытии модалки истории для телесной метрики
   useEffect(() => {
-    if (historyModalOpened && historyType === 'body' && selectedMetric?.id) {
-      dispatch(fetchBodyMetricTargetHistory({ metric_id: selectedMetric.id, user_id: clientId }))
+    if (historyModalOpened && historyType === 'body' && selectedMetricId) {
+      dispatch(fetchBodyMetricTargetHistory({ metric_id: selectedMetricId, user_id: clientId }))
     }
-  }, [historyModalOpened, historyType, selectedMetric?.id, dispatch, clientId])
+  }, [historyModalOpened, historyType, selectedMetricId, dispatch, clientId])
 
   const getFilteredEntries = useCallback(
     (metricId: string, entries: typeof bodyMetricEntries) => {
