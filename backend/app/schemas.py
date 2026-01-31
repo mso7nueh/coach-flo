@@ -327,6 +327,20 @@ class BodyMetricEntryResponse(BodyMetricEntryBase):
         from_attributes = True
 
 
+class BodyMetricTargetUpdate(BaseModel):
+    target: float
+
+
+class BodyMetricTargetHistoryResponse(BaseModel):
+    id: str
+    metric_id: str
+    target_value: float
+    changed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ExerciseMetricBase(BaseModel):
     label: str
     muscle_group: Optional[str] = None

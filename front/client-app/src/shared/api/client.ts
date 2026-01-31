@@ -145,6 +145,13 @@ export interface BodyMetricEntry {
   created_at: string
 }
 
+export interface BodyMetricTargetHistoryEntry {
+  id: string
+  metric_id: string
+  target_value: number
+  changed_at: string
+}
+
 export interface ExerciseMetric {
   id: string
   user_id: string
@@ -650,6 +657,22 @@ export const getBodyMetricEntries = async (params?: {
   end_date?: string
 }): Promise<BodyMetricEntry[]> => {
   const { data } = await api.get<BodyMetricEntry[]>('/api/metrics/body/entries', { params })
+  return data
+}
+
+export const updateBodyMetricTarget = async (
+  metric_id: string,
+  target: number,
+): Promise<BodyMetric> => {
+  const { data } = await api.patch<BodyMetric>(`/api/metrics/body/${metric_id}/target`, { target })
+  return data
+}
+
+export const getBodyMetricTargetHistory = async (params?: {
+  metric_id?: string
+  user_id?: string
+}): Promise<BodyMetricTargetHistoryEntry[]> => {
+  const { data } = await api.get<BodyMetricTargetHistoryEntry[]>('/api/metrics/body/target-history', { params })
   return data
 }
 
@@ -1285,6 +1308,8 @@ export const apiClient = {
   getBodyMetrics,
   addBodyMetricEntry,
   getBodyMetricEntries,
+  updateBodyMetricTarget,
+  getBodyMetricTargetHistory,
   createExerciseMetric,
   getExerciseMetrics,
   addExerciseMetricEntry,

@@ -48,6 +48,8 @@ import {
   addExerciseMetricEntryApi,
   createBodyMetricApi,
   createExerciseMetricApi,
+  updateBodyMetricTargetApi,
+  fetchBodyMetricTargetHistory,
 } from '@/app/store/slices/metricsSlice'
 import { notifications } from '@mantine/notifications'
 import { useDisclosure } from '@mantine/hooks'
@@ -93,6 +95,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
     bodyMetricGoals,
     exerciseMetricGoals,
     bodyMetricStartValues,
+    bodyMetricTargetHistory,
   } = useAppSelector((state) => state.metrics)
   const [selectedMetricId, setSelectedMetricId] = useState<string | null>(bodyMetrics[0]?.id ?? null)
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(exerciseMetrics[0]?.id ?? null)
@@ -199,6 +202,13 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
       setSelectedExerciseId(exerciseMetrics[0].id)
     }
   }, [exerciseMetrics, selectedExerciseId])
+
+  // Загружаем историю изменения цели при открытии модалки истории для телесной метрики
+  useEffect(() => {
+    if (historyModalOpened && historyType === 'body' && selectedMetric?.id) {
+      dispatch(fetchBodyMetricTargetHistory({ metric_id: selectedMetric.id, user_id: clientId }))
+    }
+  }, [historyModalOpened, historyType, selectedMetric?.id, dispatch, clientId])
 
   const getFilteredEntries = useCallback(
     (metricId: string, entries: typeof bodyMetricEntries) => {
@@ -472,16 +482,24 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
 
   const handleOpenBodyGoalModal = (metricId: string) => {
     setGoalMetricId(metricId)
-    setGoalValue(bodyMetricGoals[metricId] ?? 0)
+    const metric = bodyMetrics.find((m) => m.id === metricId)
+    setGoalValue(bodyMetricGoals[metricId] ?? metric?.target ?? 0)
     openBodyGoalModal()
   }
 
-  const handleSaveBodyGoal = () => {
-    if (goalMetricId) {
-      dispatch(setBodyMetricGoal({ metricId: goalMetricId, value: goalValue }))
+  const handleSaveBodyGoal = async () => {
+    if (!goalMetricId) return
+    try {
+      await dispatch(updateBodyMetricTargetApi({ metricId: goalMetricId, target: goalValue })).unwrap()
       closeBodyGoalModal()
       setGoalMetricId(null)
       setGoalValue(0)
+    } catch (error: any) {
+      notifications.show({
+        title: t('common.error'),
+        message: error?.message || t('metricsPage.goalSaveError'),
+        color: 'red',
+      })
     }
   }
 
@@ -1659,29 +1677,45 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
       <Modal opened={historyModalOpened} onClose={closeHistoryModal} title={t('common.history')} size="lg">
         <ScrollArea h={500}>
           <Stack gap="md">
-            {historyType === 'body' && selectedMetric && (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
-                    <th style={{ padding: '12px' }}>{t('metricsPage.date')}</th>
-                    <th style={{ padding: '12px', textAlign: 'right' }}>{t('metricsPage.value')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bodyMetricEntries
-                    .filter((e) => e.metricId === selectedMetric.id)
-                    .sort((a, b) => dayjs(b.recordedAt).diff(dayjs(a.recordedAt)))
-                    .map((entry) => (
-                      <tr key={entry.id} style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
-                        <td style={{ padding: '12px' }}>{dayjs(entry.recordedAt).format('D MMM YYYY, HH:mm')}</td>
+            {historyType === 'body' && selectedMetric && (() => {
+              const valueRows = bodyMetricEntries
+                .filter((e) => e.metricId === selectedMetric.id)
+                .map((entry) => ({ key: `v-${entry.id}`, date: entry.recordedAt, type: 'value' as const, value: entry.value }))
+              const targetRows = (bodyMetricTargetHistory[selectedMetric.id] ?? []).map((h) => ({
+                key: `t-${h.id}`,
+                date: h.changedAt,
+                type: 'target' as const,
+                value: h.targetValue,
+              }))
+              const merged = [...valueRows, ...targetRows].sort((a, b) => dayjs(b.date).diff(dayjs(a.date)))
+              if (merged.length === 0) {
+                return <Text c="dimmed" ta="center" py="xl">{t('metricsPage.noData')}</Text>
+              }
+              return (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+                      <th style={{ padding: '12px' }}>{t('metricsPage.date')}</th>
+                      <th style={{ padding: '12px' }}>{t('metricsPage.historyType')}</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>{t('metricsPage.value')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {merged.map((row) => (
+                      <tr key={row.key} style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
+                        <td style={{ padding: '12px' }}>{dayjs(row.date).format('D MMM YYYY, HH:mm')}</td>
+                        <td style={{ padding: '12px' }}>
+                          {row.type === 'value' ? t('metricsPage.historyTypeValue') : t('metricsPage.historyTypeTarget')}
+                        </td>
                         <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>
-                          {entry.value.toFixed(2)} {selectedMetric.unit}
+                          {row.value.toFixed(2)} {selectedMetric.unit}
                         </td>
                       </tr>
                     ))}
-                </tbody>
-              </table>
-            )}
+                  </tbody>
+                </table>
+              )
+            })()}
             {historyType === 'exercise' && selectedExercise && (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -1707,10 +1741,9 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                 </tbody>
               </table>
             )}
-            {((historyType === 'body' && bodyMetricEntries.filter(e => e.metricId === selectedMetric?.id).length === 0) ||
-              (historyType === 'exercise' && exerciseMetricEntries.filter(e => e.exerciseId === selectedExercise?.id).length === 0)) && (
-                <Text c="dimmed" ta="center" py="xl">{t('metricsPage.noData')}</Text>
-              )}
+            {historyType === 'exercise' && exerciseMetricEntries.filter((e) => e.exerciseId === selectedExercise?.id).length === 0 && (
+              <Text c="dimmed" ta="center" py="xl">{t('metricsPage.noData')}</Text>
+            )}
           </Stack>
         </ScrollArea>
       </Modal>

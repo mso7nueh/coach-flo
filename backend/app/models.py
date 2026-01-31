@@ -256,6 +256,18 @@ class BodyMetricEntry(Base):
     metric = relationship("BodyMetric", back_populates="entries")
 
 
+class BodyMetricTargetHistory(Base):
+    """История изменения целевого значения метрики тела."""
+    __tablename__ = "body_metric_target_history"
+
+    id = Column(String, primary_key=True, index=True)
+    metric_id = Column(String, ForeignKey("body_metrics.id"), nullable=False, index=True)
+    target_value = Column(Float, nullable=False)
+    changed_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    metric = relationship("BodyMetric", backref="target_history")
+
+
 class ExerciseMetric(Base):
     __tablename__ = "exercise_metrics"
 

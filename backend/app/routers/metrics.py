@@ -5,7 +5,7 @@ from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_active_user
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 router = APIRouter()
@@ -108,6 +108,84 @@ async def create_body_metric_entry(
     db.commit()
     db.refresh(db_entry)
     return db_entry
+
+
+@router.patch(
+    "/body/{metric_id}/target",
+    response_model=schemas.BodyMetricResponse,
+    summary="Обновить целевое значение метрики тела",
+)
+async def update_body_metric_target(
+    metric_id: str,
+    payload: schemas.BodyMetricTargetUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Обновить целевое значение метрики и записать в историю изменений."""
+    metric = db.query(models.BodyMetric).filter(
+        and_(
+            models.BodyMetric.id == metric_id,
+            models.BodyMetric.user_id == current_user.id,
+        )
+    ).first()
+    if not metric:
+        raise HTTPException(status_code=404, detail="Метрика не найдена")
+    metric.target = payload.target
+    history_id = str(uuid.uuid4())
+    db_history = models.BodyMetricTargetHistory(
+        id=history_id,
+        metric_id=metric_id,
+        target_value=payload.target,
+        changed_at=datetime.now(timezone.utc),
+    )
+    db.add(db_history)
+    db.commit()
+    db.refresh(metric)
+    return metric
+
+
+@router.get(
+    "/body/target-history",
+    response_model=List[schemas.BodyMetricTargetHistoryResponse],
+    summary="История изменения целевого значения метрики тела",
+)
+async def get_body_metric_target_history(
+    metric_id: Optional[str] = Query(None, description="ID метрики"),
+    user_id: Optional[str] = Query(None, description="ID пользователя (только для тренеров)"),
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Получить историю изменения целевого значения для метрики тела."""
+    target_user_id = current_user.id
+    if user_id and current_user.role == models.UserRole.TRAINER:
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == user_id,
+                models.User.trainer_id == current_user.id,
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = user_id
+    elif user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут просматривать метрики других пользователей")
+    if not metric_id:
+        return []
+    metric = db.query(models.BodyMetric).filter(
+        and_(
+            models.BodyMetric.id == metric_id,
+            models.BodyMetric.user_id == target_user_id,
+        )
+    ).first()
+    if not metric:
+        return []
+    history = (
+        db.query(models.BodyMetricTargetHistory)
+        .filter(models.BodyMetricTargetHistory.metric_id == metric_id)
+        .order_by(models.BodyMetricTargetHistory.changed_at.desc())
+        .all()
+    )
+    return history
 
 
 @router.get("/body/entries", response_model=List[schemas.BodyMetricEntryResponse])

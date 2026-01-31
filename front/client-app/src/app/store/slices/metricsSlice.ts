@@ -47,6 +47,12 @@ export interface DailyNutritionEntry {
   notes?: string
 }
 
+export interface BodyMetricTargetHistoryItem {
+  id: string
+  targetValue: number
+  changedAt: string
+}
+
 interface MetricsState {
   period: MetricsPeriod
   bodyMetrics: BodyMetricDescriptor[]
@@ -56,6 +62,7 @@ interface MetricsState {
   bodyMetricGoals: Record<string, number>
   exerciseMetricGoals: Record<string, { weight?: number; repetitions?: number }>
   bodyMetricStartValues: Record<string, number>
+  bodyMetricTargetHistory: Record<string, BodyMetricTargetHistoryItem[]>
   nutritionEntries: DailyNutritionEntry[]
 }
 
@@ -69,6 +76,7 @@ const initialState: MetricsState = {
   bodyMetricGoals: {},
   exerciseMetricGoals: {},
   bodyMetricStartValues: {},
+  bodyMetricTargetHistory: {},
   nutritionEntries: [],
 }
 
@@ -180,6 +188,30 @@ export const addExerciseMetricEntryApi = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Ошибка добавления записи метрики упражнения')
     }
+  }
+)
+
+export const updateBodyMetricTargetApi = createAsyncThunk(
+  'metrics/updateBodyMetricTargetApi',
+  async (
+    data: { metricId: string; target: number },
+    { rejectWithValue, dispatch, getState }
+  ) => {
+    try {
+      const metric = await apiClient.updateBodyMetricTarget(data.metricId, data.target)
+      const mappedMetric = mapApiBodyMetricToState(metric)
+      return mappedMetric
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Ошибка обновления целевого значения')
+    }
+  }
+)
+
+export const fetchBodyMetricTargetHistory = createAsyncThunk(
+  'metrics/fetchBodyMetricTargetHistory',
+  async (params: { metric_id: string; user_id?: string }) => {
+    const entries = await apiClient.getBodyMetricTargetHistory(params)
+    return { metricId: params.metric_id, entries }
   }
 )
 
@@ -348,6 +380,11 @@ const metricsSlice = createSlice({
     builder
       .addCase(fetchBodyMetrics.fulfilled, (state, action) => {
         state.bodyMetrics = action.payload
+        action.payload.forEach((m) => {
+          if (m.target != null && m.target !== undefined) {
+            state.bodyMetricGoals[m.id] = m.target
+          }
+        })
       })
       // ... (rest of extraReducers)
 
@@ -365,6 +402,22 @@ const metricsSlice = createSlice({
         const existingIds = new Set(state.exerciseMetricEntries.map(e => e.id))
         const newEntries = action.payload.filter(e => !existingIds.has(e.id))
         state.exerciseMetricEntries = [...state.exerciseMetricEntries, ...newEntries]
+      })
+      .addCase(updateBodyMetricTargetApi.fulfilled, (state, action) => {
+        const metric = action.payload
+        state.bodyMetricGoals[metric.id] = metric.target ?? 0
+        const idx = state.bodyMetrics.findIndex((m) => m.id === metric.id)
+        if (idx >= 0) {
+          state.bodyMetrics[idx] = { ...state.bodyMetrics[idx], target: metric.target }
+        }
+      })
+      .addCase(fetchBodyMetricTargetHistory.fulfilled, (state, action) => {
+        const { metricId, entries } = action.payload
+        state.bodyMetricTargetHistory[metricId] = entries.map((e: { id: string; target_value: number; changed_at: string }) => ({
+          id: e.id,
+          targetValue: e.target_value,
+          changedAt: e.changed_at,
+        }))
       })
       .addCase(addBodyMetricEntryApi.fulfilled, (state, action) => {
         // Добавляем новую запись или обновляем существующую
