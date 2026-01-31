@@ -329,8 +329,9 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
         let programId = selectedProgramId
         if (!programId && clientId) {
             try {
+                const programTitle = template.name || `${t('common.program')} - ${client?.fullName || clientId}`
                 const newProgram = await dispatch(createProgram({
-                    title: `${t('common.program')} - ${client?.fullName || clientId}`,
+                    title: programTitle,
                     owner: 'trainer',
                     userId: clientId
                 })).unwrap()
@@ -386,7 +387,10 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                     }
                 ]
             })).unwrap()
-            notifications.show({ title: t('common.success'), message: t('program.dayCreatedFromTemplate'), color: 'green' })
+            const successMessage = template.name
+                ? t('program.dayCreatedFromTemplateWithName', { name: template.name })
+                : t('program.dayCreatedFromTemplate')
+            notifications.show({ title: t('common.success'), message: successMessage, color: 'green' })
             closeTemplatePicker()
         } catch (e: any) {
             notifications.show({ title: t('common.error'), message: e.message || t('common.error'), color: 'red' })
