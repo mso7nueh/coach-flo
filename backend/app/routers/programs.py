@@ -524,7 +524,8 @@ async def delete_program(
     db.query(models.Workout).filter(
         models.Workout.program_day_id.in_(day_ids)
     ).update({models.Workout.program_day_id: None}, synchronize_session='fetch')
-    
+    db.flush()  # чтобы UPDATE выполнился до каскадного удаления program_days
+
     db.delete(program)
     db.commit()
     return None
@@ -574,7 +575,8 @@ async def delete_program_day(
     db.query(models.Workout).filter(
         models.Workout.program_day_id == day_id
     ).update({models.Workout.program_day_id: None})
-    
+    db.flush()  # чтобы UPDATE выполнился до DELETE program_day
+
     db.delete(day)
     db.commit()
     return None
