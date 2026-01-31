@@ -529,20 +529,17 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                         <Text>{t('common.program')}</Text>
                     </Breadcrumbs>
                     <Group justify="space-between">
-                        <Stack gap={2}>
-                            <Title order={2}>
-                                {selectedProgram ? selectedProgram.title : `${t('common.program')} - ${client.fullName}`}
-                            </Title>
-                            {selectedProgram && (
-                                <Text size="sm" c="dimmed">{t('common.program')} — {client.fullName}</Text>
-                            )}
-                        </Stack>
+                        <Title order={2}>{t('common.program')} - {client.fullName}</Title>
                         <Group>
                             <Button leftSection={<IconDeviceFloppy size={16} />} variant="light" onClick={handleSaveProgramAsTemplate}>{t('program.saveAsTemplate')}</Button>
                             <Button leftSection={<IconPlus size={16} />} onClick={openSelectProgramModal}>{t('trainer.clients.selectProgram')}</Button>
                         </Group>
                     </Group>
                 </>
+            )}
+
+            {selectedProgram && (
+                <Text fw={600} size="lg">{selectedProgram.title}</Text>
             )}
 
             <Group justify="space-between" align="center">
