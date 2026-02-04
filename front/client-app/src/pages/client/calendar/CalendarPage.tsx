@@ -441,7 +441,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
 
 
             <ScrollArea h={`calc(100vh - ${200}px)`} type="auto" offsetScrollbars>
-                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '600px', paddingRight: 'var(--mantine-spacing-md)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '600px', minWidth: '800px', paddingRight: 'var(--mantine-spacing-md)' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
                         {calendarDays.map((day, index) => {
                             const dayOfWeek = day.isoWeekday() // ISO неделя: понедельник = 1, воскресенье = 7
@@ -767,7 +767,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                         value={formState.date}
                         leftSection={<IconCalendar size={16} />}
                         radius="lg"
-                        onChange={(value) => setFormState((state) => ({ ...state, date: value }))}
+                        onChange={(value) => setFormState((state) => ({ ...state, date: value ? (typeof value === 'string' ? new Date(value) : value) : null }))}
                         required
                     />
                     <Group gap="md" grow>
@@ -920,7 +920,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                 label={t('calendar.recurrenceEndDate')}
                                                 value={formState.recurrenceEndDate}
                                                 leftSection={<IconCalendar size={16} />}
-                                                onChange={(value) => setFormState((state) => ({ ...state, recurrenceEndDate: value }))}
+                                                onChange={(value) => setFormState((state) => ({ ...state, recurrenceEndDate: value ? (typeof value === 'string' ? new Date(value) : value) : null }))}
                                                 placeholder={t('calendar.recurrenceEndDatePlaceholder')}
                                             />
                                             <NumberInput

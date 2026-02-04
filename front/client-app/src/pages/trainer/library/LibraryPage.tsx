@@ -66,7 +66,7 @@ import { notifications } from '@mantine/notifications'
 import { useDisclosure } from '@mantine/hooks'
 import { useState, useMemo, useEffect } from 'react'
 import { useForm } from '@mantine/form'
-import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
+import { DragDropContext, Draggable, Droppable, type DropResult, type DroppableProvided, type DraggableProvided } from '@hello-pangea/dnd'
 import {
     IconPlus,
     IconTrash,
@@ -1427,7 +1427,7 @@ export const LibraryPage = () => {
                                 </Group>
                                 <DragDropContext onDragEnd={handleProgramDragEnd}>
                                     <Droppable droppableId="program-days">
-                                        {(provided) => (
+                                        {(provided: DroppableProvided) => (
                                             <Stack gap="xs" ref={provided.innerRef} {...provided.droppableProps}>
                                                 {visibleProgramDays.map((day, index) => {
                                                     return (
@@ -1436,7 +1436,7 @@ export const LibraryPage = () => {
                                                             index={index}
                                                             key={day.id}
                                                         >
-                                                            {(dragProvided) => (
+                                                            {(dragProvided: DraggableProvided) => (
                                                                 <Card
                                                                     withBorder
                                                                     padding="md"

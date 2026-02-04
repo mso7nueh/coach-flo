@@ -682,7 +682,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
             <Modal opened={assignModalOpened} onClose={closeAssign} title={t('trainer.clients.program.assignToCalendar')}>
                 {assignForm && (
                     <Stack gap="md">
-                        <DateInput label={t('common.date')} value={assignForm.date} onChange={(val) => setAssignForm({ ...assignForm, date: val || new Date() })} />
+                        <DateInput label={t('common.date')} value={assignForm.date} onChange={(val) => setAssignForm({ ...assignForm, date: (val as Date | null) || new Date() })} />
                         <Group grow>
                             <TimeInput label={t('common.startTime')} value={assignForm.startTime} onChange={(e) => setAssignForm({ ...assignForm, startTime: e.target.value })} />
                             <TimeInput label={t('common.endTime')} value={assignForm.endTime} onChange={(e) => setAssignForm({ ...assignForm, endTime: e.target.value })} />

@@ -19,7 +19,7 @@ import {
   Image,
 } from '@mantine/core'
 import { DateInput, TimeInput } from '@mantine/dates'
-import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
+import { DragDropContext, Draggable, Droppable, type DropResult, type DroppableProvided, type DraggableProvided } from '@hello-pangea/dnd'
 import { useDisclosure } from '@mantine/hooks'
 import {
   IconCalendar,
@@ -795,7 +795,7 @@ export const ProgramPage = () => {
           )}
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="program-days">
-              {(provided) => (
+              {(provided: DroppableProvided) => (
                 <Stack gap="xs" ref={provided.innerRef} {...provided.droppableProps}>
                   {programTrainings.map((day, index) => {
                     const canEditThisDay = canManageDay(day.owner)
@@ -806,7 +806,7 @@ export const ProgramPage = () => {
                         key={day.id}
                         isDragDisabled={!canEditThisDay}
                       >
-                        {(dragProvided) => (
+                        {(dragProvided: DraggableProvided) => (
                           <Card
                             withBorder
                             padding="md"
@@ -1387,7 +1387,7 @@ export const ProgramPage = () => {
             <DateInput
               label={t('calendar.title')}
               value={assignForm.date}
-              onChange={(value) => value && setAssignForm((state) => ({ ...state!, date: value }))}
+              onChange={(value) => value && setAssignForm((state) => ({ ...state!, date: typeof value === 'string' ? new Date(value) : value }))}
             />
             <Group gap="md">
               <TimeInput

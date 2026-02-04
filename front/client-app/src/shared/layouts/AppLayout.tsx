@@ -337,7 +337,7 @@ export const AppLayout = () => {
                 {location.pathname === '/onboarding' ? (
                     <Outlet />
                 ) : (
-                    <Box p="lg" style={{ height: '100%' }}>
+                    <Box p={{ base: 'md', sm: 'lg' }} style={{ height: '100%' }}>
                         <Outlet />
                     </Box>
                 )}

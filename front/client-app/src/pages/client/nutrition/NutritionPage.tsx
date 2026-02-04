@@ -106,7 +106,7 @@ export const NutritionContent = ({ embedded = false, clientId }: { embedded?: bo
               placeholder={t('nutritionPage.datePlaceholder')}
               value={selectedDate}
               onChange={(date) => {
-                setSelectedDate(date)
+                setSelectedDate(date ? (typeof date === 'string' ? new Date(date) : date) : null)
                 if (date) {
                   const entry = nutritionEntries.find((entry) =>
                     dayjs(entry.date).isSame(dayjs(date), 'day'),

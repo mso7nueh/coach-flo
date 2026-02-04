@@ -14,6 +14,7 @@ import {
     TextInput,
     Title,
     Box,
+    ScrollArea,
 } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
@@ -308,7 +309,7 @@ export const FinancesPage = () => {
                             </Text>
                             <Badge variant="light" color="violet">{t('common.period')}</Badge>
                         </Group>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer width="100%" height={250}>
                             <AreaChart data={monthlyRevenueData}>
                                 <defs>
                                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -354,7 +355,7 @@ export const FinancesPage = () => {
                             {t('trainer.finances.paymentsByType')}
                         </Text>
                         <Box style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <ResponsiveContainer width="100%" height={240}>
+                            <ResponsiveContainer width="100%" height={200}>
                                 <PieChart>
                                     <Pie
                                         data={paymentsByTypeData}
@@ -394,7 +395,7 @@ export const FinancesPage = () => {
                     <Text fw={700} size="lg">
                         {t('trainer.finances.revenueByClient')}
                     </Text>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={revenueByClientData} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--mantine-color-gray-1)" />
                             <XAxis
@@ -448,70 +449,72 @@ export const FinancesPage = () => {
                         />
                     </Group>
 
-                    <Table>
-                        <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>{t('trainer.finances.client')}</Table.Th>
-                                <Table.Th>{t('trainer.finances.amount')}</Table.Th>
-                                <Table.Th>{t('trainer.finances.date')}</Table.Th>
-                                <Table.Th>{t('trainer.finances.type')}</Table.Th>
-                                <Table.Th>{t('trainer.finances.remainingSessions')}</Table.Th>
-                                <Table.Th>{t('trainer.finances.nextPayment')}</Table.Th>
-                                <Table.Th></Table.Th>
-                            </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                            {filteredPayments.length === 0 ? (
+                    <ScrollArea>
+                        <Table miw={800}>
+                            <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
-                                        <Text c="dimmed">{t('trainer.finances.noPayments')}</Text>
-                                    </Table.Td>
+                                    <Table.Th>{t('trainer.finances.client')}</Table.Th>
+                                    <Table.Th>{t('trainer.finances.amount')}</Table.Th>
+                                    <Table.Th>{t('trainer.finances.date')}</Table.Th>
+                                    <Table.Th>{t('trainer.finances.type')}</Table.Th>
+                                    <Table.Th>{t('trainer.finances.remainingSessions')}</Table.Th>
+                                    <Table.Th>{t('trainer.finances.nextPayment')}</Table.Th>
+                                    <Table.Th></Table.Th>
                                 </Table.Tr>
-                            ) : (
-                                filteredPayments.map((payment) => (
-                                    <Table.Tr key={payment.id}>
-                                        <Table.Td>
-                                            <Text fw={500}>{getClientName(payment.clientId)}</Text>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Text fw={600}>{payment.amount.toLocaleString()} ₽</Text>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Text size="sm">{dayjs(payment.date).format('D MMM YYYY')}</Text>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Badge variant="light">{getPaymentTypeLabel(payment.type)}</Badge>
-                                        </Table.Td>
-                                        <Table.Td>
-                                            {payment.remainingSessions !== undefined ? (
-                                                <Badge color={payment.remainingSessions > 0 ? 'green' : 'red'}>
-                                                    {payment.remainingSessions}
-                                                </Badge>
-                                            ) : (
-                                                <Text size="sm" c="dimmed">
-                                                    -
-                                                </Text>
-                                            )}
-                                        </Table.Td>
-                                        <Table.Td>
-                                            {payment.nextPaymentDate ? (
-                                                <Text size="sm">{dayjs(payment.nextPaymentDate).format('D MMM YYYY')}</Text>
-                                            ) : (
-                                                <Text size="sm" c="dimmed">
-                                                    -
-                                                </Text>
-                                            )}
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <ActionIcon color="red" variant="subtle" onClick={() => handleDeletePayment(payment.id)}>
-                                                <IconTrash size={16} />
-                                            </ActionIcon>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {filteredPayments.length === 0 ? (
+                                    <Table.Tr>
+                                        <Table.Td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
+                                            <Text c="dimmed">{t('trainer.finances.noPayments')}</Text>
                                         </Table.Td>
                                     </Table.Tr>
-                                ))
-                            )}
-                        </Table.Tbody>
-                    </Table>
+                                ) : (
+                                    filteredPayments.map((payment) => (
+                                        <Table.Tr key={payment.id}>
+                                            <Table.Td>
+                                                <Text fw={500}>{getClientName(payment.clientId)}</Text>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Text fw={600}>{payment.amount.toLocaleString()} ₽</Text>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Text size="sm">{dayjs(payment.date).format('D MMM YYYY')}</Text>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <Badge variant="light">{getPaymentTypeLabel(payment.type)}</Badge>
+                                            </Table.Td>
+                                            <Table.Td>
+                                                {payment.remainingSessions !== undefined ? (
+                                                    <Badge color={payment.remainingSessions > 0 ? 'green' : 'red'}>
+                                                        {payment.remainingSessions}
+                                                    </Badge>
+                                                ) : (
+                                                    <Text size="sm" c="dimmed">
+                                                        -
+                                                    </Text>
+                                                )}
+                                            </Table.Td>
+                                            <Table.Td>
+                                                {payment.nextPaymentDate ? (
+                                                    <Text size="sm">{dayjs(payment.nextPaymentDate).format('D MMM YYYY')}</Text>
+                                                ) : (
+                                                    <Text size="sm" c="dimmed">
+                                                        -
+                                                    </Text>
+                                                )}
+                                            </Table.Td>
+                                            <Table.Td>
+                                                <ActionIcon color="red" variant="subtle" onClick={() => handleDeletePayment(payment.id)}>
+                                                    <IconTrash size={16} />
+                                                </ActionIcon>
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    ))
+                                )}
+                            </Table.Tbody>
+                        </Table>
+                    </ScrollArea>
                 </Stack>
             </Card>
 
@@ -539,7 +542,7 @@ export const FinancesPage = () => {
                             required
                             leftSection={<IconCalendar size={16} />}
                             value={form.values.date}
-                            onChange={(value) => form.setFieldValue('date', value)}
+                            onChange={(value) => form.setFieldValue('date', value as Date | null)}
                         />
                         <Select
                             label={t('trainer.finances.type')}

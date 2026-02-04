@@ -790,7 +790,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                               padding: '4px 0',
                               fontSize: '13px',
                             }}
-                            formatter={(value: number) => [`${value.toFixed(2)} ${selectedMetric.unit}`, selectedMetric.label]}
+                            formatter={(value) => [`${Number(value ?? 0).toFixed(2)} ${selectedMetric.unit}`, selectedMetric.label]}
                           />
                           <Area
                             type="monotone"
@@ -1172,8 +1172,8 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                                 padding: '4px 0',
                                 fontSize: '13px',
                               }}
-                              formatter={(value: number) => [
-                                `${value.toFixed(currentModeConfig.fractionDigits)} ${currentModeConfig.unit}`,
+                              formatter={(value) => [
+                                `${Number(value ?? 0).toFixed(currentModeConfig.fractionDigits)} ${currentModeConfig.unit}`,
                                 currentModeConfig.label,
                               ]}
                             />
@@ -1321,7 +1321,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
           <DateInput
             label={t('metricsPage.date')}
             value={bodyForm.recordedAt}
-            onChange={(value) => setBodyForm((state) => ({ ...state, recordedAt: value }))}
+            onChange={(value) => setBodyForm((state) => ({ ...state, recordedAt: value ? (typeof value === 'string' ? new Date(value) : value) : null }))}
             required
             leftSection={<IconCalendarCheck size={16} />}
             maxDate={new Date()}
@@ -1389,7 +1389,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
           <DateInput
             label={t('metricsPage.date')}
             value={exerciseForm.date}
-            onChange={(value) => setExerciseForm((state) => ({ ...state, date: value }))}
+            onChange={(value) => setExerciseForm((state) => ({ ...state, date: value ? (typeof value === 'string' ? new Date(value) : value) : null }))}
             required
             leftSection={<IconCalendarCheck size={16} />}
             maxDate={new Date()}

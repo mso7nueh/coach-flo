@@ -672,7 +672,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                             label={t('trainer.calendar.date')}
                             required
                             value={formState.date}
-                            onChange={(value) => setFormState({ ...formState, date: value })}
+                            onChange={(value) => setFormState({ ...formState, date: value as Date | null })}
                             leftSection={<IconCalendar size={16} />}
                         />
                         <TimeInput

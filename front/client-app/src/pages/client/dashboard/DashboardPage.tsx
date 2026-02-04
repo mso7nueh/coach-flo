@@ -885,7 +885,7 @@ export const DashboardPage = () => {
                                 </Group>
 
                                 {chartData.length > 0 && (
-                                    <Box h={40} mt="xs">
+                                    <Box h={{ base: 60, sm: 40 }} mt="xs">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <AreaChart data={chartData}>
                                                 <defs>
@@ -1674,7 +1674,7 @@ export const DashboardPage = () => {
                     <DateInput
                         label={t('dashboard.quickLog.dateLabel')}
                         value={quickLogDate}
-                        onChange={setQuickLogDate}
+                        onChange={(value) => setQuickLogDate(value ? (typeof value === 'string' ? new Date(value) : value) : null)}
                         clearable={false}
                         maxDate={new Date()}
                     />
