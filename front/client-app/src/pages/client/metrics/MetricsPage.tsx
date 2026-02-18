@@ -612,40 +612,43 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                             }}
                           >
                             <Stack gap={4}>
-                              <Group justify="space-between">
-                                <Text fw={600} size="sm">
-                                  {metric.label}
-                                </Text>
+                              <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
+                                <Stack gap={2}>
+                                  <Text fw={600} size="sm">
+                                    {metric.label}
+                                  </Text>
+                                  <Text size="xs" c="dimmed">
+                                    {latest ? `${latest.value.toFixed(2)} ${metric.unit}` : `— ${metric.unit}`}
+                                  </Text>
+                                </Stack>
                                 {!readOnly && (
-                                  <div
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleOpenBodyGoalModal(metric.id)
-                                    }}
-                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                                  >
-                                    <IconTarget size={14} />
-                                  </div>
+                                  <Group gap={4}>
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="gray"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenBodyGoalModal(metric.id)
+                                      }}
+                                    >
+                                      <IconTarget size={14} />
+                                    </ActionIcon>
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="blue"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setBodyForm((state) => ({ ...state, metricId: metric.id }))
+                                        openBodyModal()
+                                      }}
+                                    >
+                                      <IconPlus size={14} />
+                                    </ActionIcon>
+                                  </Group>
                                 )}
                               </Group>
-                              <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
-                                {latest ? `${latest.value.toFixed(2)} ${metric.unit}` : `— ${metric.unit}`}
-                              </Text>
-                              {start && (
-                                <Text size="xs" c="dimmed">
-                                  {t('metricsPage.startValue')}: {start.value.toFixed(2)} {metric.unit}
-                                </Text>
-                              )}
-                              {goal && (
-                                <Badge variant="dot" size="xs" color="violet">
-                                  {t('metricsPage.goal')}: {goal.toFixed(2)} {metric.unit}
-                                </Badge>
-                              )}
-                              {latest && (
-                                <Text size="xs" c="dimmed">
-                                  {dayjs(latest.recordedAt).format('D MMM YYYY')}
-                                </Text>
-                              )}
                             </Stack>
                           </Card>
                         )
@@ -654,7 +657,6 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                 </ScrollArea>
               </Stack>
             </Card>
-
             <Card withBorder style={{ flex: 1 }} padding="xl">
               <Stack gap="lg">
                 {selectedMetric ? (
@@ -911,54 +913,32 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                             }}
                           >
                             <Stack gap={4}>
-                              <Group justify="space-between" align="flex-start">
-                                <Group gap={4}>
+                              <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
+                                <Stack gap={2}>
                                   <Text fw={600} size="sm">
                                     {exercise.label}
                                   </Text>
-                                  {todayEntry && (
-                                    <Badge size="xs" variant="dot" color="green">
-                                      {t('metricsPage.today')}
-                                    </Badge>
-                                  )}
-                                </Group>
-                                <Group gap="xs">
-                                  {!readOnly && (
-                                    <div
+                                  <Text size="xs" c="dimmed">
+                                    {exercise.muscle_groups}
+                                  </Text>
+                                </Stack>
+                                {!readOnly && (
+                                  <Group gap={4}>
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="gray"
+                                      size="sm"
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         handleOpenExerciseGoalModal(exercise.id)
                                       }}
-                                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
                                     >
                                       <IconTarget size={14} />
-                                    </div>
-                                  )}
-                                  <Badge size="xs" variant="light">
-                                    {exercise.muscleGroup}
-                                  </Badge>
-                                </Group>
-                              </Group>
-                              <Text size="lg" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
-                                {summary?.latest ? `${summary.latest.weight.toFixed(2)} кг` : '— кг'}
-                              </Text>
-                              {startValue && (
-                                <Text size="xs" c="dimmed">
-                                  {t('metricsPage.startValue')}: {startValue.weight.toFixed(2)} кг
-                                </Text>
-                              )}
-                              {goals?.weight && (
-                                <Badge variant="dot" size="xs" color="violet">
-                                  {t('metricsPage.goal')}: {goals.weight.toFixed(2)} кг
-                                </Badge>
-                              )}
-                              {summary?.latest && (
-                                <Group justify="space-between" align="center">
-                                  <Text size="xs" c="dimmed">
-                                    {dayjs(summary.latest.date).format('D MMM YYYY')}
-                                  </Text>
-                                  {!readOnly && (
-                                    <div
+                                    </ActionIcon>
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="blue"
+                                      size="sm"
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         const today = new Date()
@@ -970,7 +950,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                                             repetitions: todayEntry.repetitions,
                                             sets: todayEntry.sets,
                                           })
-                                        } else if (summary.latest) {
+                                        } else if (summary?.latest) {
                                           setExerciseForm({
                                             exerciseId: exercise.id,
                                             date: today,
@@ -989,19 +969,22 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                                         }
                                         openExerciseModal()
                                       }}
-                                      style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
                                     >
-                                      <IconPlus size={12} />
-                                    </div>
-                                  )}
-                                </Group>
-                              )}
-                              {summary && summary.change !== 0 && (
-                                <Text size="xs" c={summary.change >= 0 ? 'green.7' : 'red.7'} fw={600}>
-                                  {summary.change > 0 ? '+' : ''}
-                                  {summary.change.toFixed(2)} кг
+                                      <IconPlus size={14} />
+                                    </ActionIcon>
+                                  </Group>
+                                )}
+                              </Group>
+                              <Group justify="space-between">
+                                <Text size="sm" fw={700} c={isSelected ? 'violet.7' : 'gray.9'}>
+                                  {summary?.latest ? `${summary.latest.weight.toFixed(2)} кг` : '— кг'}
                                 </Text>
-                              )}
+                                {summary && typeof summary.change === 'number' && summary.change !== 0 && (
+                                  <Text size="xs" c={summary.change >= 0 ? 'green.7' : 'red.7'} fw={600}>
+                                    {summary.change > 0 ? '+' : ''}{summary.change.toFixed(2)} кг
+                                  </Text>
+                                )}
+                              </Group>
                             </Stack>
                           </UnstyledButton>
                         )
@@ -1019,7 +1002,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                       <Group>
                         <Title order={3}>{selectedExercise.label}</Title>
                         <Badge variant="light" size="lg">
-                          {selectedExercise.muscleGroup}
+                          {selectedExercise.muscle_groups}
                         </Badge>
                         {exerciseMetricGoals[selectedExercise.id]?.weight && (
                           <Badge variant="dot" color="violet">
@@ -1284,7 +1267,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
             </Card>
           </Group>
         </Tabs.Panel>
-      </Tabs>
+      </Tabs >
 
       <Modal opened={bodyModalOpened} onClose={closeBodyModal} title={t('metricsPage.addValue')} size="md">
         <Stack gap="md">
@@ -1631,8 +1614,8 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
             required
           />
           <TextInput
-            label={t('metricsPage.muscleGroup')}
-            placeholder={t('metricsPage.muscleGroupPlaceholder')}
+            label={t('metricsPage.muscle_groups')}
+            placeholder={t('metricsPage.muscle_groupsPlaceholder')}
             value={createExerciseMetricForm.muscle_group}
             onChange={(e) => setCreateExerciseMetricForm((state) => ({ ...state, muscle_group: e.target.value }))}
           />

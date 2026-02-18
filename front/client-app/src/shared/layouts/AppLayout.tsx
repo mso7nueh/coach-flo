@@ -25,6 +25,8 @@ import {
     IconBell,
 } from '@tabler/icons-react'
 
+import { BottomNavBar } from '@/shared/components/BottomNavBar'
+
 export const AppLayout = () => {
     const [opened, { toggle }] = useDisclosure()
     const { t, i18n } = useTranslation()
@@ -74,11 +76,11 @@ export const AppLayout = () => {
     return (
         <AppShell
             header={{ height: headerHeight }}
-            navbar={
-                isClient
-                    ? { width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }
-                    : { width: 240, breakpoint: 'sm', collapsed: { mobile: !opened } }
-            }
+            navbar={{
+                width: 240,
+                breakpoint: 'sm',
+                collapsed: { mobile: true } // Always collapse navbar on mobile, use BottomNavBar instead
+            }}
             padding={0}
         >
             <AppShell.Header>
@@ -86,7 +88,6 @@ export const AppLayout = () => {
                     {isClient ? (
                         <>
                             <Group gap="md">
-                                <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
                                 <Text
                                     fw={800}
                                     size="xl"
@@ -187,7 +188,6 @@ export const AppLayout = () => {
                     ) : (
                         <>
                             <Group gap="md">
-                                <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
                                 <Text
                                     fw={800}
                                     size="xl"
@@ -330,8 +330,9 @@ export const AppLayout = () => {
             </AppShell.Navbar>
             <AppShell.Main
                 style={{
-                    paddingTop: location.pathname === '/onboarding' ? `${headerHeight}px` : `${headerHeight}px`,
-                    minHeight: location.pathname === '/onboarding' ? '100vh' : `calc(100vh - ${headerHeight}px)`,
+                    paddingTop: headerHeight,
+                    paddingBottom: '70px', // For BottomNavBar
+                    minHeight: `calc(100vh - ${headerHeight}px)`,
                 }}
             >
                 {location.pathname === '/onboarding' ? (
@@ -342,6 +343,7 @@ export const AppLayout = () => {
                     </Box>
                 )}
             </AppShell.Main>
+            <BottomNavBar role={role as 'client' | 'trainer'} />
         </AppShell>
     )
 }

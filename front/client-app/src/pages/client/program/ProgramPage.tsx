@@ -1121,7 +1121,7 @@ export const ProgramPage = () => {
                                   const fallbackExercise: Exercise = {
                                     id: exercise.id || '',
                                     name: exercise.title,
-                                    muscleGroup: 'full_body',
+                                    muscle_groups: 'full_body',
                                     equipment: [],
                                     description: exercise.description,
                                     videoUrl: exercise.videoUrl,
@@ -1550,7 +1550,7 @@ export const ProgramPage = () => {
               </Title>
               <Group gap="xs">
                 <Badge color="violet" variant="light" size="lg" radius="sm">
-                  {t(`trainer.library.muscle${viewingExercise.muscleGroup ? viewingExercise.muscleGroup.charAt(0).toUpperCase() + viewingExercise.muscleGroup.slice(1) : 'FullBody'}`)}
+                  {t(`trainer.library.muscle${viewingExercise.muscle_groups ? viewingExercise.muscle_groups.charAt(0).toUpperCase() + viewingExercise.muscle_groups.slice(1) : 'FullBody'}`)}
                 </Badge>
                 {viewingExercise.equipment && (Array.isArray(viewingExercise.equipment) ? viewingExercise.equipment : [viewingExercise.equipment]).map((eq: string) => (
                   <Badge key={eq} color="gray" variant="outline" size="lg" radius="sm">

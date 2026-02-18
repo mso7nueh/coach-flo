@@ -192,10 +192,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     const isTrainerDrag = Boolean(activeDragWorkout && activeDragWorkout.withTrainer && activeDragWorkout.format === 'offline')
 
     const openCreateModal = (date?: Date) => {
-        if (isTrainerViewingClient) {
-            openRedirect()
-            return
-        }
         const targetDate = date ? dayjs(date) : dayjs(selectedDate)
         setFormState(buildFormState(targetDate.toISOString(), { trainerId: trainerInfo?.id, withTrainer: Boolean(trainerInfo) }))
         open()
@@ -236,10 +232,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     }
 
     const openEditModal = (id: string) => {
-        if (isTrainerViewingClient) {
-            openRedirect()
-            return
-        }
         const target = workouts.find((item) => item.id === id)
         if (!target) {
             return
@@ -353,11 +345,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     }
 
     const handleDragStart = (event: DragEvent<HTMLDivElement>, workout: ClientWorkout) => {
-        if (isTrainerViewingClient) {
-            event.preventDefault()
-            openRedirect()
-            return
-        }
         event.dataTransfer.setData('text/plain', workout.id)
         setActiveDragWorkout(workout)
     }
@@ -375,11 +362,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     }
 
     const handleDropOnDay = (event: DragEvent<HTMLDivElement>, day: dayjs.Dayjs) => {
-        if (isTrainerViewingClient) {
-            event.preventDefault()
-            openRedirect()
-            return
-        }
         event.preventDefault()
         const droppedWorkoutId = event.dataTransfer.getData('text/plain') || activeDragWorkout?.id
         if (!droppedWorkoutId) {
@@ -597,10 +579,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                                         color="red"
                                                                         onClick={async (e) => {
                                                                             e.stopPropagation()
-                                                                            if (isTrainerViewingClient) {
-                                                                                openRedirect()
-                                                                                return
-                                                                            }
                                                                             try {
                                                                                 await dispatch(deleteWorkoutApi({ workoutId: workout.id })).unwrap()
                                                                                 notifications.show({

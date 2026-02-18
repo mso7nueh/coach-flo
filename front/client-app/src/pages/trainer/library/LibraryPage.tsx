@@ -86,6 +86,7 @@ import {
     IconClock,
     IconRepeat,
     IconDeviceFloppy,
+    IconChevronDown,
 } from '@tabler/icons-react'
 import type {
     WorkoutTemplate,
@@ -157,7 +158,7 @@ export const LibraryPage = () => {
             warmup: [],
             main: [],
             cooldown: [],
-            muscleGroups: [],
+            muscle_groups: [],
             equipment: [],
         },
         validate: {
@@ -179,7 +180,7 @@ export const LibraryPage = () => {
     const exerciseForm = useForm<Omit<Exercise, 'id'>>({
         initialValues: {
             name: '',
-            muscleGroup: 'chest',
+            muscle_groups: 'chest',
             equipment: [],
             description: '',
             startingPosition: '',
@@ -238,7 +239,7 @@ export const LibraryPage = () => {
         return workouts.filter((w) => {
             if (workoutFilters.level && w.level !== workoutFilters.level) return false
             if (workoutFilters.goal && w.goal !== workoutFilters.goal) return false
-            if (workoutFilters.muscleGroup && !w.muscleGroups.includes(workoutFilters.muscleGroup)) return false
+            if (workoutFilters.muscle_groups && !w.muscle_groups.includes(workoutFilters.muscle_groups)) return false
             if (workoutFilters.equipment && !w.equipment.includes(workoutFilters.equipment)) return false
             return true
         })
@@ -246,7 +247,7 @@ export const LibraryPage = () => {
 
     const filteredExercises = useMemo(() => {
         return exercises.filter((e) => {
-            if (exerciseFilters.muscleGroup && e.muscleGroup !== exerciseFilters.muscleGroup) return false
+            if (exerciseFilters.muscle_groups && e.muscle_groups !== exerciseFilters.muscle_groups) return false
             if (exerciseFilters.equipment && !e.equipment.includes(exerciseFilters.equipment)) return false
             return true
         })
@@ -269,7 +270,7 @@ export const LibraryPage = () => {
             warmup: workout.warmup,
             main: workout.main,
             cooldown: workout.cooldown,
-            muscleGroups: workout.muscleGroups,
+            muscle_groups: workout.muscle_groups,
             equipment: workout.equipment,
         })
         openWorkoutModal()
@@ -936,7 +937,7 @@ export const LibraryPage = () => {
         setEditingExercise(exercise)
         exerciseForm.setValues({
             name: exercise.name,
-            muscleGroup: exercise.muscleGroup,
+            muscle_groups: exercise.muscle_groups,
             equipment: exercise.equipment,
             description: exercise.description || '',
             startingPosition: exercise.startingPosition || '',
@@ -1009,24 +1010,28 @@ export const LibraryPage = () => {
                     <Stack gap="md">
                         <Group justify="space-between">
                             <Group gap="md">
-                                <Select
-                                    placeholder={t('trainer.library.filters.muscleGroup')}
-                                    data={[
-                                        { value: 'chest', label: t('trainer.library.muscleChest') },
-                                        { value: 'back', label: t('trainer.library.muscleBack') },
-                                        { value: 'shoulders', label: t('trainer.library.muscleShoulders') },
-                                        { value: 'arms', label: t('trainer.library.muscleArms') },
-                                        { value: 'legs', label: t('trainer.library.muscleLegs') },
-                                        { value: 'core', label: t('trainer.library.muscleCore') },
-                                        { value: 'cardio', label: t('trainer.library.muscleCardio') },
-                                        { value: 'full_body', label: t('trainer.library.muscleFullBody') },
-                                    ]}
-                                    clearable
-                                    value={exerciseFilters.muscleGroup || null}
-                                    onChange={(value) =>
-                                        dispatch(setExerciseFilters({ muscleGroup: (value as MuscleGroup) || undefined }))
-                                    }
-                                />
+                                <Menu shadow="md" width={200} position="bottom-start">
+                                    <Menu.Target>
+                                        <Button variant="outline" rightSection={<IconChevronDown size={16} />}>
+                                            {exerciseFilters.muscle_groups
+                                                ? t(`trainer.library.muscle${exerciseFilters.muscle_groups.charAt(0).toUpperCase() + exerciseFilters.muscle_groups.slice(1).replace('_', '')}`)
+                                                : t('trainer.library.allMuscleGroups')}
+                                        </Button>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: undefined }))}>
+                                            {t('trainer.library.allMuscleGroups')}
+                                        </Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'chest' }))}>{t('trainer.library.muscleChest')}</Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'back' }))}>{t('trainer.library.muscleBack')}</Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'shoulders' }))}>{t('trainer.library.muscleShoulders')}</Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'arms' }))}>{t('trainer.library.muscleArms')}</Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'legs' }))}>{t('trainer.library.muscleLegs')}</Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'core' }))}>{t('trainer.library.muscleCore')}</Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'cardio' }))}>{t('trainer.library.muscleCardio')}</Menu.Item>
+                                        <Menu.Item onClick={() => dispatch(setExerciseFilters({ muscle_groups: 'full_body' }))}>{t('trainer.library.muscleFullBody')}</Menu.Item>
+                                    </Menu.Dropdown>
+                                </Menu>
                             </Group>
                             <Button leftSection={<IconPlus size={16} />} onClick={handleCreateExercise}>
                                 {t('trainer.library.createExercise')}
@@ -1056,19 +1061,19 @@ export const LibraryPage = () => {
                                                 </Text>
                                                 <Group gap="xs">
                                                     <Badge size="sm" variant="light">
-                                                        {exercise.muscleGroup === 'chest'
+                                                        {exercise.muscle_groups === 'chest'
                                                             ? t('trainer.library.muscleChest')
-                                                            : exercise.muscleGroup === 'back'
+                                                            : exercise.muscle_groups === 'back'
                                                                 ? t('trainer.library.muscleBack')
-                                                                : exercise.muscleGroup === 'shoulders'
+                                                                : exercise.muscle_groups === 'shoulders'
                                                                     ? t('trainer.library.muscleShoulders')
-                                                                    : exercise.muscleGroup === 'arms'
+                                                                    : exercise.muscle_groups === 'arms'
                                                                         ? t('trainer.library.muscleArms')
-                                                                        : exercise.muscleGroup === 'legs'
+                                                                        : exercise.muscle_groups === 'legs'
                                                                             ? t('trainer.library.muscleLegs')
-                                                                            : exercise.muscleGroup === 'core'
+                                                                            : exercise.muscle_groups === 'core'
                                                                                 ? t('trainer.library.muscleCore')
-                                                                                : exercise.muscleGroup === 'cardio'
+                                                                                : exercise.muscle_groups === 'cardio'
                                                                                     ? t('trainer.library.muscleCardio')
                                                                                     : t('trainer.library.muscleFullBody')}
                                                     </Badge>
@@ -1146,7 +1151,7 @@ export const LibraryPage = () => {
                             ))}
                         </SimpleGrid>
                     </Stack>
-                </Tabs.Panel>
+                </Tabs.Panel >
 
                 <Tabs.Panel value="workouts" pt="lg">
                     <Stack gap="md">
@@ -1924,7 +1929,7 @@ export const LibraryPage = () => {
                         )}
                     </Stack>
                 </Tabs.Panel>
-            </Tabs>
+            </Tabs >
 
             <Modal
                 opened={viewWorkoutModalOpened}
@@ -2398,7 +2403,7 @@ export const LibraryPage = () => {
                                 {...exerciseForm.getInputProps('name')}
                             />
                             <Select
-                                label={t('trainer.library.exerciseForm.muscleGroup')}
+                                label={t('trainer.library.exerciseForm.muscle_groups')}
                                 data={[
                                     { value: 'chest', label: t('trainer.library.muscleChest') },
                                     { value: 'back', label: t('trainer.library.muscleBack') },
@@ -2410,7 +2415,7 @@ export const LibraryPage = () => {
                                     { value: 'full_body', label: t('trainer.library.muscleFullBody') },
                                 ]}
                                 required
-                                {...exerciseForm.getInputProps('muscleGroup')}
+                                {...exerciseForm.getInputProps('muscle_groups')}
                             />
                         </Group>
 
@@ -2755,19 +2760,19 @@ export const LibraryPage = () => {
                         <Group justify="space-between">
                             <Group gap="md">
                                 <Badge size="lg" variant="light">
-                                    {viewingExercise.muscleGroup === 'chest'
+                                    {viewingExercise.muscle_groups === 'chest'
                                         ? t('trainer.library.muscleChest')
-                                        : viewingExercise.muscleGroup === 'back'
+                                        : viewingExercise.muscle_groups === 'back'
                                             ? t('trainer.library.muscleBack')
-                                            : viewingExercise.muscleGroup === 'shoulders'
+                                            : viewingExercise.muscle_groups === 'shoulders'
                                                 ? t('trainer.library.muscleShoulders')
-                                                : viewingExercise.muscleGroup === 'arms'
+                                                : viewingExercise.muscle_groups === 'arms'
                                                     ? t('trainer.library.muscleArms')
-                                                    : viewingExercise.muscleGroup === 'legs'
+                                                    : viewingExercise.muscle_groups === 'legs'
                                                         ? t('trainer.library.muscleLegs')
-                                                        : viewingExercise.muscleGroup === 'core'
+                                                        : viewingExercise.muscle_groups === 'core'
                                                             ? t('trainer.library.muscleCore')
-                                                            : viewingExercise.muscleGroup === 'cardio'
+                                                            : viewingExercise.muscle_groups === 'cardio'
                                                                 ? t('trainer.library.muscleCardio')
                                                                 : t('trainer.library.muscleFullBody')}
                                 </Badge>
@@ -3549,7 +3554,7 @@ export const LibraryPage = () => {
                     </Stack>
                 </form>
             </Modal>
-        </Stack>
+        </Stack >
     )
 }
 

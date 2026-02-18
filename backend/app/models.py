@@ -22,7 +22,7 @@ class User(Base):
     onboarding_seen = Column(Boolean, default=False)
     locale = Column(String, default="ru")
     avatar = Column(String, nullable=True)
-    trainer_connection_code = Column(String, nullable=True, unique=True, index=True)
+    connection_code = Column(String, nullable=True, unique=True, index=True)
     trainer_id = Column(String, ForeignKey("users.id"), nullable=True)
     phone_verified = Column(Boolean, default=False)
     notification_settings = Column(Text, nullable=True)  # JSON строка с настройками уведомлений
@@ -118,7 +118,7 @@ class PendingRegistration(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(SQLEnum(UserRole), nullable=False)
     trainer_id = Column(String, ForeignKey("users.id"), nullable=True)
-    trainer_connection_code = Column(String, nullable=True)
+    connection_code = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), nullable=False)
 

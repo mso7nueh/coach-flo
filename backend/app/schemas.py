@@ -25,7 +25,7 @@ class UserResponse(UserBase):
     onboarding_seen: bool
     locale: str
     avatar: Optional[str] = None
-    trainer_connection_code: Optional[str] = None
+    connection_code: Optional[str] = None
     phone_verified: bool
     timezone: Optional[str] = None
     subscription_plan: Optional[str] = None
@@ -443,7 +443,7 @@ class ExerciseBase(BaseModel):
     execution_instructions: Optional[str] = None
     video_url: Optional[str] = None
     notes: Optional[str] = None
-    visibility: Optional[str] = 'all'  # 'all', 'client', 'trainer'
+    visibility: str = "all"
     client_id: Optional[str] = None
 
 
@@ -453,7 +453,7 @@ class ExerciseCreate(ExerciseBase):
 
 class ExerciseResponse(ExerciseBase):
     id: str
-    trainer_id: Optional[str] = None
+    trainer_id: str
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -168,7 +168,7 @@ async def register_step1(
     trainer_id = None
     if request.role == models.UserRole.CLIENT and request.trainer_code:
         trainer = db.query(models.User).filter(
-            models.User.trainer_connection_code == request.trainer_code,
+            models.User.connection_code == request.trainer_code,
             models.User.role == models.UserRole.TRAINER
         ).first()
         if not trainer:
@@ -184,12 +184,10 @@ async def register_step1(
         (models.PendingRegistration.email == request.email)
     ).delete()
     
-    # Генерируем код подключения для тренера
-    trainer_connection_code = None
-    if request.role == models.UserRole.TRAINER:
-        import random
-        import string as string_module
-        trainer_connection_code = ''.join(random.choices(string_module.ascii_uppercase + string_module.digits, k=8))
+    # Генерируем код подключения для всех пользователей
+    import random
+    import string as string_module
+    connection_code = ''.join(random.choices(string_module.ascii_uppercase + string_module.digits, k=8))
     
     # Сохраняем данные во временную таблицу (не создаем пользователя)
     pending_id = str(uuid.uuid4())
@@ -312,12 +310,39 @@ async def register_step2(
         hashed_password=pending_registration.hashed_password,
         role=pending_registration.role,
         trainer_id=pending_registration.trainer_id,
-        trainer_connection_code=pending_registration.trainer_connection_code,
+        connection_code=pending_registration.connection_code,
         phone_verified=True,  # Телефон подтвержден через SMS
         onboarding_seen=pending_registration.role == models.UserRole.TRAINER  # Тренеры пропускают онбординг
     )
     
     db.add(user)
+    
+    # Если это тренер, создаем демо-клиента
+    if user.role == models.UserRole.TRAINER:
+        demo_client_id = str(uuid.uuid4())
+        demo_client = models.User(
+            id=demo_client_id,
+            full_name="Демо Клиент",
+            email=f"demo_{user_id[:8]}@coach-flo.com",
+            hashed_password=user.hashed_password, # Неважно, это демо
+            role=models.UserRole.CLIENT,
+            trainer_id=user.id,
+            connection_code=''.join(random.choices(string_module.ascii_uppercase + string_module.digits, k=8)),
+            phone_verified=True,
+            onboarding_seen=True,
+            client_format="online",
+            is_active=True
+        )
+        db.add(demo_client)
+        
+        # Добавляем заметку для демо-клиента
+        demo_note = models.TrainerNote(
+            id=str(uuid.uuid4()),
+            trainer_id=user.id,
+            client_id=demo_client_id,
+            content="Это ваш демонстрационный клиент. Вы можете планировать для него тренировки, отслеживать метрики и писать заметки, чтобы ознакомиться с функционалом системы."
+        )
+        db.add(demo_note)
     
     # Удаляем незавершенную регистрацию
     db.delete(pending_registration)

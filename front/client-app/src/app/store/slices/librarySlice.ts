@@ -17,7 +17,7 @@ export type Equipment = 'bodyweight' | 'dumbbells' | 'barbell' | 'machine' | 'ca
 export interface Exercise {
     id: string
     name: string
-    muscleGroup: MuscleGroup
+    muscle_groups: MuscleGroup
     equipment: Equipment[]
     description?: string
     instructions?: string
@@ -53,7 +53,7 @@ export interface WorkoutTemplate {
     warmup: WorkoutExercise[]
     main: WorkoutExercise[]
     cooldown: WorkoutExercise[]
-    muscleGroups: MuscleGroup[]
+    muscle_groups: MuscleGroup[]
     equipment: Equipment[]
     isCustom: boolean
     clientId?: string
@@ -79,11 +79,11 @@ interface LibraryState {
     workoutFilters: {
         level?: WorkoutLevel
         goal?: WorkoutGoal
-        muscleGroup?: MuscleGroup
+        muscle_groups?: MuscleGroup
         equipment?: Equipment
     }
     exerciseFilters: {
-        muscleGroup?: MuscleGroup
+        muscle_groups?: MuscleGroup
         equipment?: Equipment
     }
     selectedWorkoutId: string | null
@@ -152,7 +152,7 @@ const mapApiExerciseToState = (apiExercise: any): Exercise => {
     return {
         id: apiExercise.id,
         name: apiExercise.name,
-        muscleGroup,
+        muscle_groups: muscleGroup,
         equipment: equipment.length > 0 ? equipment : ['bodyweight'],
         description: apiExercise.description || undefined,
         instructions: undefined,
@@ -217,7 +217,7 @@ const mapApiWorkoutTemplateToState = (apiTemplate: any): WorkoutTemplate => {
         warmup,
         main,
         cooldown,
-        muscleGroups: apiTemplate.muscle_groups || [],
+        muscle_groups: apiTemplate.muscle_groups || [],
         equipment: apiTemplate.equipment || [],
         isCustom: true,
     }
@@ -318,7 +318,7 @@ export const createWorkoutApi = createAsyncThunk(
                 duration: workoutData.duration,
                 level: workoutData.level,
                 goal: workoutData.goal,
-                muscle_groups: workoutData.muscleGroups,
+                muscle_groups: workoutData.muscle_groups,
                 equipment: workoutData.equipment,
                 exercises,
             })
@@ -433,7 +433,7 @@ export const updateWorkoutApi = createAsyncThunk(
                 duration: updatedWorkout.duration,
                 level: updatedWorkout.level,
                 goal: updatedWorkout.goal,
-                muscle_groups: updatedWorkout.muscleGroups,
+                muscle_groups: updatedWorkout.muscle_groups,
                 equipment: updatedWorkout.equipment,
                 exercises,
             })
@@ -477,7 +477,7 @@ export const createExerciseApi = createAsyncThunk(
                 'resistance_bands': 'Эспандер',
             }
 
-            const muscleGroups = muscleGroupMap[exerciseData.muscleGroup] || ''
+            const muscleGroups = muscleGroupMap[exerciseData.muscle_groups] || ''
             const equipment = exerciseData.equipment.map(eq => equipmentMap[eq] || eq).join(', ')
 
             // Валидация: если visibility='client', то client_id обязателен
@@ -541,7 +541,7 @@ export const updateExerciseApi = createAsyncThunk(
                 'resistance_bands': 'Эспандер',
             }
 
-            const muscleGroups = updates.muscleGroup ? muscleGroupMap[updates.muscleGroup] || '' : undefined
+            const muscleGroups = updates.muscle_groups ? muscleGroupMap[updates.muscle_groups] || '' : undefined
             const equipment = updates.equipment ? updates.equipment.map(eq => equipmentMap[eq] || eq).join(', ') : undefined
 
             // Валидация: если visibility='client', то client_id обязателен

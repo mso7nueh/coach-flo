@@ -450,8 +450,8 @@ const resources = {
                 unitPlaceholder: 'Например: кг, см, %',
                 target: 'Целевое значение',
                 targetPlaceholder: 'Необязательное целевое значение',
-                muscleGroup: 'Группа мышц',
-                muscleGroupPlaceholder: 'Например: Грудь, Ноги',
+                muscle_groups: 'Группа мышц',
+                muscle_groupsPlaceholder: 'Например: Грудь, Ноги',
                 period: {
                     '1w': '7д',
                     '4w': '30д',
@@ -668,7 +668,7 @@ const resources = {
                     filters: {
                         level: 'Уровень',
                         goal: 'Цель',
-                        muscleGroup: 'Группа мышц',
+                        muscle_groups: 'Группа мышц',
                         equipment: 'Оборудование',
                     },
                     workoutForm: {
@@ -689,7 +689,7 @@ const resources = {
                     },
                     exerciseForm: {
                         name: 'Название',
-                        muscleGroup: 'Группа мышц',
+                        muscle_groups: 'Группа мышц',
                         equipment: 'Оборудование',
                         description: 'Описание',
                         startingPosition: 'Исходное положение',
@@ -1327,8 +1327,8 @@ const resources = {
                 unitPlaceholder: 'e.g., kg, cm, %',
                 target: 'Target value',
                 targetPlaceholder: 'Optional target value',
-                muscleGroup: 'Muscle group',
-                muscleGroupPlaceholder: 'e.g., Chest, Legs',
+                muscle_groups: 'Muscle group',
+                muscle_groupsPlaceholder: 'e.g., Chest, Legs',
                 period: {
                     '1w': '1 week',
                     '4w': '4 weeks',
@@ -1619,7 +1619,7 @@ const resources = {
                     filters: {
                         level: 'Level',
                         goal: 'Goal',
-                        muscleGroup: 'Muscle Group',
+                        muscle_groups: 'Muscle Group',
                         equipment: 'Equipment',
                     },
                     workoutForm: {
@@ -1640,7 +1640,7 @@ const resources = {
                     },
                     exerciseForm: {
                         name: 'Name',
-                        muscleGroup: 'Muscle Group',
+                        muscle_groups: 'Muscle Group',
                         equipment: 'Equipment',
                         description: 'Description',
                         startingPosition: 'Starting position',

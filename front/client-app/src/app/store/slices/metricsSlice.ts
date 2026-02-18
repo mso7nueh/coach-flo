@@ -34,7 +34,7 @@ export interface ExerciseMetricEntry {
 export interface ExerciseMetricDescriptor {
   id: string
   label: string
-  muscleGroup: string
+  muscle_groups: string
 }
 
 export interface DailyNutritionEntry {
@@ -126,7 +126,7 @@ export const fetchBodyMetricEntries = createAsyncThunk(
 const mapApiExerciseMetricToState = (metric: any): ExerciseMetricDescriptor => ({
   id: metric.id,
   label: metric.label,
-  muscleGroup: metric.muscle_group || '',
+  muscle_groups: metric.muscle_group || '',
 })
 
 const mapApiExerciseMetricEntryToState = (entry: any): ExerciseMetricEntry => ({

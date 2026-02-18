@@ -751,7 +751,7 @@ export const ClientProgramContent = ({ embedded = false }: { embedded?: boolean 
                                         <Stack gap={4}>
                                             <Text fw={600}>{exercise.name}</Text>
                                             <Text size="xs" c="dimmed" lineClamp={2}>{exercise.description}</Text>
-                                            <Badge size="xs" variant="light">{t(`trainer.library.muscle${exercise.muscleGroup.charAt(0).toUpperCase() + exercise.muscleGroup.slice(1)}`)}</Badge>
+                                            <Badge size="xs" variant="light">{t(`trainer.library.muscle${exercise.muscle_groups.charAt(0).toUpperCase() + exercise.muscle_groups.slice(1)}`)}</Badge>
                                         </Stack>
                                     </Card>
                                 ))}
