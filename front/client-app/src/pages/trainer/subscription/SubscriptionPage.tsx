@@ -30,8 +30,10 @@ const PLANS = [
     {
         id: 'starter',
         title: 'Starter',
-        price: 0,
-        description: 'Идеально для начинающих тренеров.',
+        price: 99,
+        firstMonthPrice: 1,
+        description: 'Для старта и первых стабильных клиентов: всё ведёшь в одном месте — без заметок в телефоне, табличек и "щас вспомню, где это было".',
+        clientRange: 'до 5 клиентов',
         features: [
             { label: 'До 5 клиентов', included: true },
             { label: 'Базовые инструменты', included: true },
@@ -39,49 +41,55 @@ const PLANS = [
             { label: 'Трекинг питания', included: false },
             { label: 'Командное управление', included: false },
         ],
-        buttonText: 'Начать бесплатно',
+        buttonText: 'Попробовать за 1 ₽',
         popular: false,
+    },
+    {
+        id: 'base',
+        title: 'Base',
+        price: 990,
+        firstMonthPrice: 10,
+        description: 'Когда клиентов уже не "пять с хвостиком", а нормальная загрузка: нужен порядок в расписании и клиентах, чтобы ничего не терялось и не путалось.',
+        clientRange: 'от 5 до 12 клиентов',
+        features: [
+            { label: 'До 12 клиентов', included: true },
+            { label: 'Все функции Starter', included: true },
+            { label: 'Трекинг питания', included: true },
+            { label: 'Продвинутая аналитика', included: false },
+            { label: 'Командное управление', included: false },
+        ],
+        buttonText: 'Попробовать за 10 ₽',
+        popular: true,
     },
     {
         id: 'pro',
         title: 'Pro',
-        price: 1900,
-        description: 'Для растущих тренеров и небольших команд.',
+        price: 1490,
+        firstMonthPrice: 15,
+        description: 'Для плотного потока: больше тренировок, переносов и нюансов — меньше ручной рутины. Удобно держать под контролем весь процесс по каждому клиенту.',
+        clientRange: 'от 12 до 30 клиентов',
         features: [
             { label: 'До 30 клиентов', included: true },
-            { label: 'Все функции Starter', included: true },
+            { label: 'Все функции Base', included: true },
             { label: 'Трекинг питания', included: true },
             { label: 'Продвинутая аналитика', included: true },
             { label: 'Командное управление', included: false },
         ],
-        buttonText: 'Начать Pro',
-        popular: true,
-    },
-    {
-        id: 'studio',
-        title: 'Studio',
-        price: 10500,
-        description: 'Для студий и залов, масштабирующих бизнес.',
-        features: [
-            { label: 'До 100 клиентов', included: true },
-            { label: 'Все функции Pro', included: true },
-            { label: 'Командное управление', included: true },
-            { label: 'Брендирование', included: true },
-            { label: 'API доступ', included: true },
-        ],
-        buttonText: 'Начать Studio',
+        buttonText: 'Попробовать за 15 ₽',
         popular: false,
     },
     {
         id: 'enterprise',
         title: 'Enterprise',
         price: null,
-        description: 'Для крупных фитнес-сетей и топ-креаторов.',
+        firstMonthPrice: null,
+        description: 'Когда ты реально "мини-зал": много клиентов, много процессов, нужна настройка под твою модель работы и масштабирование без боли.',
+        clientRange: '30+ клиентов',
         features: [
-            { label: '500+ клиентов', included: true },
+            { label: '30+ клиентов', included: true },
             { label: 'Персональная поддержка', included: true },
-            { label: 'Индивидуальная разработка', included: true },
-            { label: 'SLA', included: true },
+            { label: 'Индивидуальная настройка', included: true },
+            { label: 'Масштабирование без боли', included: true },
         ],
         buttonText: 'Связаться с нами',
         popular: false,
@@ -126,7 +134,7 @@ export const SubscriptionPage = () => {
 
     const handlePayment = async (planId: string, amount: number) => {
         if (!amount) {
-            alert('Contacting sales or starting free plan...')
+            alert('Для подключения Enterprise-тарифа свяжитесь с нами.')
             return
         }
 
@@ -269,23 +277,31 @@ export const SubscriptionPage = () => {
                                         </Badge>
                                     )}
 
-                                    <Stack gap="xs" mt="xs">
+                                    <Stack gap={4} mt="xs">
                                         <Text fw={700} size="xl">
                                             {plan.title}
                                         </Text>
-                                        <Text c="dimmed" size="sm" h={40}>
+                                        <Text c="violet" size="xs" fw={600}>
+                                            {plan.clientRange}
+                                        </Text>
+                                        <Text c="dimmed" size="sm" mt={4}>
                                             {plan.description}
                                         </Text>
                                     </Stack>
 
-                                    <Group align="flex-end" gap={4} mt="xl">
-                                        {plan.price !== null ? (
+                                    <Stack gap={2} mt="xl">
+                                        {plan.firstMonthPrice !== null ? (
                                             <>
-                                                <Text fw={700} size="xl" style={{ fontSize: 32, lineHeight: 1 }}>
-                                                    {plan.price.toLocaleString()} ₽
-                                                </Text>
-                                                <Text c="dimmed" fw={500} mb={4}>
-                                                    / мес
+                                                <Group align="flex-end" gap={4}>
+                                                    <Text fw={800} style={{ fontSize: 36, lineHeight: 1, color: 'var(--mantine-color-violet-6)' }}>
+                                                        {plan.firstMonthPrice} ₽
+                                                    </Text>
+                                                    <Text c="dimmed" fw={500} mb={4} size="sm">
+                                                        первый месяц
+                                                    </Text>
+                                                </Group>
+                                                <Text c="dimmed" size="xs">
+                                                    затем {plan.price?.toLocaleString()} ₽/мес
                                                 </Text>
                                             </>
                                         ) : (
@@ -293,7 +309,7 @@ export const SubscriptionPage = () => {
                                                 Индивидуально
                                             </Text>
                                         )}
-                                    </Group>
+                                    </Stack>
 
                                     <List mt="xl" spacing="sm" size="sm" center={false} icon={
                                         <ThemeIcon size={20} radius="xl" color="violet" variant="light" style={{ marginTop: 2 }}>
@@ -317,16 +333,21 @@ export const SubscriptionPage = () => {
                                         ))}
                                     </List>
 
-                                    <Button
-                                        fullWidth
-                                        mt="auto"
-                                        pt="lg" // visual spacer
-                                        variant={plan.popular ? 'filled' : 'outline'}
-                                        color={plan.popular ? 'violet' : 'gray'}
-                                        onClick={() => handlePayment(plan.id, plan.price || 0)}
-                                    >
-                                        {plan.buttonText}
-                                    </Button>
+                                    <Stack gap={6} mt="auto" pt="lg">
+                                        <Button
+                                            fullWidth
+                                            variant={plan.popular ? 'filled' : 'outline'}
+                                            color={plan.popular ? 'violet' : 'gray'}
+                                            onClick={() => handlePayment(plan.id, plan.firstMonthPrice ?? plan.price ?? 0)}
+                                        >
+                                            {plan.buttonText}
+                                        </Button>
+                                        {plan.firstMonthPrice !== null && (
+                                            <Text size="xs" c="dimmed" ta="center">
+                                                Привязка карты. Далее — автосписание {plan.price?.toLocaleString()} ₽/мес
+                                            </Text>
+                                        )}
+                                    </Stack>
                                 </Card>
                             ))}
                         </SimpleGrid>
