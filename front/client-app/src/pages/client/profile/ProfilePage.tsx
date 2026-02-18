@@ -26,8 +26,8 @@ export const ProfilePage = () => {
     const isTrainer = user.role === 'trainer'
 
     const handleCopyCode = async () => {
-        if (user.trainerConnectionCode) {
-            await navigator.clipboard.writeText(user.trainerConnectionCode)
+        if (user.connectionCode) {
+            await navigator.clipboard.writeText(user.connectionCode)
             setCodeCopied(true)
             setTimeout(() => setCodeCopied(false), 2000)
         }
@@ -115,13 +115,13 @@ export const ProfilePage = () => {
             )}
 
             {
-                isTrainer && user.trainerConnectionCode && (
+                isTrainer && user.connectionCode && (
                     <Card withBorder padding="xl">
                         <Stack gap="md">
                             <Title order={4}>{t('profile.connectionCode')}</Title>
                             <Group gap="md">
                                 <Text size="lg" fw={600} style={{ fontFamily: 'monospace', letterSpacing: '2px' }}>
-                                    {user.trainerConnectionCode}
+                                    {user.connectionCode}
                                 </Text>
                                 <Button
                                     variant="light"

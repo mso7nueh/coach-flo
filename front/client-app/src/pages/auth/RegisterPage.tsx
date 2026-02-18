@@ -53,7 +53,7 @@ export const RegisterPage = () => {
             confirmPassword: '',
             phone: '',
             role: 'client',
-            trainerCode: trainerCodeFromUrl || '',
+            connectionCode: trainerCodeFromUrl || '',
         },
         validate: {
             fullName: (value) => (value.trim().length < 2 ? t('profile.validation.nameRequired') : null),
@@ -96,7 +96,7 @@ export const RegisterPage = () => {
                 password: form.values.password,
                 phone: form.values.phone!,
                 role: form.values.role || 'client',
-                trainer_code: form.values.trainerCode,
+                connection_code: form.values.connectionCode,
             })).unwrap()
 
             setPhoneVerificationStep('verify')
@@ -216,7 +216,7 @@ export const RegisterPage = () => {
                                     onChange={(value) => {
                                         form.setFieldValue('role', value as UserRole)
                                         if (value === 'trainer') {
-                                            form.setFieldValue('trainerCode', '')
+                                            form.setFieldValue('connectionCode', '')
                                         }
                                     }}
                                     data={[
@@ -269,8 +269,8 @@ export const RegisterPage = () => {
                                         label={t('auth.trainerCode')}
                                         placeholder={t('auth.trainerCodePlaceholder')}
                                         description={t('auth.trainerCodeDescription')}
-                                        value={form.values.trainerCode || ''}
-                                        onChange={(e) => form.setFieldValue('trainerCode', e.target.value)}
+                                        value={form.values.connectionCode || ''}
+                                        onChange={(e) => form.setFieldValue('connectionCode', e.target.value)}
                                         disabled={!!trainerCodeFromUrl}
                                     />
                                 )}

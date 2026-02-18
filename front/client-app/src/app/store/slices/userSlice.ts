@@ -130,7 +130,7 @@ export const registerUserStep1 = createAsyncThunk(
         password: string
         phone: string
         role: UserRole
-        trainer_code?: string
+        connection_code?: string
     }) => {
         return await apiClient.registerStep1(data)
     }
