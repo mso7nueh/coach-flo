@@ -910,6 +910,9 @@ const resources = {
             settings: {
                 language: 'Язык интерфейса',
                 languageDescription: 'Выберите предпочитаемый язык для интерфейса приложения',
+                connectionCode: 'Личный код',
+                connectionCodeDescription: 'Ваш уникальный код для подключения к тренеру или клиентам',
+                codeCopied: 'Код скопирован в буфер обмена',
                 notifications: {
                     title: 'Уведомления',
                     description: 'Настройте, какие уведомления вы хотите получать и как',
@@ -932,18 +935,28 @@ const resources = {
                     reminderBeforeDescription: 'За сколько минут до тренировки отправлять напоминание',
                 },
             },
-            notificationsPage: {
-                title: 'Уведомления',
-                empty: 'Уведомлений пока нет',
-                markAsRead: 'Отметить как прочитанное',
-                deleted: 'Уведомление удалено',
-                workoutRescheduled: 'Клиент перенес тренировку',
-            },
-            library: {
-                calendar: {
-                    template: 'Шаблон',
-                    selectTemplate: 'Выберите шаблон...',
-                },
+        },
+        clients: {
+            addByCode: 'Добавить по коду',
+            addByCodeDescription: 'Введите код клиента, чтобы мгновенно связаться с ним',
+            clientCodeLabel: 'Код клиента',
+            invalidCodeLength: 'Код должен состоять из 8 символов',
+            linkClient: 'Подключить клиента',
+            linkSuccess: 'Клиент успешно подключен',
+            linkError: 'Не удалось подключить клиента. Проверьте правильность кода.',
+            createClient: 'Создать вручную',
+        },
+        notificationsPage: {
+            title: 'Уведомления',
+            empty: 'Уведомлений пока нет',
+            markAsRead: 'Отметить как прочитанное',
+            deleted: 'Уведомление удалено',
+            workoutRescheduled: 'Клиент перенес тренировку',
+        },
+        library: {
+            calendar: {
+                template: 'Шаблон',
+                selectTemplate: 'Выберите шаблон...',
             },
         },
     },
@@ -1471,6 +1484,9 @@ const resources = {
             settings: {
                 language: 'Interface language',
                 languageDescription: 'Choose your preferred language for the application interface',
+                connectionCode: 'Personal Code',
+                connectionCodeDescription: 'Your unique code to connect with a trainer or clients',
+                codeCopied: 'Code copied to clipboard',
                 notifications: {
                     title: 'Notifications',
                     description: 'Configure which notifications you want to receive and how',
@@ -1782,8 +1798,18 @@ const resources = {
                 },
             },
         },
+        clients: {
+            addByCode: 'Add by Code',
+            addByCodeDescription: 'Enter the client\'s code to connect with them instantly',
+            clientCodeLabel: 'Client Code',
+            invalidCodeLength: 'Code must be 8 characters long',
+            linkClient: 'Link Client',
+            linkSuccess: 'Client successfully connected',
+            linkError: 'Failed to connect client. Please check the code.',
+            createClient: 'Create Manually',
+        },
     },
-}
+};
 
 i18n.use(initReactI18next).init({
     resources,

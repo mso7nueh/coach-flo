@@ -57,8 +57,10 @@ import {
     type DayOfWeek,
     moveWorkout,
     type ClientWorkout,
+    type AttendanceStatus,
 } from '@/app/store/slices/calendarSlice'
-import { fetchWorkoutTemplates } from '@/app/store/slices/librarySlice'
+import { fetchPrograms, fetchProgramDays } from '@/app/store/slices/programSlice'
+import { fetchWorkoutTemplates, fetchExercises } from '@/app/store/slices/librarySlice'
 import { useMemo, useState, useEffect, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { Modal } from '@mantine/core'
@@ -81,6 +83,7 @@ interface WorkoutFormState {
     trainerId?: string
     withTrainer: boolean
     format: 'online' | 'offline'
+    attendance: AttendanceStatus
 }
 
 const buildFormState = (date: string, options?: { trainerId?: string; withTrainer?: boolean }): WorkoutFormState => ({
@@ -99,6 +102,7 @@ const buildFormState = (date: string, options?: { trainerId?: string; withTraine
     trainerId: options?.trainerId,
     withTrainer: options?.withTrainer ?? false,
     format: options?.withTrainer ? 'offline' : 'online',
+    attendance: 'scheduled',
 })
 
 export const CalendarPage = ({ clientId }: { clientId?: string }) => {
@@ -131,6 +135,8 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
             client_id: clientId,
         }))
         dispatch(fetchWorkoutTemplates())
+        dispatch(fetchExercises())
+        dispatch(fetchPrograms(clientId))
     }, [dispatch, clientId]) // Загружаем при монтировании или смене клиента
 
     // Дополнительно загружаем тренировки при изменении текущей недели (для пагинации)
@@ -215,6 +221,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
             trainerId: target.trainerId,
             withTrainer: Boolean(target.withTrainer),
             format: target.format ?? 'online',
+            attendance: target.attendance || 'scheduled',
             ...overrides,
         })
     }
@@ -282,7 +289,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             end: workoutData.end,
                             location: workoutData.location,
                             format: workoutData.format,
-                            attendance: 'scheduled' as const,
+                            attendance: formState.attendance,
                         },
                     }),
                 ).unwrap()
@@ -355,7 +362,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
 
 
     const handleDayDragOver = (event: DragEvent<HTMLDivElement>) => {
-        if (!activeDragWorkout || isTrainerViewingClient) {
+        if (!activeDragWorkout) {
             return
         }
         event.preventDefault()
@@ -554,10 +561,6 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                                         variant="subtle"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
-                                                                            if (isTrainerViewingClient) {
-                                                                                openRedirect()
-                                                                                return
-                                                                            }
                                                                             const { id, ...newWorkoutData } = workout
                                                                             dispatch(createWorkout({
                                                                                 title: newWorkoutData.title,
@@ -566,6 +569,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                                                 location: newWorkoutData.location,
                                                                                 format: newWorkoutData.format,
                                                                                 trainerId: newWorkoutData.trainerId,
+                                                                                userId: clientId, // Use client_id if viewing client
                                                                                 programDayId: newWorkoutData.programDayId,
                                                                                 recurrence: newWorkoutData.recurrence,
                                                                             }))
@@ -818,6 +822,22 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                         }
                     />
                     <Select
+                        label={t('calendar.status.title') || 'Статус'}
+                        data={[
+                            { value: 'scheduled', label: t('calendar.status.scheduled') },
+                            { value: 'completed', label: t('calendar.status.completed') },
+                            { value: 'missed', label: t('calendar.status.missed') },
+                        ]}
+                        value={formState.attendance}
+                        leftSection={<IconCheck size={16} />}
+                        onChange={(value) =>
+                            setFormState((state) => ({
+                                ...state,
+                                attendance: (value as AttendanceStatus) || 'scheduled',
+                            }))
+                        }
+                    />
+                    <Select
                         label={t('program.assignToCalendar')}
                         placeholder={t('program.assignToCalendar')}
                         data={programDays.map((day) => ({ label: day.name, value: day.id }))}
@@ -920,6 +940,40 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             </Stack>
                         </Card>
                     )}
+
+                    {formState.programDayId && (
+                        <Card radius="lg" padding="md" withBorder>
+                            <Stack gap="sm">
+                                <Text fw={600} size="sm">{t('program.exercises')}</Text>
+                                {programDays.find(d => d.id === formState.programDayId)?.blocks.map(block => (
+                                    <Stack key={block.id} gap="xs">
+                                        <Text size="xs" fw={700} c="dimmed" tt="uppercase">{t(`program.sections.${block.type}`)}</Text>
+                                        {block.exercises.map((exercise, idx) => (
+                                            <Card key={exercise.id} padding="xs" withBorder radius="md">
+                                                <Group justify="space-between">
+                                                    <Group gap="xs">
+                                                        <Badge size="xs" variant="light" color="violet">{idx + 1}</Badge>
+                                                        <Text size="sm" fw={500}>{exercise.title}</Text>
+                                                    </Group>
+                                                    <Group gap="xs">
+                                                        {exercise.sets && <Text size="xs" c="dimmed">{exercise.sets}×{exercise.reps || '?'}</Text>}
+                                                        {exercise.weight && <Badge size="xs" variant="light">{exercise.weight}</Badge>}
+                                                    </Group>
+                                                </Group>
+                                                {(exercise.duration || exercise.rest) && (
+                                                    <Group gap="md" mt={4} ml={32}>
+                                                        {exercise.duration && <Text size="xs" c="dimmed">⏳ {exercise.duration}</Text>}
+                                                        {exercise.rest && <Text size="xs" c="dimmed">💤 {exercise.rest}</Text>}
+                                                    </Group>
+                                                )}
+                                            </Card>
+                                        ))}
+                                    </Stack>
+                                ))}
+                            </Stack>
+                        </Card>
+                    )}
+
                     <Group justify="flex-end" mt="md">
                         <Button variant="subtle" onClick={close}>
                             {t('common.cancel')}

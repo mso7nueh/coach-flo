@@ -138,74 +138,72 @@ async def update_current_user(
 @router.post(
     "/link-trainer",
     response_model=schemas.UserWithTrainer,
-    summary="Связать клиента с тренером",
+    summary="Связать пользователя (клиента или тренера) по коду подключения",
     description="""
-    Связать клиента с тренером по коду подключения (только для клиентов).
+    Связывает клиента с тренером.
+    - Если вызывает клиент: привязывает его к тренеру по коду тренера.
+    - Если вызывает тренер: привязывает к нему клиента по коду клиента.
     
     После успешной привязки возвращается информация о пользователе с данными тренера.
     
-    **Требуется аутентификация:** Да (JWT токен, только для клиентов)
+    **Требуется аутентификация:** Да (JWT токен)
     """
 )
-async def link_trainer(
+async def link_trainer_or_client(
     request: LinkTrainerRequest,
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Связать клиента с тренером по коду (только для клиентов)"""
-    if current_user.role != models.UserRole.CLIENT:
-        raise HTTPException(status_code=403, detail="Только клиенты могут связываться с тренерами")
-    
+    """Связать пользователя по коду подключения"""
     # Перезагружаем пользователя из БД, чтобы получить актуальные данные
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     
-    if user.trainer_id:
-        # Проверяем, что тренер действительно существует
-        existing_trainer = db.query(models.User).filter(
-            models.User.id == user.trainer_id
-        ).first()
-        if existing_trainer:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Клиент уже связан с тренером: {existing_trainer.full_name} (ID: {user.trainer_id})"
-            )
-        else:
-            # Если тренер не найден, но trainer_id установлен - очищаем его
-            user.trainer_id = None
-            db.commit()
-            db.refresh(user)
-    
-    # Ищем тренера по коду
-    trainer = db.query(models.User).filter(
-        and_(
-            models.User.trainer_connection_code == request.connection_code,
-            models.User.role == models.UserRole.TRAINER
-        )
+    # Ищем другого пользователя по коду
+    other_user = db.query(models.User).filter(
+        models.User.connection_code == request.connection_code
     ).first()
     
-    if not trainer:
-        raise HTTPException(status_code=404, detail="Тренер с таким кодом не найден")
+    if not other_user:
+        raise HTTPException(status_code=404, detail="Пользователь с таким кодом не найден")
+
+    if user.id == other_user.id:
+        raise HTTPException(status_code=400, detail="Нельзя связаться с самим собой")
+
+    # Логика связывания зависит от ролей
+    if user.role == models.UserRole.CLIENT:
+        # Клиент привязывается к тренеру
+        if other_user.role != models.UserRole.TRAINER:
+            raise HTTPException(status_code=400, detail="Код должен принадлежать тренеру")
+        
+        if user.trainer_id:
+             raise HTTPException(status_code=400, detail="Клиент уже связан с тренером")
+             
+        user.trainer_id = other_user.id
+        db.commit()
+    elif user.role == models.UserRole.TRAINER:
+        # Тренер привязывает клиента
+        if other_user.role != models.UserRole.CLIENT:
+            raise HTTPException(status_code=400, detail="Код должен принадлежать клиенту")
+            
+        if other_user.trainer_id:
+             raise HTTPException(status_code=400, detail="Клиент уже связан с другим тренером")
+             
+        other_user.trainer_id = user.id
+        db.commit()
     
-    # Привязываем тренера
-    user.trainer_id = trainer.id
-    db.commit()
-    # Обновляем объект из БД, чтобы убедиться, что изменения сохранены
     db.refresh(user)
+    db.refresh(other_user)
     
-    # Проверяем, что trainer_id действительно сохранен
-    # Перезагружаем пользователя из БД для уверенности
-    updated_user = db.query(models.User).filter(
-        models.User.id == user.id
-    ).first()
+    # Формируем ответ
+    # Если это клиент, возвращаем его с тренером
+    # Если это тренер, возвращаем его самого
+    user_response = schemas.UserResponse.model_validate(user)
+    trainer_response = None
     
-    if not updated_user or updated_user.trainer_id != trainer.id:
-        raise HTTPException(status_code=500, detail="Ошибка при сохранении связи с тренером")
-    
-    # Формируем ответ с информацией о тренере
-    user_response = schemas.UserResponse.model_validate(updated_user)
-    trainer_response = schemas.UserResponse.model_validate(trainer)
+    if user.role == models.UserRole.CLIENT:
+        trainer_response = schemas.UserResponse.model_validate(other_user)
     
     return schemas.UserWithTrainer(
         **user_response.model_dump(),

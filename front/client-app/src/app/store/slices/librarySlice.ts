@@ -106,26 +106,8 @@ const initialState: LibraryState = {
 
 // Маппинг данных из API в формат фронтенда
 const mapApiExerciseToState = (apiExercise: any): Exercise => {
-    // Преобразуем muscle_groups из строки в первый элемент массива или 'chest' по умолчанию
-    const muscleGroupMap: Record<string, MuscleGroup> = {
-        'chest': 'chest',
-        'back': 'back',
-        'shoulders': 'shoulders',
-        'arms': 'arms',
-        'legs': 'legs',
-        'core': 'core',
-        'cardio': 'cardio',
-        'full_body': 'full_body',
-    }
-
-    const muscleGroupStr = apiExercise.muscle_groups?.toLowerCase() || ''
-    let muscleGroup: MuscleGroup = 'chest'
-    for (const [key, value] of Object.entries(muscleGroupMap)) {
-        if (muscleGroupStr.includes(key)) {
-            muscleGroup = value
-            break
-        }
-    }
+    // Определяем visibility из API ответа, если не указано - по умолчанию 'all'
+    const visibility: 'all' | 'client' | 'trainer' = apiExercise.visibility || 'all'
 
     // Преобразуем equipment из строки в массив
     const equipmentStr = apiExercise.equipment?.toLowerCase() || ''
@@ -146,8 +128,55 @@ const mapApiExerciseToState = (apiExercise: any): Exercise => {
         }
     }
 
-    // Определяем visibility из API ответа, если не указано - по умолчанию 'all'
-    const visibility: 'all' | 'client' | 'trainer' = apiExercise.visibility || 'all'
+    // Преобразуем muscle_groups из строки в первый элемент массива или 'chest' по умолчанию
+    const muscleGroupMap: Record<string, MuscleGroup> = {
+        'chest': 'chest',
+        'back': 'back',
+        'shoulders': 'shoulders',
+        'arms': 'arms',
+        'legs': 'legs',
+        'core': 'core',
+        'cardio': 'cardio',
+        'full_body': 'full_body',
+    }
+
+    const muscleGroupStr = apiExercise.muscle_groups?.toLowerCase() || ''
+    let muscleGroup: MuscleGroup = 'chest'
+
+    // Сначала ищем по ключам-слагам
+    const keys = Object.keys(muscleGroupMap)
+    let found = false
+    for (const key of keys) {
+        if (muscleGroupStr.includes(key)) {
+            muscleGroup = muscleGroupMap[key]
+            found = true
+            break
+        }
+    }
+
+    if (!found) {
+        // Если не нашли слаг, ищем по русским названиям
+        const russianMuscleGroupMap: Record<string, MuscleGroup> = {
+            'грудь': 'chest',
+            'спина': 'back',
+            'плечи': 'shoulders',
+            'руки': 'arms',
+            'ноги': 'legs',
+            'пресс': 'core',
+            'прес': 'core',
+            'коре': 'core',
+            'кардио': 'cardio',
+            'все тело': 'full_body',
+            'всё тело': 'full_body',
+        }
+
+        for (const [ru, slug] of Object.entries(russianMuscleGroupMap)) {
+            if (muscleGroupStr.includes(ru)) {
+                muscleGroup = slug
+                break
+            }
+        }
+    }
 
     return {
         id: apiExercise.id,
@@ -457,14 +486,14 @@ export const createExerciseApi = createAsyncThunk(
         try {
             // Преобразуем данные из формата фронтенда в формат бэкенда
             const muscleGroupMap: Record<MuscleGroup, string> = {
-                'chest': 'Грудь',
-                'back': 'Спина',
-                'shoulders': 'Плечи',
-                'arms': 'Руки',
-                'legs': 'Ноги',
-                'core': 'Пресс',
-                'cardio': 'Кардио',
-                'full_body': 'Все тело',
+                'chest': 'chest',
+                'back': 'back',
+                'shoulders': 'shoulders',
+                'arms': 'arms',
+                'legs': 'legs',
+                'core': 'core',
+                'cardio': 'cardio',
+                'full_body': 'full_body',
             }
 
             const equipmentMap: Record<Equipment, string> = {
@@ -521,14 +550,14 @@ export const updateExerciseApi = createAsyncThunk(
         try {
             // Преобразуем данные из формата фронтенда в формат бэкенда
             const muscleGroupMap: Record<MuscleGroup, string> = {
-                'chest': 'Грудь',
-                'back': 'Спина',
-                'shoulders': 'Плечи',
-                'arms': 'Руки',
-                'legs': 'Ноги',
-                'core': 'Пресс',
-                'cardio': 'Кардио',
-                'full_body': 'Все тело',
+                'chest': 'chest',
+                'back': 'back',
+                'shoulders': 'shoulders',
+                'arms': 'arms',
+                'legs': 'legs',
+                'core': 'core',
+                'cardio': 'cardio',
+                'full_body': 'full_body',
             }
 
             const equipmentMap: Record<Equipment, string> = {
@@ -663,7 +692,8 @@ export const deleteExerciseTemplateApi = createAsyncThunk(
     'library/deleteExerciseTemplateApi',
     async (templateId: string, { rejectWithValue, dispatch }) => {
         try {
-            await apiClient.deleteExerciseTemplate(templateId)
+            const apiClient_ = apiClient
+            await apiClient_.deleteExerciseTemplate(templateId)
             await dispatch(fetchExerciseTemplates())
             return templateId
         } catch (error: any) {
@@ -863,4 +893,3 @@ export const {
     setSelectedExercise,
 } = librarySlice.actions
 export default librarySlice.reducer
-

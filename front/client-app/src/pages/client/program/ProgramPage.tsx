@@ -1592,12 +1592,38 @@ export const ProgramPage = () => {
                     <Text fw={800} size="xl" c="green.9">{viewingProgramExercise.rest}</Text>
                   </Card>
                 )}
+                {viewingProgramExercise.duration && (
+                  <Card withBorder padding="md" radius="md" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-orange-0)', borderColor: 'var(--mantine-color-orange-2)' }}>
+                    <IconClock size={24} color="var(--mantine-color-orange-6)" style={{ margin: '0 auto 8px' }} />
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{t('program.duration')}</Text>
+                    <Text fw={800} size="xl" c="orange.9">{viewingProgramExercise.duration}</Text>
+                  </Card>
+                )}
+                {viewingProgramExercise.weight && (
+                  <Card withBorder padding="md" radius="md" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-pink-0)', borderColor: 'var(--mantine-color-pink-2)' }}>
+                    <IconBarbell size={24} color="var(--mantine-color-pink-6)" style={{ margin: '0 auto 8px' }} />
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{t('program.weight')}</Text>
+                    <Text fw={800} size="xl" c="pink.9">{viewingProgramExercise.weight}</Text>
+                  </Card>
+                )}
               </SimpleGrid>
             )}
 
             <Divider />
 
             <Stack gap="lg">
+              {viewingProgramExercise && viewingProgramExercise.description && (
+                <Group align="flex-start" wrap="nowrap" gap="md">
+                  <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-violet-0)' }}>
+                    <IconNote size={24} color="var(--mantine-color-violet-6)" />
+                  </div>
+                  <Stack gap={4}>
+                    <Text fw={700} size="sm" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.5px' }}>{t('program.exerciseDescription')}</Text>
+                    <Text size="md" style={{ lineHeight: 1.6, fontWeight: 500 }}>{viewingProgramExercise.description}</Text>
+                  </Stack>
+                </Group>
+              )}
+
               {viewingExercise.description && (
                 <Group align="flex-start" wrap="nowrap" gap="md">
                   <div style={{ padding: '8px', borderRadius: '8px', backgroundColor: 'var(--mantine-color-blue-0)' }}>

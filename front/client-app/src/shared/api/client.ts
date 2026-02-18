@@ -15,7 +15,7 @@ export interface User {
   onboarding_seen: boolean
   locale: string
   avatar: string | null
-  trainer_connection_code: string | null
+  connection_code: string | null
   phone_verified: boolean
   created_at: string
   trainer?: User | null

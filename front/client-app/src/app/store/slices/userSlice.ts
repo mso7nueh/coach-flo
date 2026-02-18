@@ -25,7 +25,7 @@ interface UserState {
     locale: SupportedLocale
     trainer?: TrainerInfo
     onboardingMetrics?: OnboardingMetrics
-    trainerConnectionCode?: string
+    connectionCode?: string
     isAuthenticated: boolean
     token?: string
     subscription_plan?: string
@@ -54,7 +54,7 @@ const initialState: UserState = {
     onboardingSeen: false,
     locale: 'ru',
     trainer: undefined,
-    trainerConnectionCode: undefined,
+    connectionCode: undefined,
     isAuthenticated: !!initialToken, // Устанавливаем true, если токен есть
     token: initialToken,
     subscription_plan: undefined,
@@ -74,7 +74,7 @@ export interface RegisterData {
     phone?: string
     role?: UserRole
     confirmPassword?: string
-    trainerCode?: string
+    connectionCode?: string
 }
 
 export interface OnboardingMetrics {
@@ -96,7 +96,7 @@ const mapApiUserToState = (apiUser: ApiUser): Omit<UserState, 'isAuthenticated' 
         role: apiUser.role,
         onboardingSeen: apiUser.onboarding_seen,
         locale: (apiUser.locale as SupportedLocale) || 'ru',
-        trainerConnectionCode: apiUser.trainer_connection_code || undefined,
+        connectionCode: apiUser.connection_code || undefined,
         subscription_plan: apiUser.subscription_plan || undefined,
         subscription_expires_at: apiUser.subscription_expires_at || undefined,
         workoutsPackage: apiUser.workouts_package || 0,
@@ -106,7 +106,7 @@ const mapApiUserToState = (apiUser: ApiUser): Omit<UserState, 'isAuthenticated' 
             email: apiUser.trainer.email,
             phone: apiUser.trainer.phone || undefined,
             avatar: apiUser.trainer.avatar || undefined,
-            connectionCode: apiUser.trainer.trainer_connection_code || undefined,
+            connectionCode: apiUser.trainer.connection_code || undefined,
         } : undefined,
     }
 }
@@ -409,10 +409,8 @@ const userSlice = createSlice({
             }
         },
         generateConnectionCode(state) {
-            if (state.role === 'trainer') {
-                const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-                state.trainerConnectionCode = code
-            }
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase()
+            state.connectionCode = code
         },
         logout(state) {
             apiClient.logout()

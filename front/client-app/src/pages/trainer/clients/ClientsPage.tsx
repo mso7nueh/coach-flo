@@ -42,6 +42,8 @@ import {
     IconCurrencyRubel,
     IconCopy,
     IconCheck,
+    IconUser,
+    IconLink,
 } from '@tabler/icons-react'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
@@ -71,15 +73,62 @@ export const ClientsPage = () => {
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
     const { clients, searchQuery } = useAppSelector((state) => state.clients)
-    const trainerConnectionCode = useAppSelector((state) => state.user.trainerConnectionCode)
+    const connectionCode = useAppSelector((state) => state.user.connectionCode)
     const [addModalOpened, { open: openAddModal, close: closeAddModal }] = useDisclosure(false)
     const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false)
     const [invitationModalOpened, { open: openInvitationModal, close: closeInvitationModal }] = useDisclosure(false)
+    const [codeModalOpened, { open: openCodeModal, close: closeCodeModal }] = useDisclosure(false)
+    const [clientCode, setClientCode] = useState('')
+    const [linking, setLinking] = useState(false)
     const [editingClient, setEditingClient] = useState<Client | null>(null)
     const [invitationLink, setInvitationLink] = useState('')
     const [copiedLink, setCopiedLink] = useState(false)
     const [copiedCode, setCopiedCode] = useState(false)
     const [loading, setLoading] = useState(false)
+
+    const handleLinkClient = async () => {
+        if (!clientCode.trim()) return
+
+        setLinking(true)
+        try {
+            await apiClient.linkTrainer(clientCode.trim())
+            notifications.show({
+                title: t('common.success'),
+                message: t('clients.linkSuccess'),
+                color: 'green',
+            })
+            setClientCode('')
+            closeCodeModal()
+            // Обновляем список клиентов
+            // Assuming getClientsApi is a thunk that fetches clients and dispatches setClients
+            // For now, let's just re-fetch all clients
+            const clientsData = await apiClient.getClients()
+            const mappedClients: Client[] = clientsData.map((client: any) => ({
+                id: client.id,
+                fullName: client.full_name,
+                email: client.email,
+                phone: client.phone,
+                avatar: client.avatar,
+                format: (client.client_format || 'both') as 'online' | 'offline' | 'both',
+                workoutsPackage: client.workouts_package,
+                packageExpiryDate: client.package_expiry_date,
+                isActive: client.is_active ?? true,
+                attendanceRate: 0,
+                totalWorkouts: 0,
+                completedWorkouts: 0,
+                joinedDate: client.created_at || new Date().toISOString(),
+            }))
+            dispatch(setClients(mappedClients))
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error.response?.data?.detail || t('clients.linkError'),
+                color: 'red',
+            })
+        } finally {
+            setLinking(false)
+        }
+    }
 
     const form = useForm<AddClientForm>({
         initialValues: {
@@ -139,7 +188,7 @@ export const ClientsPage = () => {
                     joinedDate: client.created_at || new Date().toISOString(),
                 }))
                 dispatch(setClients(mappedClients))
-                
+
                 // Загружаем статистику для каждого клиента
                 const loadClientStats = async () => {
                     const statsPromises = mappedClients.map(async (client) => {
@@ -154,9 +203,9 @@ export const ClientsPage = () => {
                             return null
                         }
                     })
-                    
+
                     const statsResults = await Promise.all(statsPromises)
-                    
+
                     // Обновляем клиентов со статистикой
                     statsResults.forEach((result) => {
                         if (result && result.stats) {
@@ -173,7 +222,7 @@ export const ClientsPage = () => {
                         }
                     })
                 }
-                
+
                 loadClientStats()
             } catch (error) {
                 console.error('Error loading clients:', error)
@@ -220,8 +269,8 @@ export const ClientsPage = () => {
             }
 
             // Генерируем ссылку приглашения
-            if (trainerConnectionCode) {
-                const link = `${window.location.origin}/register?code=${trainerConnectionCode}`
+            if (connectionCode) {
+                const link = `${window.location.origin}/register?code=${connectionCode}`
                 setInvitationLink(link)
                 form.reset()
                 closeAddModal()
@@ -266,9 +315,9 @@ export const ClientsPage = () => {
     }
 
     const handleCopyCode = async () => {
-        if (!trainerConnectionCode) return
+        if (!connectionCode) return
         try {
-            await navigator.clipboard.writeText(trainerConnectionCode)
+            await navigator.clipboard.writeText(connectionCode)
             setCopiedCode(true)
             setTimeout(() => setCopiedCode(false), 2000)
             notifications.show({
@@ -387,9 +436,21 @@ export const ClientsPage = () => {
         <Stack gap="lg">
             <Group justify="space-between">
                 <Title order={2}>{t('trainer.clients.title')}</Title>
-                <Button leftSection={<IconPlus size={16} />} onClick={openAddModal}>
-                    {t('trainer.clients.addClient')}
-                </Button>
+                <Group gap="sm">
+                    <Button
+                        variant="subtle"
+                        leftSection={<IconLink size={20} />}
+                        onClick={openCodeModal}
+                    >
+                        {t('clients.addByCode')}
+                    </Button>
+                    <Button
+                        leftSection={<IconPlus size={20} />}
+                        onClick={openAddModal}
+                    >
+                        {t('clients.createClient')}
+                    </Button>
+                </Group>
             </Group>
 
             <Card withBorder padding="md">
@@ -662,7 +723,7 @@ export const ClientsPage = () => {
                     <Text size="sm" c="dimmed">
                         {t('trainer.clients.invitationModal.description')}
                     </Text>
-                    
+
                     <div>
                         <Text size="sm" fw={500} mb="xs">
                             {t('trainer.clients.invitationModal.linkLabel')}
@@ -689,7 +750,7 @@ export const ClientsPage = () => {
                         </Text>
                         <Group gap="xs">
                             <TextInput
-                                value={trainerConnectionCode || ''}
+                                value={connectionCode || ''}
                                 readOnly
                                 style={{ flex: 1 }}
                             />
@@ -710,7 +771,34 @@ export const ClientsPage = () => {
                     </Group>
                 </Stack>
             </Modal>
+            {/* Modal for adding by code */}
+            <Modal
+                opened={codeModalOpened}
+                onClose={closeCodeModal}
+                title={t('clients.addByCode')}
+                centered
+            >
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        {t('clients.addByCodeDescription')}
+                    </Text>
+                    <TextInput
+                        label={t('clients.clientCodeLabel')}
+                        placeholder="ABC12345"
+                        value={clientCode}
+                        onChange={(e) => setClientCode(e.currentTarget.value.toUpperCase())}
+                        error={clientCode.length > 0 && clientCode.length !== 8 ? t('clients.invalidCodeLength') : null}
+                    />
+                    <Button
+                        fullWidth
+                        onClick={handleLinkClient}
+                        loading={linking}
+                        disabled={clientCode.length !== 8}
+                    >
+                        {t('clients.linkClient')}
+                    </Button>
+                </Stack>
+            </Modal>
         </Stack>
     )
 }
-

@@ -1,4 +1,5 @@
 import {
+    ActionIcon,
     Card,
     Divider,
     Group,
@@ -7,6 +8,7 @@ import {
     Stack,
     Switch,
     Text,
+    TextInput,
     Title,
 } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
@@ -21,6 +23,7 @@ import {
 } from '@/app/store/slices/notificationsSlice'
 import { useId, useEffect, useRef } from 'react'
 import { notifications } from '@mantine/notifications'
+import { IconCopy } from '@tabler/icons-react'
 
 export const SettingsPage = () => {
     const { t, i18n } = useTranslation()
@@ -111,6 +114,44 @@ export const SettingsPage = () => {
     return (
         <Stack gap="xl">
             <Title order={2}>{t('common.settings')}</Title>
+
+            <Card withBorder padding="xl">
+                <Stack gap="md">
+                    <Group justify="space-between">
+                        <Stack gap={4}>
+                            <Text fw={500}>{t('settings.connectionCode')}</Text>
+                            <Text size="sm" c="dimmed">
+                                {t('settings.connectionCodeDescription')}
+                            </Text>
+                        </Stack>
+                        <Group gap="xs">
+                            <TextInput
+                                value={useAppSelector(state => state.user.connectionCode) || ''}
+                                readOnly
+                                style={{ width: '120px' }}
+                                styles={{ input: { textAlign: 'center', fontWeight: 700, letterSpacing: '1px' } }}
+                            />
+                            <ActionIcon
+                                variant="light"
+                                size="lg"
+                                onClick={() => {
+                                    const code = useAppSelector(state => state.user.connectionCode);
+                                    if (code) {
+                                        navigator.clipboard.writeText(code);
+                                        notifications.show({
+                                            title: t('common.success'),
+                                            message: t('settings.codeCopied'),
+                                            color: 'green',
+                                        });
+                                    }
+                                }}
+                            >
+                                <IconCopy size={20} />
+                            </ActionIcon>
+                        </Group>
+                    </Group>
+                </Stack>
+            </Card>
 
             <Card withBorder padding="xl">
                 <Stack gap="md">

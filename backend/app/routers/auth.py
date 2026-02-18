@@ -13,6 +13,7 @@ from app.services.sms_service import create_sms_verification, verify_sms_code
 from datetime import timedelta, datetime
 import uuid
 import string
+import random
 
 router = APIRouter()
 
@@ -199,7 +200,7 @@ async def register_step1(
         hashed_password=get_password_hash(request.password),
         role=request.role,
         trainer_id=trainer_id,
-        trainer_connection_code=trainer_connection_code,
+        connection_code=connection_code,
         expires_at=datetime.utcnow() + timedelta(minutes=30)  # Данные действительны 30 минут
     )
     db.add(pending_registration)
@@ -327,7 +328,7 @@ async def register_step2(
             hashed_password=user.hashed_password, # Неважно, это демо
             role=models.UserRole.CLIENT,
             trainer_id=user.id,
-            connection_code=''.join(random.choices(string_module.ascii_uppercase + string_module.digits, k=8)),
+            connection_code=''.join(random.choices(string.ascii_uppercase + string.digits, k=8)),
             phone_verified=True,
             onboarding_seen=True,
             client_format="online",
