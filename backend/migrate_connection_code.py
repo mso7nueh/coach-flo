@@ -10,38 +10,55 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def migrate():
-    """Renames columns in users and pending_registrations tables"""
-    migrations = [
-        # Check if column exists before renaming in users table
-        {
-            "check": "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='trainer_connection_code'",
-            "execute": "ALTER TABLE users RENAME COLUMN trainer_connection_code TO connection_code"
-        },
-        # Check if column exists before renaming in pending_registrations table
-        {
-            "check": "SELECT column_name FROM information_schema.columns WHERE table_name='pending_registrations' AND column_name='trainer_connection_code'",
-            "execute": "ALTER TABLE pending_registrations RENAME COLUMN trainer_connection_code TO connection_code"
-        }
-    ]
-    
+    """Renames columns in users and pending_registrations tables with diagnostics"""
     try:
         with engine.connect() as conn:
+            # Diagnostic: List all columns in users table
+            logger.info("Diagnostic: Listing columns in 'users' table...")
+            cols_users = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='users'")).fetchall()
+            logger.info(f"Columns in 'users': {[c[0] for c in cols_users]}")
+
+            # Diagnostic: List all columns in pending_registrations table
+            logger.info("Diagnostic: Listing columns in 'pending_registrations' table...")
+            cols_pending = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='pending_registrations'")).fetchall()
+            logger.info(f"Columns in 'pending_registrations': {[c[0] for c in cols_pending]}")
+
+            migrations = [
+                {
+                    "table": "users",
+                    "old": "trainer_connection_code",
+                    "new": "connection_code"
+                },
+                {
+                    "table": "pending_registrations",
+                    "old": "trainer_connection_code",
+                    "new": "connection_code"
+                }
+            ]
+            
             for m in migrations:
-                # Check if the old column exists
-                result = conn.execute(text(m["check"])).fetchone()
-                if result:
-                    logger.info(f"Executing: {m['execute']}")
-                    conn.execute(text(m["execute"]))
+                table = m["table"]
+                old_col = m["old"]
+                new_col = m["new"]
+                
+                # Check for old column
+                has_old = conn.execute(text(f"SELECT 1 FROM information_schema.columns WHERE table_name='{table}' AND column_name='{old_col}'")).fetchone()
+                # Check for new column
+                has_new = conn.execute(text(f"SELECT 1 FROM information_schema.columns WHERE table_name='{table}' AND column_name='{new_col}'")).fetchone()
+                
+                if has_old and not has_new:
+                    logger.info(f"Renaming {old_col} to {new_col} in {table}...")
+                    conn.execute(text(f"ALTER TABLE {table} RENAME COLUMN {old_col} TO {new_col}"))
                     conn.commit()
-                    logger.info("Successfully renamed column.")
+                    logger.info(f"Successfully renamed in {table}.")
+                elif has_old and has_new:
+                    logger.warning(f"Both {old_col} and {new_col} exist in {table}! Removing {old_col} and keeping {new_col}.")
+                    conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {old_col}"))
+                    conn.commit()
+                elif has_new:
+                    logger.info(f"Column {new_col} already exists in {table}. No action needed.")
                 else:
-                    # Check if the new column already exists to avoid errors if already migrated
-                    check_new = m["check"].replace("trainer_connection_code", "connection_code")
-                    result_new = conn.execute(text(check_new)).fetchone()
-                    if result_new:
-                        logger.info(f"Column already renamed or exists as 'connection_code' in table.")
-                    else:
-                        logger.warning(f"Could not find either 'trainer_connection_code' or 'connection_code' in table.")
+                    logger.error(f"Neither {old_col} nor {new_col} found in {table}!")
             
         logger.info("✅ Migration completed successfully!")
         return True
