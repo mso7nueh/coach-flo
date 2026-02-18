@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react'
 
 import { BottomNavBar } from '@/shared/components/BottomNavBar'
+import { Footer } from '@/shared/components/Footer'
 
 export const AppLayout = () => {
     const [opened, { toggle }] = useDisclosure()
@@ -336,11 +337,19 @@ export const AppLayout = () => {
                 }}
             >
                 {location.pathname === '/onboarding' ? (
-                    <Outlet />
+                    <Stack gap={0} style={{ minHeight: '100%' }}>
+                        <Box style={{ flex: 1 }}>
+                            <Outlet />
+                        </Box>
+                        <Footer />
+                    </Stack>
                 ) : (
-                    <Box p={{ base: 'md', sm: 'lg' }} style={{ height: '100%' }}>
-                        <Outlet />
-                    </Box>
+                    <Stack gap={0} style={{ minHeight: '100%', display: 'flex' }}>
+                        <Box p={{ base: 'md', sm: 'lg' }} style={{ flex: 1 }}>
+                            <Outlet />
+                        </Box>
+                        <Footer />
+                    </Stack>
                 )}
             </AppShell.Main>
             <BottomNavBar role={role as 'client' | 'trainer'} />
