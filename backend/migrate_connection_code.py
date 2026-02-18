@@ -10,19 +10,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def migrate():
-    """Renames columns in users and pending_registrations tables with diagnostics"""
+    """Renames columns in users and pending_registrations tables with diagnostics and data preservation"""
     try:
         with engine.connect() as conn:
-            # Diagnostic: List all columns in users table
-            logger.info("Diagnostic: Listing columns in 'users' table...")
-            cols_users = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='users'")).fetchall()
-            logger.info(f"Columns in 'users': {[c[0] for c in cols_users]}")
-
-            # Diagnostic: List all columns in pending_registrations table
-            logger.info("Diagnostic: Listing columns in 'pending_registrations' table...")
-            cols_pending = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='pending_registrations'")).fetchall()
-            logger.info(f"Columns in 'pending_registrations': {[c[0] for c in cols_pending]}")
-
             migrations = [
                 {
                     "table": "users",
@@ -41,10 +31,16 @@ def migrate():
                 old_col = m["old"]
                 new_col = m["new"]
                 
-                # Check for old column
-                has_old = conn.execute(text(f"SELECT 1 FROM information_schema.columns WHERE table_name='{table}' AND column_name='{old_col}'")).fetchone()
-                # Check for new column
-                has_new = conn.execute(text(f"SELECT 1 FROM information_schema.columns WHERE table_name='{table}' AND column_name='{new_col}'")).fetchone()
+                logger.info(f"Checking table '{table}' for columns '{old_col}' and '{new_col}'...")
+                
+                # Check for columns using direct SQL to be sure
+                cols = conn.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}'")).fetchall()
+                col_names = [c[0] for c in cols]
+                
+                has_old = old_col in col_names
+                has_new = new_col in col_names
+                
+                logger.info(f"Existing columns in {table}: {col_names}")
                 
                 if has_old and not has_new:
                     logger.info(f"Renaming {old_col} to {new_col} in {table}...")
@@ -52,13 +48,27 @@ def migrate():
                     conn.commit()
                     logger.info(f"Successfully renamed in {table}.")
                 elif has_old and has_new:
-                    logger.warning(f"Both {old_col} and {new_col} exist in {table}! Removing {old_col} and keeping {new_col}.")
+                    logger.warning(f"Both {old_col} and {new_col} exist in {table}!")
+                    # Move data if new column is empty
+                    logger.info(f"Copying data from {old_col} to {new_col} where {new_col} is NULL...")
+                    conn.execute(text(f"UPDATE {table} SET {new_col} = {old_col} WHERE {new_col} IS NULL AND {old_col} IS NOT NULL"))
+                    
+                    logger.info(f"Dropping old column {old_col}...")
                     conn.execute(text(f"ALTER TABLE {table} DROP COLUMN {old_col}"))
                     conn.commit()
+                    logger.info(f"Successfully cleaned up {table}.")
                 elif has_new:
                     logger.info(f"Column {new_col} already exists in {table}. No action needed.")
                 else:
-                    logger.error(f"Neither {old_col} nor {new_col} found in {table}!")
+                    # Special case: maybe it was already renamed but hasn't been added yet?
+                    # Or maybe it's just missing entirely.
+                    if table == "users":
+                        logger.warning(f"Neither column found in {table}. Adding {new_col}...")
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {new_col} VARCHAR(255)"))
+                        conn.execute(text(f"CREATE UNIQUE INDEX IF NOT EXISTS ix_users_connection_code ON users ({new_col})"))
+                        conn.commit()
+                    else:
+                        logger.error(f"Neither {old_col} nor {new_col} found in {table}!")
             
         logger.info("✅ Migration completed successfully!")
         return True
