@@ -49,8 +49,8 @@ export const Footer = () => {
                         <Stack gap="xs">
                             <Text fw={600} size="sm">Документы</Text>
                             <Anchor
-                                href="/Пользовательское соглашение .pdf"
-                                target="_blank"
+                                href="/user_agere.pdf"
+                                download="user_agere.pdf"
                                 size="sm"
                                 c="violet.6"
                                 fw={500}
@@ -60,8 +60,8 @@ export const Footer = () => {
                                 Пользовательское соглашение
                             </Anchor>
                             <Anchor
-                                href="/Политика_обработки_персональных_данных_pdf.pdf"
-                                target="_blank"
+                                href="/pers_data.pdf"
+                                download="pers_data.pdf"
                                 size="sm"
                                 c="violet.6"
                                 fw={500}
