@@ -3,11 +3,11 @@ import { IconMail, IconPhone, IconMapPin, IconDownload } from '@tabler/icons-rea
 
 export const Footer = () => {
     return (
-        <Box 
-            component="footer" 
-            p="xl" 
-            bg="gray.0" 
-            style={{ 
+        <Box
+            component="footer"
+            p="xl"
+            bg="gray.0"
+            style={{
                 borderTop: '1px solid var(--mantine-color-gray-2)',
                 marginTop: 'auto'
             }}
@@ -48,16 +48,27 @@ export const Footer = () => {
 
                         <Stack gap="xs">
                             <Text fw={600} size="sm">Документы</Text>
-                            <Anchor 
-                                href="/doc.pdf" 
-                                download="Пользовательское_соглашение.pdf"
-                                size="sm" 
-                                c="violet.6" 
+                            <Anchor
+                                href="/Пользовательское соглашение .pdf"
+                                target="_blank"
+                                size="sm"
+                                c="violet.6"
                                 fw={500}
                                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                             >
                                 <IconDownload size={16} />
                                 Пользовательское соглашение
+                            </Anchor>
+                            <Anchor
+                                href="/Политика_обработки_персональных_данных_pdf.pdf"
+                                target="_blank"
+                                size="sm"
+                                c="violet.6"
+                                fw={500}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                            >
+                                <IconDownload size={16} />
+                                Политика обработки ПД
                             </Anchor>
                         </Stack>
                     </Group>
