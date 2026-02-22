@@ -303,7 +303,7 @@ class BodyMetricBase(BaseModel):
 
 
 class BodyMetricCreate(BodyMetricBase):
-    pass
+    user_id: Optional[str] = None
 
 
 class BodyMetricResponse(BodyMetricBase):
@@ -322,6 +322,7 @@ class BodyMetricEntryBase(BaseModel):
 
 class BodyMetricEntryCreate(BodyMetricEntryBase):
     metric_id: str
+    user_id: Optional[str] = None
 
 
 class BodyMetricEntryResponse(BodyMetricEntryBase):
@@ -353,7 +354,7 @@ class ExerciseMetricBase(BaseModel):
 
 
 class ExerciseMetricCreate(ExerciseMetricBase):
-    pass
+    user_id: Optional[str] = None
 
 
 class ExerciseMetricResponse(ExerciseMetricBase):
@@ -374,6 +375,7 @@ class ExerciseMetricEntryBase(BaseModel):
 
 class ExerciseMetricEntryCreate(ExerciseMetricEntryBase):
     exercise_metric_id: str
+    user_id: Optional[str] = None
 
 
 class ExerciseMetricEntryResponse(ExerciseMetricEntryBase):
@@ -396,7 +398,7 @@ class NutritionEntryBase(BaseModel):
 
 
 class NutritionEntryCreate(NutritionEntryBase):
-    pass
+    user_id: Optional[str] = None
 
 
 class NutritionEntryResponse(NutritionEntryBase):

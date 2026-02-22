@@ -36,10 +36,24 @@ async def create_body_metric(
     db: Session = Depends(get_db)
 ):
     """Создать метрику тела"""
+    target_user_id = current_user.id
+    if metric.user_id and current_user.role == models.UserRole.TRAINER:
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == metric.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = metric.user_id
+    elif metric.user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут создавать метрики для других пользователей")
+
     metric_id = str(uuid.uuid4())
     db_metric = models.BodyMetric(
         id=metric_id,
-        user_id=current_user.id,
+        user_id=target_user_id,
         label=metric.label,
         unit=metric.unit,
         target=metric.target
@@ -86,11 +100,25 @@ async def create_body_metric_entry(
     db: Session = Depends(get_db)
 ):
     """Добавить запись метрики тела"""
-    # Проверяем, что метрика принадлежит пользователю
+    target_user_id = current_user.id
+    if entry.user_id and current_user.role == models.UserRole.TRAINER:
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == entry.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = entry.user_id
+    elif entry.user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут добавлять записи для других пользователей")
+
+    # Проверяем, что метрика принадлежит пользователю (соответствующему target_user_id)
     metric = db.query(models.BodyMetric).filter(
         and_(
             models.BodyMetric.id == entry.metric_id,
-            models.BodyMetric.user_id == current_user.id
+            models.BodyMetric.user_id == target_user_id
         )
     ).first()
     
@@ -123,13 +151,23 @@ async def update_body_metric_target(
 ):
     """Обновить целевое значение метрики и записать в историю изменений."""
     metric = db.query(models.BodyMetric).filter(
-        and_(
-            models.BodyMetric.id == metric_id,
-            models.BodyMetric.user_id == current_user.id,
-        )
+        models.BodyMetric.id == metric_id
     ).first()
     if not metric:
         raise HTTPException(status_code=404, detail="Метрика не найдена")
+
+    # Check authorization
+    if metric.user_id != current_user.id:
+        if current_user.role != models.UserRole.TRAINER:
+            raise HTTPException(status_code=403, detail="Доступ запрещен")
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == metric.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=403, detail="Доступ запрещен")
     metric.target = payload.target
     history_id = str(uuid.uuid4())
     db_history = models.BodyMetricTargetHistory(
@@ -263,10 +301,24 @@ async def create_exercise_metric(
     db: Session = Depends(get_db)
 ):
     """Создать метрику упражнения"""
+    target_user_id = current_user.id
+    if metric.user_id and current_user.role == models.UserRole.TRAINER:
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == metric.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = metric.user_id
+    elif metric.user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут создавать метрики для других пользователей")
+
     metric_id = str(uuid.uuid4())
     db_metric = models.ExerciseMetric(
         id=metric_id,
-        user_id=current_user.id,
+        user_id=target_user_id,
         label=metric.label,
         muscle_group=metric.muscle_group
     )
@@ -312,11 +364,25 @@ async def create_exercise_metric_entry(
     db: Session = Depends(get_db)
 ):
     """Добавить запись метрики упражнения"""
+    target_user_id = current_user.id
+    if entry.user_id and current_user.role == models.UserRole.TRAINER:
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == entry.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = entry.user_id
+    elif entry.user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут добавлять записи для других пользователей")
+
     # Проверяем, что метрика принадлежит пользователю
     metric = db.query(models.ExerciseMetric).filter(
         and_(
             models.ExerciseMetric.id == entry.exercise_metric_id,
-            models.ExerciseMetric.user_id == current_user.id
+            models.ExerciseMetric.user_id == target_user_id
         )
     ).first()
     

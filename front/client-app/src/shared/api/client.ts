@@ -637,6 +637,7 @@ export const createBodyMetric = async (data: {
   label: string
   unit: string
   target?: number
+  user_id?: string
 }): Promise<BodyMetric> => {
   const { data: response } = await api.post<BodyMetric>('/api/metrics/body', data)
   return response
@@ -651,6 +652,7 @@ export const addBodyMetricEntry = async (data: {
   metric_id: string
   value: number
   recorded_at: string
+  user_id?: string
 }): Promise<BodyMetricEntry> => {
   const { data: response } = await api.post<BodyMetricEntry>('/api/metrics/body/entries', data)
   return response
@@ -685,6 +687,7 @@ export const getBodyMetricTargetHistory = async (params?: {
 export const createExerciseMetric = async (data: {
   label: string
   muscle_group?: string
+  user_id?: string
 }): Promise<ExerciseMetric> => {
   const { data: response } = await api.post<ExerciseMetric>('/api/metrics/exercise', data)
   return response
@@ -701,6 +704,7 @@ export const addExerciseMetricEntry = async (data: {
   weight?: number
   repetitions?: number
   sets?: number
+  user_id?: string
 }): Promise<ExerciseMetricEntry> => {
   const { data: response } = await api.post<ExerciseMetricEntry>('/api/metrics/exercise/entries', data)
   return response
@@ -724,6 +728,7 @@ export const createOrUpdateNutritionEntry = async (data: {
   fats?: number
   carbs?: number
   notes?: string
+  user_id?: string
 }): Promise<NutritionEntry> => {
   const { data: response } = await api.post<NutritionEntry>('/api/nutrition/', data)
   return response

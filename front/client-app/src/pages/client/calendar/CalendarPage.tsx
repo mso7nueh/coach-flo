@@ -74,6 +74,7 @@ interface WorkoutFormState {
     endTime: string
     location?: string
     programDayId?: string
+    templateId?: string
     isRecurring: boolean
     recurrenceFrequency: RecurrenceFrequency
     recurrenceInterval: number
@@ -93,6 +94,7 @@ const buildFormState = (date: string, options?: { trainerId?: string; withTraine
     endTime: '19:00',
     location: '',
     programDayId: undefined, // Явно указываем, что при создании новой тренировки programDayId не задан
+    templateId: undefined,
     isRecurring: false,
     recurrenceFrequency: 'weekly',
     recurrenceInterval: 1,
@@ -715,6 +717,14 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             leftSection={<IconTemplate size={16} />}
                             radius="lg"
                             onChange={(value) => {
+                                if (!value) {
+                                    setFormState((state) => ({
+                                        ...state,
+                                        title: '',
+                                        templateId: undefined,
+                                    }))
+                                    return
+                                }
                                 const template = libraryWorkouts.find((w) => w.id === value)
                                 if (template) {
                                     const start = dayjs(formState.date)
@@ -725,6 +735,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                         ...state,
                                         title: template.name,
                                         endTime: end.format('HH:mm'),
+                                        templateId: template.id,
                                     }))
                                 }
                             }}
@@ -732,18 +743,20 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                         />
                     )}
 
-                    <TextInput
-                        label={t('calendar.workoutTitle')}
-                        placeholder={t('calendar.workoutTitlePlaceholder')}
-                        value={formState.title}
-                        leftSection={<IconTypography size={16} />}
-                        radius="lg"
-                        onChange={(event) => {
-                            const { value } = event.currentTarget
-                            setFormState((state) => ({ ...state, title: value }))
-                        }}
-                        required
-                    />
+                    {!formState.templateId && (
+                        <TextInput
+                            label={t('calendar.workoutTitle')}
+                            placeholder={t('calendar.workoutTitlePlaceholder')}
+                            value={formState.title}
+                            leftSection={<IconTypography size={16} />}
+                            radius="lg"
+                            onChange={(event) => {
+                                const { value } = event.currentTarget
+                                setFormState((state) => ({ ...state, title: value }))
+                            }}
+                            required
+                        />
+                    )}
                     <DateInput
                         label={t('calendar.date')}
                         value={formState.date}

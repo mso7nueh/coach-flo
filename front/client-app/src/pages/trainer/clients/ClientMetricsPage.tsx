@@ -97,7 +97,7 @@ export const ClientMetricsContent = ({ embedded = false }: { embedded?: boolean 
                 </>
             )}
 
-            <MetricsPage clientId={clientId} readOnly={true} />
+            <MetricsPage clientId={clientId} readOnly={false} />
         </Stack>
     )
 }

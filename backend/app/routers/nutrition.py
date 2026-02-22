@@ -18,6 +18,20 @@ async def create_nutrition_entry(
     db: Session = Depends(get_db)
 ):
     """Создать запись питания"""
+    target_user_id = current_user.id
+    if entry.user_id and current_user.role == models.UserRole.TRAINER:
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == entry.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Клиент не найден")
+        target_user_id = entry.user_id
+    elif entry.user_id and current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут добавлять записи для других пользователей")
+
     # Проверяем, есть ли уже запись на эту дату
     # Нормализуем дату к началу дня для сравнения
     entry_date_start = entry.date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -25,7 +39,7 @@ async def create_nutrition_entry(
     
     existing = db.query(models.NutritionEntry).filter(
         and_(
-            models.NutritionEntry.user_id == current_user.id,
+            models.NutritionEntry.user_id == target_user_id,
             models.NutritionEntry.date >= entry_date_start,
             models.NutritionEntry.date <= entry_date_end
         )
@@ -45,7 +59,7 @@ async def create_nutrition_entry(
     entry_id = str(uuid.uuid4())
     db_entry = models.NutritionEntry(
         id=entry_id,
-        user_id=current_user.id,
+        user_id=target_user_id,
         date=entry.date,
         calories=entry.calories,
         proteins=entry.proteins,
@@ -126,11 +140,24 @@ async def update_nutrition_entry(
 ):
     """Обновить запись питания"""
     entry = db.query(models.NutritionEntry).filter(
-        and_(
-            models.NutritionEntry.id == entry_id,
-            models.NutritionEntry.user_id == current_user.id
-        )
+        models.NutritionEntry.id == entry_id
     ).first()
+    
+    if not entry:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+
+    # Check authorization
+    if entry.user_id != current_user.id:
+        if current_user.role != models.UserRole.TRAINER:
+            raise HTTPException(status_code=403, detail="Доступ запрещен")
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == entry.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=403, detail="Доступ запрещен")
     
     if not entry:
         raise HTTPException(status_code=404, detail="Запись не найдена")
@@ -155,11 +182,24 @@ async def delete_nutrition_entry(
 ):
     """Удалить запись питания"""
     entry = db.query(models.NutritionEntry).filter(
-        and_(
-            models.NutritionEntry.id == entry_id,
-            models.NutritionEntry.user_id == current_user.id
-        )
+        models.NutritionEntry.id == entry_id
     ).first()
+    
+    if not entry:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+
+    # Check authorization
+    if entry.user_id != current_user.id:
+        if current_user.role != models.UserRole.TRAINER:
+            raise HTTPException(status_code=403, detail="Доступ запрещен")
+        client = db.query(models.User).filter(
+            and_(
+                models.User.id == entry.user_id,
+                models.User.trainer_id == current_user.id
+            )
+        ).first()
+        if not client:
+            raise HTTPException(status_code=403, detail="Доступ запрещен")
     
     if not entry:
         raise HTTPException(status_code=404, detail="Запись не найдена")

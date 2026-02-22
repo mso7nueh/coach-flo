@@ -385,6 +385,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
               metricId: bodyForm.metricId,
               value: bodyForm.value,
               recordedAt: bodyForm.recordedAt.toISOString(),
+              userId: clientId,
             }),
           ).unwrap()
           closeBodyModal()
@@ -419,6 +420,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
             weight: exerciseForm.weight,
             repetitions: exerciseForm.repetitions,
             sets: exerciseForm.sets,
+            userId: clientId,
           }),
         ).unwrap()
         closeExerciseModal()
@@ -456,6 +458,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
               metricId,
               value,
               recordedAt: today.toISOString(),
+              userId: clientId,
             }),
           ).unwrap()
         }
@@ -1578,6 +1581,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                         label: createBodyMetricForm.label,
                         unit: createBodyMetricForm.unit,
                         target: createBodyMetricForm.target,
+                        userId: clientId,
                       }),
                     ).unwrap()
                     notifications.show({
@@ -1631,6 +1635,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                       createExerciseMetricApi({
                         label: createExerciseMetricForm.label,
                         muscle_group: createExerciseMetricForm.muscle_group || undefined,
+                        userId: clientId,
                       }),
                     ).unwrap()
                     notifications.show({

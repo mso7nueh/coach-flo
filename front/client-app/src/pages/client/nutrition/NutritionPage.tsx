@@ -61,15 +61,6 @@ export const NutritionContent = ({ embedded = false, clientId }: { embedded?: bo
     if (!calories || calories <= 0 || !selectedDate) {
       return
     }
-    // Если мы в режиме тренера (clientId), возможно, мы не хотим давать редактировать?
-    // Или используем API от лица тренера? В apiClient нет createTrainerNutritionEntry.
-    // Предположим, пока только просмотр для тренера, если не добавим метод API.
-    if (clientId) {
-      // TODO: Implement save for client if needed. Currently disabled/alerted.
-      alert('Editing client nutrition is not yet implemented.')
-      return
-    }
-
     dispatch(
       upsertNutritionEntryApi({
         date: selectedDate.toISOString(),
@@ -78,6 +69,7 @@ export const NutritionContent = ({ embedded = false, clientId }: { embedded?: bo
         fats: fats === '' ? undefined : Number(fats),
         carbs: carbs === '' ? undefined : Number(carbs),
         notes: notes || undefined,
+        userId: clientId,
       }),
     )
     setCalories('')
@@ -91,138 +83,136 @@ export const NutritionContent = ({ embedded = false, clientId }: { embedded?: bo
     <Stack gap="xl">
       {!embedded && <Title order={2}>{t('nutritionPage.title')}</Title>}
 
-      {/* Hide input form if viewing client (until editing is supported) */}
-      {!clientId && (
-        <Card withBorder padding="md">
-          <Stack gap="md">
-            <Group justify="space-between" align="center">
-              <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                {t('nutritionPage.addEntry')}
-              </Text>
-            </Group>
+      {/* Input form */}
+      <Card withBorder padding="md">
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+              {t('nutritionPage.addEntry')}
+            </Text>
+          </Group>
 
-            <DateInput
-              label={t('nutritionPage.date')}
-              placeholder={t('nutritionPage.datePlaceholder')}
-              value={selectedDate}
-              onChange={(date) => {
-                setSelectedDate(date ? (typeof date === 'string' ? new Date(date) : date) : null)
-                if (date) {
-                  const entry = nutritionEntries.find((entry) =>
-                    dayjs(entry.date).isSame(dayjs(date), 'day'),
-                  )
-                  if (entry) {
-                    setCalories(entry.calories)
-                    setProteins(entry.proteins ?? '')
-                    setFats(entry.fats ?? '')
-                    setCarbs(entry.carbs ?? '')
-                    setNotes(entry.notes || '')
-                  } else {
-                    setCalories('')
-                    setProteins('')
-                    setFats('')
-                    setCarbs('')
-                    setNotes('')
-                  }
+          <DateInput
+            label={t('nutritionPage.date')}
+            placeholder={t('nutritionPage.datePlaceholder')}
+            value={selectedDate}
+            onChange={(date) => {
+              setSelectedDate(date ? (typeof date === 'string' ? new Date(date) : date) : null)
+              if (date) {
+                const entry = nutritionEntries.find((entry) =>
+                  dayjs(entry.date).isSame(dayjs(date), 'day'),
+                )
+                if (entry) {
+                  setCalories(entry.calories)
+                  setProteins(entry.proteins ?? '')
+                  setFats(entry.fats ?? '')
+                  setCarbs(entry.carbs ?? '')
+                  setNotes(entry.notes || '')
+                } else {
+                  setCalories('')
+                  setProteins('')
+                  setFats('')
+                  setCarbs('')
+                  setNotes('')
                 }
-              }}
-              leftSection={<IconCalendar size={16} />}
-              valueFormat="DD.MM.YYYY"
+              }
+            }}
+            leftSection={<IconCalendar size={16} />}
+            valueFormat="DD.MM.YYYY"
+          />
+
+          {selectedDateNutrition && (
+            <Text size="sm" c="dimmed">
+              {t('nutritionPage.alreadyRecorded')}: {selectedDateNutrition.calories.toLocaleString()}{' '}
+              {t('nutritionPage.kcal')}
+            </Text>
+          )}
+
+          <Group align="flex-end" gap="md">
+            <NumberInput
+              label={t('nutritionPage.calories')}
+              placeholder={t('nutritionPage.caloriesPlaceholder')}
+              value={calories}
+              onChange={(value) => setCalories(typeof value === 'number' ? value : '')}
+              min={0}
+              step={50}
+              style={{ maxWidth: 220 }}
             />
-
-            {selectedDateNutrition && (
-              <Text size="sm" c="dimmed">
-                {t('nutritionPage.alreadyRecorded')}: {selectedDateNutrition.calories.toLocaleString()}{' '}
-                {t('nutritionPage.kcal')}
-              </Text>
-            )}
-
-            <Group align="flex-end" gap="md">
-              <NumberInput
-                label={t('nutritionPage.calories')}
-                placeholder={t('nutritionPage.caloriesPlaceholder')}
-                value={calories}
-                onChange={(value) => setCalories(typeof value === 'number' ? value : '')}
-                min={0}
-                step={50}
-                style={{ maxWidth: 220 }}
-              />
-              <NumberInput
-                label={t('nutritionPage.proteins')}
-                placeholder={t('nutritionPage.proteinsPlaceholder')}
-                value={proteins}
-                onChange={(value) => setProteins(typeof value === 'number' ? value : '')}
-                min={0}
-                step={5}
-                style={{ maxWidth: 180 }}
-              />
-              <NumberInput
-                label={t('nutritionPage.fats')}
-                placeholder={t('nutritionPage.fatsPlaceholder')}
-                value={fats}
-                onChange={(value) => setFats(typeof value === 'number' ? value : '')}
-                min={0}
-                step={5}
-                style={{ maxWidth: 180 }}
-              />
-              <NumberInput
-                label={t('nutritionPage.carbs')}
-                placeholder={t('nutritionPage.carbsPlaceholder')}
-                value={carbs}
-                onChange={(value) => setCarbs(typeof value === 'number' ? value : '')}
-                min={0}
-                step={5}
-                style={{ maxWidth: 180 }}
-              />
-              <Button onClick={handleSave} disabled={!calories || calories <= 0 || !selectedDate}>
-                {t('common.save')}
-              </Button>
-            </Group>
-            <Textarea
-              label={t('nutritionPage.notes')}
-              placeholder={t('nutritionPage.notesPlaceholder')}
-              value={notes}
-              onChange={(event) => setNotes(event.currentTarget.value)}
-              minRows={3}
+            <NumberInput
+              label={t('nutritionPage.proteins')}
+              placeholder={t('nutritionPage.proteinsPlaceholder')}
+              value={proteins}
+              onChange={(value) => setProteins(typeof value === 'number' ? value : '')}
+              min={0}
+              step={5}
+              style={{ maxWidth: 180 }}
             />
+            <NumberInput
+              label={t('nutritionPage.fats')}
+              placeholder={t('nutritionPage.fatsPlaceholder')}
+              value={fats}
+              onChange={(value) => setFats(typeof value === 'number' ? value : '')}
+              min={0}
+              step={5}
+              style={{ maxWidth: 180 }}
+            />
+            <NumberInput
+              label={t('nutritionPage.carbs')}
+              placeholder={t('nutritionPage.carbsPlaceholder')}
+              value={carbs}
+              onChange={(value) => setCarbs(typeof value === 'number' ? value : '')}
+              min={0}
+              step={5}
+              style={{ maxWidth: 180 }}
+            />
+            <Button onClick={handleSave} disabled={!calories || calories <= 0 || !selectedDate}>
+              {t('common.save')}
+            </Button>
+          </Group>
+          <Textarea
+            label={t('nutritionPage.notes')}
+            placeholder={t('nutritionPage.notesPlaceholder')}
+            value={notes}
+            onChange={(event) => setNotes(event.currentTarget.value)}
+            minRows={3}
+          />
 
-            {(selectedDateNutrition?.proteins ||
-              selectedDateNutrition?.fats ||
-              selectedDateNutrition?.carbs ||
-              selectedDateNutrition?.notes) && (
-                <Card withBorder padding="sm" bg="gray.0">
-                  <Stack gap="sm">
-                    <Group gap="md">
-                      {selectedDateNutrition?.proteins !== undefined && (
-                        <Text size="sm">
-                          {t('nutritionPage.proteinsShort')}: {selectedDateNutrition.proteins} {t('nutritionPage.grams')}
-                        </Text>
-                      )}
-                      {selectedDateNutrition?.fats !== undefined && (
-                        <Text size="sm">
-                          {t('nutritionPage.fatsShort')}: {selectedDateNutrition.fats} {t('nutritionPage.grams')}
-                        </Text>
-                      )}
-                      {selectedDateNutrition?.carbs !== undefined && (
-                        <Text size="sm">
-                          {t('nutritionPage.carbsShort')}: {selectedDateNutrition.carbs} {t('nutritionPage.grams')}
-                        </Text>
-                      )}
-                    </Group>
-                    {selectedDateNutrition?.notes && (
-                      <Stack gap={4}>
-                        <Text size="xs" c="dimmed" fw={600}>
-                          {t('nutritionPage.savedNotes')}
-                        </Text>
-                        <Text size="sm">{selectedDateNutrition.notes}</Text>
-                      </Stack>
+          {(selectedDateNutrition?.proteins ||
+            selectedDateNutrition?.fats ||
+            selectedDateNutrition?.carbs ||
+            selectedDateNutrition?.notes) && (
+              <Card withBorder padding="sm" bg="gray.0">
+                <Stack gap="sm">
+                  <Group gap="md">
+                    {selectedDateNutrition?.proteins !== undefined && (
+                      <Text size="sm">
+                        {t('nutritionPage.proteinsShort')}: {selectedDateNutrition.proteins} {t('nutritionPage.grams')}
+                      </Text>
                     )}
-                  </Stack>
-                </Card>
-              )}
-          </Stack>
-        </Card>
-      )}
+                    {selectedDateNutrition?.fats !== undefined && (
+                      <Text size="sm">
+                        {t('nutritionPage.fatsShort')}: {selectedDateNutrition.fats} {t('nutritionPage.grams')}
+                      </Text>
+                    )}
+                    {selectedDateNutrition?.carbs !== undefined && (
+                      <Text size="sm">
+                        {t('nutritionPage.carbsShort')}: {selectedDateNutrition.carbs} {t('nutritionPage.grams')}
+                      </Text>
+                    )}
+                  </Group>
+                  {selectedDateNutrition?.notes && (
+                    <Stack gap={4}>
+                      <Text size="xs" c="dimmed" fw={600}>
+                        {t('nutritionPage.savedNotes')}
+                      </Text>
+                      <Text size="sm">{selectedDateNutrition.notes}</Text>
+                    </Stack>
+                  )}
+                </Stack>
+              </Card>
+            )}
+        </Stack>
+      </Card>
 
       <Card withBorder padding="md">
         <Stack gap="md">
@@ -267,22 +257,20 @@ export const NutritionContent = ({ embedded = false, clientId }: { embedded?: bo
                             )}
                           </Group>
                         </Stack>
-                        {!clientId && (
-                          <Button
-                            variant="subtle"
-                            size="xs"
-                            onClick={() => {
-                              setSelectedDate(dayjs(entry.date).toDate())
-                              setCalories(entry.calories)
-                              setProteins(entry.proteins ?? '')
-                              setFats(entry.fats ?? '')
-                              setCarbs(entry.carbs ?? '')
-                              setNotes(entry.notes || '')
-                            }}
-                          >
-                            {t('common.edit')}
-                          </Button>
-                        )}
+                        <Button
+                          variant="subtle"
+                          size="xs"
+                          onClick={() => {
+                            setSelectedDate(dayjs(entry.date).toDate())
+                            setCalories(entry.calories)
+                            setProteins(entry.proteins ?? '')
+                            setFats(entry.fats ?? '')
+                            setCarbs(entry.carbs ?? '')
+                            setNotes(entry.notes || '')
+                          }}
+                        >
+                          {t('common.edit')}
+                        </Button>
                       </Group>
                       {entry.notes && (
                         <Text size="xs" c="dimmed" lineClamp={2}>

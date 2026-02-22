@@ -156,12 +156,13 @@ export const fetchExerciseMetricEntries = createAsyncThunk(
 
 export const addBodyMetricEntryApi = createAsyncThunk(
   'metrics/addBodyMetricEntryApi',
-  async (data: { metricId: string; value: number; recordedAt: string }, { rejectWithValue, getState }) => {
+  async (data: { metricId: string; value: number; recordedAt: string; userId?: string }, { rejectWithValue, getState }) => {
     try {
       const entry = await apiClient.addBodyMetricEntry({
         metric_id: data.metricId,
         value: data.value,
         recorded_at: data.recordedAt,
+        user_id: data.userId,
       })
       // Получаем unit из уже загруженных метрик в state, чтобы избежать дополнительного запроса
       const state = getState() as { metrics: MetricsState }
@@ -175,7 +176,7 @@ export const addBodyMetricEntryApi = createAsyncThunk(
 
 export const addExerciseMetricEntryApi = createAsyncThunk(
   'metrics/addExerciseMetricEntryApi',
-  async (data: { exerciseId: string; date: string; weight: number; repetitions: number; sets: number }, { rejectWithValue }) => {
+  async (data: { exerciseId: string; date: string; weight: number; repetitions: number; sets: number; userId?: string }, { rejectWithValue }) => {
     try {
       const entry = await apiClient.addExerciseMetricEntry({
         exercise_metric_id: data.exerciseId,
@@ -183,6 +184,7 @@ export const addExerciseMetricEntryApi = createAsyncThunk(
         weight: data.weight,
         repetitions: data.repetitions,
         sets: data.sets,
+        user_id: data.userId,
       })
       return mapApiExerciseMetricEntryToState(entry)
     } catch (error: any) {
@@ -217,12 +219,17 @@ export const fetchBodyMetricTargetHistory = createAsyncThunk(
 
 export const createBodyMetricApi = createAsyncThunk(
   'metrics/createBodyMetricApi',
-  async (data: { label: string; unit: string; target?: number }, { rejectWithValue, dispatch }) => {
+  async (data: { label: string; unit: string; target?: number; userId?: string }, { rejectWithValue, dispatch }) => {
     try {
-      const metric = await apiClient.createBodyMetric(data)
+      const metric = await apiClient.createBodyMetric({
+        label: data.label,
+        unit: data.unit,
+        target: data.target,
+        user_id: data.userId,
+      })
       const mappedMetric = mapApiBodyMetricToState(metric)
       // После создания метрики перезагружаем список метрик
-      await dispatch(fetchBodyMetrics())
+      await dispatch(fetchBodyMetrics({ user_id: data.userId }))
       return mappedMetric
     } catch (error: any) {
       return rejectWithValue(error.message || 'Ошибка создания метрики тела')
@@ -232,12 +239,16 @@ export const createBodyMetricApi = createAsyncThunk(
 
 export const createExerciseMetricApi = createAsyncThunk(
   'metrics/createExerciseMetricApi',
-  async (data: { label: string; muscle_group?: string }, { rejectWithValue, dispatch }) => {
+  async (data: { label: string; muscle_group?: string; userId?: string }, { rejectWithValue, dispatch }) => {
     try {
-      const metric = await apiClient.createExerciseMetric(data)
+      const metric = await apiClient.createExerciseMetric({
+        label: data.label,
+        muscle_group: data.muscle_group,
+        user_id: data.userId,
+      })
       const mappedMetric = mapApiExerciseMetricToState(metric)
       // После создания метрики перезагружаем список метрик
-      await dispatch(fetchExerciseMetrics())
+      await dispatch(fetchExerciseMetrics({ user_id: data.userId }))
       return mappedMetric
     } catch (error: any) {
       return rejectWithValue(error.message || 'Ошибка создания метрики упражнения')
@@ -265,7 +276,7 @@ export const fetchNutritionEntries = createAsyncThunk(
 
 export const upsertNutritionEntryApi = createAsyncThunk(
   'metrics/upsertNutritionEntryApi',
-  async (data: Omit<DailyNutritionEntry, 'id'>, { rejectWithValue }) => {
+  async (data: Omit<DailyNutritionEntry, 'id'> & { userId?: string }, { rejectWithValue }) => {
     try {
       const entry = await apiClient.createOrUpdateNutritionEntry({
         date: data.date,
@@ -274,6 +285,7 @@ export const upsertNutritionEntryApi = createAsyncThunk(
         fats: data.fats,
         carbs: data.carbs,
         notes: data.notes,
+        user_id: data.userId,
       })
       return mapApiNutritionEntryToState(entry)
     } catch (error: any) {
