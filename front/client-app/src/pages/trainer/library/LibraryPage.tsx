@@ -1001,9 +1001,6 @@ export const LibraryPage = () => {
                     <Tabs.Tab value="programs" leftSection={<IconTemplate size={16} />}>
                         {t('trainer.library.programs')}
                     </Tabs.Tab>
-                    <Tabs.Tab value="exercise-templates" leftSection={<IconBooks size={16} />}>
-                        {t('trainer.library.exerciseTemplates')}
-                    </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="exercises" pt="lg">
@@ -1851,83 +1848,6 @@ export const LibraryPage = () => {
                             )}
                         </ScrollArea>
                     </Group>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="exercise-templates" pt="xl">
-                    <Stack gap="lg">
-                        <Group justify="space-between">
-                            <Title order={3}>{t('trainer.library.exerciseTemplates')}</Title>
-                            <Button leftSection={<IconPlus size={16} />} onClick={handleCreateExerciseTemplate}>
-                                {t('trainer.library.createExerciseTemplate')}
-                            </Button>
-                        </Group>
-
-                        {exerciseTemplates.length === 0 ? (
-                            <Card withBorder padding="xl">
-                                <Stack align="center" gap="md">
-                                    <IconTemplate size={48} color="var(--mantine-color-gray-4)" />
-                                    <Text c="dimmed">{t('trainer.library.exerciseTemplatesEmpty')}</Text>
-                                    <Button variant="light" onClick={handleCreateExerciseTemplate}>
-                                        {t('trainer.library.createFirstExerciseTemplate')}
-                                    </Button>
-                                </Stack>
-                            </Card>
-                        ) : (
-                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                                {exerciseTemplates.map((template) => {
-                                    const exercise = exercises.find(e => e.id === template.exerciseId)
-                                    return (
-                                        <Card key={template.id} withBorder padding="md" style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <Group justify="space-between" mb="xs">
-                                                <Text fw={600} size="lg">{template.name}</Text>
-                                                <Menu position="bottom-end" withinPortal>
-                                                    <Menu.Target>
-                                                        <ActionIcon variant="subtle" color="gray">
-                                                            <IconDotsVertical size={16} />
-                                                        </ActionIcon>
-                                                    </Menu.Target>
-                                                    <Menu.Dropdown>
-                                                        <Menu.Item leftSection={<IconEdit size={16} />} onClick={() => handleEditExerciseTemplate(template)}>
-                                                            {t('common.edit')}
-                                                        </Menu.Item>
-                                                        <Menu.Item leftSection={<IconTrash size={16} />} color="red" onClick={() => handleDeleteExerciseTemplate(template.id)}>
-                                                            {t('common.delete')}
-                                                        </Menu.Item>
-                                                    </Menu.Dropdown>
-                                                </Menu>
-                                            </Group>
-                                            <Stack gap={4} style={{ flexGrow: 1 }}>
-                                                <Group gap="xs">
-                                                    <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
-                                                    <Text size="sm" fw={500}>{exercise?.name || template.name}</Text>
-                                                </Group>
-                                                <Group gap="md" wrap="wrap">
-                                                    {template.sets && (
-                                                        <Group gap={4}>
-                                                            <IconRepeat size={14} color="var(--mantine-color-gray-6)" />
-                                                            <Text size="xs" c="dimmed">{template.sets} {t('program.sets')}</Text>
-                                                        </Group>
-                                                    )}
-                                                    {template.reps && (
-                                                        <Group gap={4}>
-                                                            <IconBarbell size={14} color="var(--mantine-color-gray-6)" />
-                                                            <Text size="xs" c="dimmed">× {template.reps} {t('program.reps')}</Text>
-                                                        </Group>
-                                                    )}
-                                                    {template.weight && (
-                                                        <Badge size="xs" variant="light" color="blue">{template.weight} кг</Badge>
-                                                    )}
-                                                </Group>
-                                                {template.notes && (
-                                                    <Text size="xs" c="dimmed" lineClamp={2} mt="xs">{template.notes}</Text>
-                                                )}
-                                            </Stack>
-                                        </Card>
-                                    )
-                                })}
-                            </SimpleGrid>
-                        )}
-                    </Stack>
                 </Tabs.Panel>
             </Tabs >
 

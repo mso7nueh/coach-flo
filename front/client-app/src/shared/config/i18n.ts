@@ -243,6 +243,7 @@ const resources = {
                 saturday: 'Сб',
                 sunday: 'Вс',
                 status: {
+                    title: 'Статус',
                     scheduled: 'Запланировано',
                     completed: 'Завершено',
                     missed: 'Пропущено',
@@ -665,6 +666,7 @@ const resources = {
                     edit: 'Редактировать',
                     clone: 'Клонировать',
                     delete: 'Удалить',
+                    allMuscleGroups: 'Все группы мышц',
                     filters: {
                         level: 'Уровень',
                         goal: 'Цель',
@@ -798,6 +800,7 @@ const resources = {
                     locationPlaceholder: 'Зал, адрес',
                     template: 'Шаблон тренировки',
                     noTemplate: 'Без шаблона',
+                    workoutLog: 'Журнал тренировки',
                     filterClients: 'Фильтр по клиентам',
                     workoutTitle: 'Название тренировки',
                     workoutTitlePlaceholder: 'Введите название тренировки',
@@ -1172,6 +1175,7 @@ const resources = {
                 saturday: 'Sat',
                 sunday: 'Sun',
                 status: {
+                    title: 'Status',
                     scheduled: 'Scheduled',
                     completed: 'Completed',
                     missed: 'Missed',
@@ -1632,6 +1636,7 @@ const resources = {
                     edit: 'Edit',
                     clone: 'Clone',
                     delete: 'Delete',
+                    allMuscleGroups: 'All Muscle Groups',
                     filters: {
                         level: 'Level',
                         goal: 'Goal',
@@ -1747,6 +1752,7 @@ const resources = {
                     locationPlaceholder: 'Gym, address',
                     template: 'Workout Template',
                     noTemplate: 'No Template',
+                    workoutLog: 'Workout Log',
                     filterClients: 'Filter by clients',
                     workoutTitle: 'Workout Title',
                     workoutTitlePlaceholder: 'Enter workout title',

@@ -415,7 +415,7 @@ export const ClientsPage = () => {
     }
 
     const formatDate = (date?: string) => {
-        if (!date) return t('trainer.clients.noWorkouts')
+        if (!date || !dayjs(date).isValid()) return t('trainer.clients.noWorkouts')
         return dayjs(date).format('D MMM, HH:mm')
     }
 
