@@ -10,7 +10,8 @@ import {
     IconLibrary,
     IconCalendarStats,
     IconBell,
-    IconApple
+    IconApple,
+    IconCurrencyRubel
 } from '@tabler/icons-react';
 
 interface BottomNavBarProps {
@@ -34,6 +35,7 @@ export const BottomNavBar = ({ role }: BottomNavBarProps) => {
         { to: '/trainer/library', label: t('common.library'), icon: IconLibrary },
         { to: '/trainer/calendar', label: t('common.trainerCalendar'), icon: IconCalendarStats },
         { to: '/trainer/notifications', label: t('notificationsPage.title'), icon: IconBell },
+        { to: '/trainer/finances', label: t('common.finances'), icon: IconCurrencyRubel },
     ];
 
     const items = role === 'client' ? clientItems : trainerItems;
