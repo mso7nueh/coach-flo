@@ -67,8 +67,27 @@ def migrate():
                         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {new_col} VARCHAR(255)"))
                         conn.execute(text(f"CREATE UNIQUE INDEX IF NOT EXISTS ix_users_connection_code ON users ({new_col})"))
                         conn.commit()
+                        logger.info(f"Successfully added column {new_col} to {table}.")
                     else:
                         logger.error(f"Neither {old_col} nor {new_col} found in {table}!")
+                
+                # Now, ensure all users have a connection code
+                if table == "users":
+                    logger.info("Checking for users with missing connection codes...")
+                    missing_codes = conn.execute(text(f"SELECT id FROM {table} WHERE {new_col} IS NULL")).fetchall()
+                    if missing_codes:
+                        logger.info(f"Found {len(missing_codes)} users missing connection codes. Generating...")
+                        import random
+                        import string
+                        for row in missing_codes:
+                            user_id = row[0]
+                            # Generate an 8-character uppercase alphanumeric code
+                            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                            conn.execute(text(f"UPDATE {table} SET {new_col} = :code WHERE id = :id"), {"code": code, "id": user_id})
+                        conn.commit()
+                        logger.info("Successfully generated missing connection codes.")
+                    else:
+                        logger.info("All users have a connection code.")
             
         logger.info("✅ Migration completed successfully!")
         return True

@@ -115,7 +115,7 @@ export const ProfilePage = () => {
             )}
 
             {
-                isTrainer && user.connectionCode && (
+                user.connectionCode && (
                     <Card withBorder padding="xl">
                         <Stack gap="md">
                             <Title order={4}>{t('profile.connectionCode')}</Title>
@@ -125,11 +125,11 @@ export const ProfilePage = () => {
                                 </Text>
                                 <Button
                                     variant="light"
-                                    size="sm"
+                                    color={codeCopied ? 'teal' : 'blue'}
                                     leftSection={codeCopied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                                     onClick={handleCopyCode}
                                 >
-                                    {codeCopied ? t('profile.codeCopied') : t('profile.copyCode')}
+                                    {codeCopied ? t('common.copied') : t('common.copy')}
                                 </Button>
                             </Group>
                             <Text size="sm" c="dimmed">
