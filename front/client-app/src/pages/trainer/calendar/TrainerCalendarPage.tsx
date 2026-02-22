@@ -15,6 +15,8 @@ import {
     Text,
     TextInput,
     Title,
+    Checkbox,
+    NumberInput,
 } from '@mantine/core'
 import { DateInput, TimeInput } from '@mantine/dates'
 import dayjs from 'dayjs'
@@ -37,6 +39,8 @@ import {
     IconTrash,
     IconUsers,
     IconListDetails,
+    IconRepeat,
+    IconNumbers,
 } from '@tabler/icons-react'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
@@ -240,8 +244,18 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
             end: endDateTime.toISOString(),
             location: formState.location,
             format: formState.format,
-            // templateId не должен передаваться как programDayId - это разные сущности
-            // programDayId должен быть только для дней программ, а не для шаблонов тренировок
+            recurrence: formState.isRecurring
+                ? {
+                    frequency: formState.recurrenceFrequency,
+                    interval: formState.recurrenceInterval,
+                    daysOfWeek:
+                        formState.recurrenceFrequency === 'weekly' && formState.recurrenceDaysOfWeek.length > 0
+                            ? formState.recurrenceDaysOfWeek
+                            : undefined,
+                    endDate: formState.recurrenceEndDate ? dayjs(formState.recurrenceEndDate).toISOString() : undefined,
+                    occurrences: formState.recurrenceOccurrences ?? undefined,
+                }
+                : undefined,
         }
 
         try {
@@ -595,6 +609,12 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                                                     endTime: dayjs(workout.end).format('HH:mm'),
                                                                     location: workout.location,
                                                                     format: workout.format,
+                                                                    isRecurring: !!workout.recurrence,
+                                                                    recurrenceFrequency: workout.recurrence?.frequency || 'weekly',
+                                                                    recurrenceInterval: workout.recurrence?.interval || 1,
+                                                                    recurrenceDaysOfWeek: workout.recurrence?.daysOfWeek || [],
+                                                                    recurrenceEndDate: workout.recurrence?.endDate ? new Date(workout.recurrence.endDate) : null,
+                                                                    recurrenceOccurrences: workout.recurrence?.occurrences || null,
                                                                 })
                                                                 open()
                                                             }}
@@ -727,6 +747,105 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                             }
                         }}
                     />
+
+                    <Card radius="lg" padding="md" withBorder style={{ backgroundColor: 'var(--mantine-color-violet-0)' }}>
+                        <Stack gap="sm">
+                            <Checkbox
+                                label={t('calendar.recurring')}
+                                checked={formState.isRecurring}
+                                onChange={(event) => {
+                                    const checked = event.currentTarget?.checked ?? false
+                                    setFormState((state) => ({ ...state, isRecurring: checked }))
+                                }}
+                            />
+                            {formState.isRecurring && (
+                                <Stack gap="md">
+                                    <Select
+                                        label={t('calendar.recurrenceFrequency')}
+                                        value={formState.recurrenceFrequency}
+                                        leftSection={<IconRepeat size={16} />}
+                                        onChange={(value) =>
+                                            setFormState((state) => ({
+                                                ...state,
+                                                recurrenceFrequency: (value as RecurrenceFrequency) || 'weekly',
+                                            }))
+                                        }
+                                        data={[
+                                            { value: 'daily', label: t('calendar.recurrenceDaily') },
+                                            { value: 'weekly', label: t('calendar.recurrenceWeekly') },
+                                            { value: 'monthly', label: t('calendar.recurrenceMonthly') },
+                                        ]}
+                                    />
+                                    <NumberInput
+                                        label={t('calendar.recurrenceInterval')}
+                                        value={formState.recurrenceInterval}
+                                        leftSection={<IconNumbers size={16} />}
+                                        onChange={(value) => setFormState((state) => ({ ...state, recurrenceInterval: Number(value) || 1 }))}
+                                        min={1}
+                                        required
+                                    />
+                                    {formState.recurrenceFrequency === 'weekly' && (
+                                        <Stack gap="xs">
+                                            <Text size="sm" fw={500}>
+                                                {t('calendar.daysOfWeek')}
+                                            </Text>
+                                            <Group gap="xs">
+                                                {[
+                                                    { value: 1, label: t('calendar.monday') },
+                                                    { value: 2, label: t('calendar.tuesday') },
+                                                    { value: 3, label: t('calendar.wednesday') },
+                                                    { value: 4, label: t('calendar.thursday') },
+                                                    { value: 5, label: t('calendar.friday') },
+                                                    { value: 6, label: t('calendar.saturday') },
+                                                    { value: 0, label: t('calendar.sunday') },
+                                                ].map((day) => (
+                                                    <Button
+                                                        key={`day-${day.value}`}
+                                                        variant={formState.recurrenceDaysOfWeek.includes(day.value as DayOfWeek) ? 'filled' : 'outline'}
+                                                        size="xs"
+                                                        onClick={() => {
+                                                            setFormState((state) => {
+                                                                const active = state.recurrenceDaysOfWeek.includes(day.value as DayOfWeek)
+                                                                return {
+                                                                    ...state,
+                                                                    recurrenceDaysOfWeek: active
+                                                                        ? state.recurrenceDaysOfWeek.filter((item) => item !== day.value)
+                                                                        : [...state.recurrenceDaysOfWeek, day.value as DayOfWeek],
+                                                                }
+                                                            })
+                                                        }}
+                                                    >
+                                                        {day.label}
+                                                    </Button>
+                                                ))}
+                                            </Group>
+                                        </Stack>
+                                    )}
+                                    <Group grow align="flex-end">
+                                        <NumberInput
+                                            label={t('calendar.recurrenceOccurrences')}
+                                            value={formState.recurrenceOccurrences || ''}
+                                            onChange={(value) =>
+                                                setFormState((state) => ({ ...state, recurrenceOccurrences: value ? Number(value) : null }))
+                                            }
+                                            placeholder="52"
+                                            min={1}
+                                            max={365}
+                                        />
+                                        <DateInput
+                                            label={t('calendar.recurrenceEndDate')}
+                                            value={formState.recurrenceEndDate}
+                                            onChange={(value) => setFormState((state) => ({ ...state, recurrenceEndDate: value as Date | null }))}
+                                            clearable
+                                            placeholder="2025-12-31"
+                                            leftSection={<IconCalendar size={16} />}
+                                        />
+                                    </Group>
+                                </Stack>
+                            )}
+                        </Stack>
+                    </Card>
+
                     <Group justify="flex-end" mt="md">
                         <Button variant="subtle" onClick={close}>
                             {t('common.cancel')}

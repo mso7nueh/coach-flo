@@ -102,7 +102,12 @@ async def create_workout(
         format=workout.format,
         program_day_id=program_day_id,
         trainer_id=trainer_id,
-        recurrence_series_id=series_id if workout.recurrence_frequency else None
+        recurrence_series_id=series_id if workout.recurrence_frequency else None,
+        recurrence_frequency=workout.recurrence_frequency,
+        recurrence_interval=workout.recurrence_interval,
+        recurrence_days_of_week=workout.recurrence_days_of_week,
+        recurrence_end_date=workout.recurrence_end_date,
+        recurrence_occurrences=workout.recurrence_occurrences
     )
     db.add(db_workout)
     
@@ -127,13 +132,29 @@ async def create_workout(
             elif workout.recurrence_frequency == "weekly":
                 if workout.recurrence_days_of_week:
                     # Находим следующий день недели
-                    current_day = current_date.weekday()
-                    next_days = [d for d in workout.recurrence_days_of_week if d > current_day]
+                    # Python weekday(): 0 = Mon, 6 = Sun
+                    # JS getDay(): 0 = Sun, 1 = Mon, ..., 6 = Sat
+                    
+                    # Convert JS days to Python days for easier calculation
+                    # JS 0 (Sun) -> Py 6 (Sun)
+                    # JS 1 (Mon) -> Py 0 (Mon)
+                    # ...
+                    py_target_days = [(d - 1) % 7 for d in workout.recurrence_days_of_week]
+                    py_target_days.sort()
+                    
+                    current_py_day = current_date.weekday()
+                    
+                    # Find next day in the same week
+                    next_days = [d for d in py_target_days if d > current_py_day]
+                    
                     if next_days:
-                        days_to_add = next_days[0] - current_day
+                        days_to_add = next_days[0] - current_py_day
+                        current_date = current_date + timedelta(days=days_to_add)
                     else:
-                        days_to_add = (7 - current_day) + workout.recurrence_days_of_week[0]
-                    current_date = current_date + timedelta(days=days_to_add)
+                        # Wrap around to next week's first allowed day and add interval minus 1
+                        days_to_add = (7 - current_py_day) + py_target_days[0]
+                        weeks_to_add = interval - 1
+                        current_date = current_date + timedelta(days=days_to_add, weeks=weeks_to_add)
                 else:
                     current_date = current_date + timedelta(weeks=interval)
             elif workout.recurrence_frequency == "monthly":

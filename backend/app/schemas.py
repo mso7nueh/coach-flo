@@ -192,6 +192,12 @@ class WorkoutResponse(WorkoutBase):
     user_id: str
     attendance: AttendanceStatus
     coach_note: Optional[str] = None
+    recurrence_series_id: Optional[str] = None
+    recurrence_frequency: Optional[str] = None
+    recurrence_interval: Optional[int] = None
+    recurrence_days_of_week: Optional[List[int]] = None
+    recurrence_end_date: Optional[datetime] = None
+    recurrence_occurrences: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

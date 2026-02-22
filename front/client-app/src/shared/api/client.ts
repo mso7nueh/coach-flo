@@ -74,16 +74,22 @@ export interface UserSettings {
 
 export interface Workout {
   id: string
-  user_id: string
   title: string
   start: string
   end: string
-  location?: string | null
-  format?: 'online' | 'offline' | null
-  attendance?: AttendanceStatus | null
-  coach_note?: string | null
-  trainer_id?: string | null
-  program_day_id?: string | null
+  location: string | null
+  format: 'online' | 'offline' | null
+  user_id: string
+  trainer_id: string | null
+  attendance: string
+  coach_note?: string
+  program_day_id?: string
+  recurrence_series_id?: string
+  recurrence_frequency?: string
+  recurrence_interval?: number
+  recurrence_days_of_week?: number[]
+  recurrence_end_date?: string
+  recurrence_occurrences?: number
   created_at: string
 }
 

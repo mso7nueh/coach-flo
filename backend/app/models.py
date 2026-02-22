@@ -150,6 +150,11 @@ class Workout(Base):
     program_day_id = Column(String, ForeignKey("program_days.id"), nullable=True)
     format = Column(SQLEnum(WorkoutFormat), nullable=True)
     recurrence_series_id = Column(String, nullable=True, index=True)
+    recurrence_frequency = Column(String, nullable=True)  # daily, weekly, monthly
+    recurrence_interval = Column(Integer, nullable=True)
+    recurrence_days_of_week = Column(ARRAY(Integer), nullable=True)
+    recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
+    recurrence_occurrences = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

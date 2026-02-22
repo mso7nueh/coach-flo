@@ -18,7 +18,7 @@ export interface RecurrenceRule {
   daysOfWeek?: DayOfWeek[] // Для weekly: дни недели
   endDate?: string // Дата окончания повторений
   occurrences?: number // Количество повторений
-  seriesId: string // ID серии повторяющихся тренировок
+  seriesId?: string // ID серии повторяющихся тренировок
 }
 
 export interface ClientWorkout {
@@ -71,6 +71,14 @@ const mapApiWorkoutToState = (workout: Workout): ClientWorkout => ({
   userId: workout.user_id || undefined,
   withTrainer: !!workout.trainer_id,
   format: workout.format || undefined,
+  recurrence: workout.recurrence_frequency ? {
+    frequency: workout.recurrence_frequency as import('./calendarSlice').RecurrenceFrequency,
+    interval: workout.recurrence_interval || 1,
+    daysOfWeek: workout.recurrence_days_of_week as import('./calendarSlice').DayOfWeek[] || [],
+    endDate: workout.recurrence_end_date || undefined,
+    occurrences: workout.recurrence_occurrences || undefined,
+    seriesId: workout.recurrence_series_id || '',
+  } : undefined,
 })
 
 export const fetchWorkouts = createAsyncThunk(
