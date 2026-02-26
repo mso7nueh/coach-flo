@@ -86,6 +86,7 @@ const mapApiProgramDayToState = (apiDay: ApiProgramDay, programId: string): Prog
         exerciseId: ex.exercise_id || undefined,
         sets: ex.sets || 0,
         reps: ex.reps || undefined,
+        weight: ex.weight || undefined,
         duration: ex.duration || undefined,
         rest: ex.rest || undefined,
         description: ex.description || undefined,
