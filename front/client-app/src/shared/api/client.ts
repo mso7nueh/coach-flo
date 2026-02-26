@@ -593,9 +593,10 @@ export const addExerciseToProgramDay = async (
     title: string
     sets: number
     reps?: number
-    duration?: number
-    rest?: number
-    weight?: number
+    duration?: string | null
+    rest?: string | null
+    weight?: string | null
+    description?: string | null
   }
 ): Promise<any> => {
   const { data: response } = await api.post(`/api/programs/${program_id}/days/${day_id}/blocks/${block_id}/exercises`, data)
@@ -611,9 +612,10 @@ export const updateExerciseInProgramDay = async (
     title?: string
     sets?: number
     reps?: number
-    duration?: number
-    rest?: number
-    weight?: number
+    duration?: string | null
+    rest?: string | null
+    weight?: string | null
+    description?: string | null
   }
 ): Promise<any> => {
   const { data: response } = await api.put(

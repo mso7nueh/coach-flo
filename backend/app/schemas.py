@@ -221,6 +221,17 @@ class ProgramExerciseCreate(ProgramExerciseBase):
     pass
 
 
+class ProgramExerciseUpdate(BaseModel):
+    title: Optional[str] = None
+    sets: Optional[int] = None
+    reps: Optional[int] = None
+    duration: Optional[str] = None
+    rest: Optional[str] = None
+    weight: Optional[str] = None
+    description: Optional[str] = None
+    video_url: Optional[str] = None
+
+
 class ProgramExerciseResponse(ProgramExerciseBase):
     id: str
     order: int

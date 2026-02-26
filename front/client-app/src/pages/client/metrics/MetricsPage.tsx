@@ -556,7 +556,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
 
         <Tabs.Panel value="body" pt="md">
           <Group align="flex-start" gap="xl">
-            <Card w={280} withBorder style={{ position: 'sticky', top: 20 }}>
+            <Card w={{ base: '100%', md: 280 }} withBorder pos={{ base: 'relative', md: 'sticky' }} top={20} style={{ zIndex: 1 }}>
               <Stack gap="md">
                 <Group justify="space-between">
                   <Title order={4}>{t('metricsPage.bodyMetrics')}</Title>
@@ -571,7 +571,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                     </Group>
                   )}
                 </Group>
-                <ScrollArea h={600}>
+                <ScrollArea h={{ base: 350, md: 600 }}>
                   <Stack gap="xs">
                     {bodyMetrics.length === 0 ? (
                       <Card padding="md" withBorder>
@@ -660,7 +660,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                 </ScrollArea>
               </Stack>
             </Card>
-            <Card withBorder style={{ flex: 1 }} padding="xl">
+            <Card withBorder style={{ flex: 1, minWidth: 'min(100%, 300px)' }} padding="xl">
               <Stack gap="lg">
                 {selectedMetric ? (
                   <>
@@ -860,7 +860,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
 
         <Tabs.Panel value="exercises" pt="md">
           <Group align="flex-start" gap="xl">
-            <Card w={280} withBorder style={{ position: 'sticky', top: 20 }}>
+            <Card w={{ base: '100%', md: 280 }} withBorder pos={{ base: 'relative', md: 'sticky' }} top={20} style={{ zIndex: 1 }}>
               <Stack gap="md">
                 <Group justify="space-between">
                   <Title order={4}>{t('metricsPage.tabs.exercises')}</Title>
@@ -875,7 +875,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
                     </Group>
                   )}
                 </Group>
-                <ScrollArea h={600}>
+                <ScrollArea h={{ base: 350, md: 600 }}>
                   <Stack gap="xs">
                     {exerciseMetrics.length === 0 ? (
                       <Card padding="md" withBorder>
@@ -997,7 +997,7 @@ export const MetricsPage = ({ clientId, readOnly = false }: MetricsPageProps) =>
               </Stack>
             </Card>
 
-            <Card withBorder style={{ flex: 1 }} padding="xl">
+            <Card withBorder style={{ flex: 1, minWidth: 'min(100%, 300px)' }} padding="xl">
               <Stack gap="lg">
                 {selectedExercise ? (
                   <>

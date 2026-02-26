@@ -140,43 +140,9 @@ async def copy_program(
     return db_program
 
 
-# Request schemas for program exercises (numeric format)
-class ProgramExerciseCreateNumeric(BaseModel):
-    title: str
-    sets: int = 1
-    reps: Optional[int] = None
-    duration: Optional[int] = None  # minutes
-    rest: Optional[int] = None  # seconds
-    weight: Optional[float] = None  # kg
-
-
-class ProgramExerciseUpdateNumeric(BaseModel):
-    title: Optional[str] = None
-    sets: Optional[int] = None
-    reps: Optional[int] = None
-    duration: Optional[int] = None  # minutes
-    rest: Optional[int] = None  # seconds
-    weight: Optional[float] = None  # kg
-
-
 class ProgramDayUpdate(BaseModel):
     name: Optional[str] = None
     order: Optional[int] = None
-
-
-class ProgramExerciseResponseNumeric(BaseModel):
-    id: str
-    block_id: str
-    title: str
-    sets: int
-    reps: Optional[int] = None
-    duration: Optional[int] = None  # minutes
-    rest: Optional[int] = None  # seconds
-    weight: Optional[float] = None  # kg
-    order: int
-
-    class Config:
-        from_attributes = True
 
 
 @router.post("/", response_model=schemas.TrainingProgramResponse, status_code=status.HTTP_201_CREATED)
@@ -582,56 +548,6 @@ async def delete_program_day(
     return None
 
 
-# Helper functions for converting between string and numeric formats
-def _string_to_number(value: Optional[str], unit: str) -> Optional[int]:
-    """Convert string like '90 сек' to integer 90"""
-    if not value:
-        return None
-    try:
-        return int(value.replace(f" {unit}", "").strip())
-    except (ValueError, AttributeError):
-        return None
-
-
-def _number_to_string(value: Optional[int], unit: str) -> Optional[str]:
-    """Convert integer 90 to string '90 сек'"""
-    if value is None:
-        return None
-    return f"{value} {unit}"
-
-
-def _string_to_float(value: Optional[str], unit: str) -> Optional[float]:
-    """Convert string like '70 кг' to float 70.0"""
-    if not value:
-        return None
-    try:
-        return float(value.replace(f" {unit}", "").strip())
-    except (ValueError, AttributeError):
-        return None
-
-
-def _float_to_string(value: Optional[float], unit: str) -> Optional[str]:
-    """Convert float 70.0 to string '70 кг'"""
-    if value is None:
-        return None
-    return f"{value} {unit}"
-
-
-def _exercise_to_numeric_response(exercise: models.ProgramExercise) -> ProgramExerciseResponseNumeric:
-    """Convert exercise from DB format to numeric API response"""
-    return ProgramExerciseResponseNumeric(
-        id=exercise.id,
-        block_id=exercise.block_id,
-        title=exercise.title,
-        sets=exercise.sets,
-        reps=exercise.reps,
-        duration=_string_to_number(exercise.duration, "мин"),
-        rest=_string_to_number(exercise.rest, "сек"),
-        weight=_string_to_float(exercise.weight, "кг"),
-        order=exercise.order
-    )
-
-
 def _check_program_access(program: models.TrainingProgram, current_user: models.User, db: Session) -> bool:
     """Check if user has access to program"""
     if current_user.role == models.UserRole.TRAINER:
@@ -709,7 +625,7 @@ async def update_program_day(
 @router.post(
     "/{program_id}/days/{day_id}/blocks/{block_id}/exercises",
     status_code=status.HTTP_201_CREATED,
-    response_model=ProgramExerciseResponseNumeric,
+    response_model=schemas.ProgramExerciseResponse,
     summary="Добавить упражнение в блок",
     description="""
     Добавление упражнения в блок дня программы.
@@ -718,13 +634,6 @@ async def update_program_day(
     - `program_id` - ID программы
     - `day_id` - ID дня программы
     - `block_id` - ID блока дня программы
-    
-    **Формат данных:**
-    - `rest` передается как integer (секунды)
-    - `duration` передается как integer (минуты)
-    - `weight` передается как float (кг)
-    
-    В базе данных эти значения хранятся как строки с единицами измерения.
     
     **Права доступа:**
     - Тренер может добавлять упражнения в дни своих программ и программ своих клиентов
@@ -737,7 +646,7 @@ async def create_program_exercise(
     program_id: str,
     day_id: str,
     block_id: str,
-    exercise_data: ProgramExerciseCreateNumeric,
+    exercise_data: schemas.ProgramExerciseCreate,
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -791,21 +700,23 @@ async def create_program_exercise(
         title=exercise_dict["title"],
         sets=exercise_dict["sets"],
         reps=exercise_dict.get("reps"),
-        duration=_number_to_string(exercise_dict.get("duration"), "мин"),
-        rest=_number_to_string(exercise_dict.get("rest"), "сек"),
-        weight=_float_to_string(exercise_dict.get("weight"), "кг"),
+        duration=exercise_dict.get("duration"),
+        rest=exercise_dict.get("rest"),
+        weight=exercise_dict.get("weight"),
+        description=exercise_dict.get("description"),
+        video_url=exercise_dict.get("video_url"),
         order=order
     )
     db.add(db_exercise)
     db.commit()
     db.refresh(db_exercise)
     
-    return _exercise_to_numeric_response(db_exercise)
+    return db_exercise
 
 
 @router.put(
     "/{program_id}/days/{day_id}/blocks/{block_id}/exercises/{exercise_id}",
-    response_model=ProgramExerciseResponseNumeric,
+    response_model=schemas.ProgramExerciseResponse,
     summary="Обновить упражнение в блоке",
     description="""
     Обновление упражнения в блоке дня программы.
@@ -830,7 +741,7 @@ async def update_program_exercise(
     day_id: str,
     block_id: str,
     exercise_id: str,
-    exercise_update: ProgramExerciseUpdateNumeric,
+    exercise_update: schemas.ProgramExerciseUpdate,
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -866,16 +777,20 @@ async def update_program_exercise(
     if "reps" in update_data:
         exercise.reps = update_data.get("reps")
     if "duration" in update_data:
-        exercise.duration = _number_to_string(update_data.get("duration"), "мин")
+        exercise.duration = update_data.get("duration")
     if "rest" in update_data:
-        exercise.rest = _number_to_string(update_data.get("rest"), "сек")
+        exercise.rest = update_data.get("rest")
     if "weight" in update_data:
-        exercise.weight = _float_to_string(update_data.get("weight"), "кг")
+        exercise.weight = update_data.get("weight")
+    if "description" in update_data:
+        exercise.description = update_data.get("description")
+    if "video_url" in update_data:
+        exercise.video_url = update_data.get("video_url")
     
     db.commit()
     db.refresh(exercise)
     
-    return _exercise_to_numeric_response(exercise)
+    return exercise
 
 
 @router.delete(

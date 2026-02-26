@@ -297,9 +297,10 @@ export const addExerciseToProgramDayApi = createAsyncThunk(
         title: exercise.title,
         sets: exercise.sets,
         reps: exercise.reps ? parseInt(String(exercise.reps)) : undefined,
-        weight: exercise.weight ? parseFloat(String(exercise.weight)) : undefined,
-        duration: exercise.duration ? parseInt(String(exercise.duration).replace(/\s*мин\s*/g, '')) || undefined : undefined,
-        rest: exercise.rest ? parseFloat(String(exercise.rest).replace(/\s*(сек|мин|sec|min)\s*/g, '')) || undefined : undefined,
+        weight: exercise.weight ? String(exercise.weight) : undefined,
+        duration: exercise.duration ? String(exercise.duration) : undefined,
+        rest: exercise.rest ? String(exercise.rest) : undefined,
+        description: exercise.description ? String(exercise.description) : undefined,
       })
       // После добавления упражнения нужно перезагрузить день программы
       const day = await apiClient.getProgramDay(programId, dayId)
@@ -333,9 +334,10 @@ export const updateExerciseInProgramDayApi = createAsyncThunk(
         title: exercise.title,
         sets: exercise.sets,
         reps: exercise.reps ? parseInt(String(exercise.reps)) : undefined,
-        weight: exercise.weight ? parseFloat(String(exercise.weight)) : undefined,
-        duration: exercise.duration ? parseInt(String(exercise.duration).replace(/\s*мин\s*/g, '')) || undefined : undefined,
-        rest: exercise.rest ? parseFloat(String(exercise.rest).replace(/\s*(сек|мин|sec|min)\s*/g, '')) || undefined : undefined,
+        weight: exercise.weight ? String(exercise.weight) : undefined,
+        duration: exercise.duration ? String(exercise.duration) : undefined,
+        rest: exercise.rest ? String(exercise.rest) : undefined,
+        description: exercise.description ? String(exercise.description) : undefined,
       })
       // После обновления упражнения нужно перезагрузить день программы
       const day = await apiClient.getProgramDay(programId, dayId)

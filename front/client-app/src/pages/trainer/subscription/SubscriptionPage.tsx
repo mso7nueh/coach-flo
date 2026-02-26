@@ -306,7 +306,7 @@ export const SubscriptionPage = () => {
                                             </>
                                         ) : (
                                             <Text fw={700} size="xl" style={{ fontSize: 32, lineHeight: 1 }}>
-                                                Индивидуально
+                                                По запросу
                                             </Text>
                                         )}
                                     </Stack>
