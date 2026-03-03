@@ -341,6 +341,7 @@ async def register_step2(
             id=str(uuid.uuid4()),
             trainer_id=user.id,
             client_id=demo_client_id,
+            title="Добро пожаловать!",
             content="Это ваш демонстрационный клиент. Вы можете планировать для него тренировки, отслеживать метрики и писать заметки, чтобы ознакомиться с функционалом системы."
         )
         db.add(demo_note)
