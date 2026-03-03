@@ -573,6 +573,7 @@ class DashboardStats(BaseModel):
     attendance_rate: float
     today_workouts: int
     next_workout: Optional[WorkoutResponse] = None
+    last_workout: Optional[WorkoutResponse] = None
     goal: Optional[GoalResponse] = None
     progress_photos: List[ProgressPhotoResponse] = []
 

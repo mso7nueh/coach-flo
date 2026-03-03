@@ -609,6 +609,8 @@ const resources = {
                     clientCreated: 'Клиент успешно создан',
                     clientUpdated: 'Клиент успешно обновлен',
                     clientDeleted: 'Клиент успешно удален',
+                    clientDisabled: 'Клиент отключен',
+                    confirmDisable: 'Вы уверены, что хотите отключить этого клиента?',
                     invitationLinkCopied: 'Ссылка скопирована',
                     invitationCodeCopied: 'Код скопирован',
                     invitationModal: {

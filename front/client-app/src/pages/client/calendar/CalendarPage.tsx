@@ -628,7 +628,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                                             {exercise.title} ({exercise.sets}x
                                                                             {exercise.reps ? `, ${exercise.reps}` : exercise.duration ? `, ${exercise.duration}` : ''}
                                                                             {exercise.weight ? `, ${exercise.weight}` : ''}
-                                                                            {exercise.rest ? `, ${exercise.rest}` : ''})
+                                                                            {exercise.rest ? `, ${exercise.rest.replace(/\s*сек\s*$/i, ' мин')}` : ''})
                                                                         </Text>
                                                                     )),
                                                                 )}
@@ -976,7 +976,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                                                 {(exercise.duration || exercise.rest) && (
                                                     <Group gap="md" mt={4} ml={32}>
                                                         {exercise.duration && <Text size="xs" c="dimmed">⏳ {exercise.duration}</Text>}
-                                                        {exercise.rest && <Text size="xs" c="dimmed">💤 {exercise.rest}</Text>}
+                                                        {exercise.rest && <Text size="xs" c="dimmed">💤 {exercise.rest.replace(/\s*сек\s*$/i, ' мин')}</Text>}
                                                     </Group>
                                                 )}
                                             </Card>

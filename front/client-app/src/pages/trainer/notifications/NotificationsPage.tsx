@@ -71,7 +71,15 @@ export default function NotificationsPage() {
             markAsRead(notification.id)
         }
         if (notification.link) {
-            navigate(notification.link)
+            const link = notification.link
+            // Only use navigate() for internal app paths to avoid falling through to auth
+            if (link.startsWith('/trainer') || link.startsWith('/client')) {
+                navigate(link)
+            } else if (link.startsWith('/')) {
+                // Relative path but unrecognized prefix — still try navigate
+                navigate(link)
+            }
+            // Ignore empty or external links
         }
     }
 

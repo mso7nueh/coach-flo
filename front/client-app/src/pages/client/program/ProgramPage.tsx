@@ -1182,13 +1182,13 @@ export const ProgramPage = () => {
                                       <Group gap={4}>
                                         <IconClock size={14} color="var(--mantine-color-gray-6)" />
                                         <Text size="xs" c="dimmed">
-                                          {exercise.rest}
+                                          {exercise.rest.replace(/\s*сек\s*$/i, ' мин')}
                                         </Text>
                                       </Group>
                                     )}
                                     {exercise.weight && (
                                       <Badge variant="light" color={config.color} size="sm">
-                                        {exercise.weight}
+                                        {/^\d/.test(exercise.weight) ? `${exercise.weight} кг` : exercise.weight}
                                       </Badge>
                                     )}
                                   </Group>
@@ -1589,7 +1589,7 @@ export const ProgramPage = () => {
                   <Card withBorder padding="md" radius="md" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-green-0)', borderColor: 'var(--mantine-color-green-2)' }}>
                     <IconClock size={24} color="var(--mantine-color-green-6)" style={{ margin: '0 auto 8px' }} />
                     <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{t('common.rest')}</Text>
-                    <Text fw={800} size="xl" c="green.9">{viewingProgramExercise.rest}</Text>
+                    <Text fw={800} size="xl" c="green.9">{viewingProgramExercise.rest.replace(/\s*сек\s*$/i, ' мин')}</Text>
                   </Card>
                 )}
                 {viewingProgramExercise.duration && (
@@ -1603,7 +1603,7 @@ export const ProgramPage = () => {
                   <Card withBorder padding="md" radius="md" style={{ textAlign: 'center', backgroundColor: 'var(--mantine-color-pink-0)', borderColor: 'var(--mantine-color-pink-2)' }}>
                     <IconBarbell size={24} color="var(--mantine-color-pink-6)" style={{ margin: '0 auto 8px' }} />
                     <Text size="xs" c="dimmed" fw={700} tt="uppercase" style={{ letterSpacing: '0.5px' }}>{t('program.weight')}</Text>
-                    <Text fw={800} size="xl" c="pink.9">{viewingProgramExercise.weight}</Text>
+                    <Text fw={800} size="xl" c="pink.9">{/^\d/.test(viewingProgramExercise.weight) ? `${viewingProgramExercise.weight} кг` : viewingProgramExercise.weight}</Text>
                   </Card>
                 )}
               </SimpleGrid>

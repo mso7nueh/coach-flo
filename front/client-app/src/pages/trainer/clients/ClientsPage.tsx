@@ -215,8 +215,8 @@ export const ClientsPage = () => {
                                     totalWorkouts: result.stats.total_workouts || 0,
                                     completedWorkouts: result.stats.completed_workouts || 0,
                                     attendanceRate: result.stats.attendance_rate || 0,
-                                    lastWorkout: result.stats.last_workout || undefined,
-                                    nextWorkout: result.stats.next_workout || undefined,
+                                    lastWorkout: result.stats.last_workout?.start || undefined,
+                                    nextWorkout: result.stats.next_workout?.start || undefined,
                                 },
                             }))
                         }

@@ -218,6 +218,30 @@ async def update_client(
     return schemas.UserResponse.model_validate(client)
 
 
+@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_client(
+    client_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Удалить клиента (только для тренеров)"""
+    if current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут удалять клиентов")
+
+    client = db.query(models.User).filter(
+        and_(
+            models.User.id == client_id,
+            models.User.trainer_id == current_user.id
+        )
+    ).first()
+
+    if not client:
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+
+    db.delete(client)
+    db.commit()
+
+
 @router.get("/{client_id}/onboarding", response_model=schemas.OnboardingResponse)
 async def get_client_onboarding(
     client_id: str,
@@ -337,6 +361,14 @@ async def get_client_stats(
         )
     ).order_by(models.Workout.start.asc()).first()
     
+    # Последняя тренировка (самая недавняя прошедшая)
+    last_workout = db.query(models.Workout).filter(
+        and_(
+            models.Workout.user_id == client_id,
+            models.Workout.start < today
+        )
+    ).order_by(models.Workout.start.desc()).first()
+    
     # Цель (берем первую активную)
     user_goal = db.query(models.UserGoal).filter(
         models.UserGoal.user_id == client_id
@@ -364,6 +396,7 @@ async def get_client_stats(
         attendance_rate=round(attendance_rate, 2),
         today_workouts=today_workouts,
         next_workout=next_workout,
+        last_workout=last_workout,
         goal=goal_response,
         progress_photos=photos
     )

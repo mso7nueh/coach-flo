@@ -353,7 +353,7 @@ async def update_workout(
                 type="workout_rescheduled",
                 title=f"Клиент {current_user.full_name} перенес тренировку",
                 content=f"Тренировка '{workout.title}' перенесена на {workout.start.strftime('%d.%m.%Y %H:%M')}",
-                link=f"/clients/{current_user.id}/calendar?workout_id={workout.id}"
+                link=f"/trainer/clients/{current_user.id}/calendar?workout_id={workout.id}"
             )
             db.add(notification)
             db.commit()

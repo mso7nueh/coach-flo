@@ -1752,13 +1752,13 @@ export const LibraryPage = () => {
                                                                                     <Group gap={4}>
                                                                                         <IconClock size={14} color="var(--mantine-color-gray-6)" />
                                                                                         <Text size="xs" c="dimmed">
-                                                                                            {exercise.rest}
+                                                                                            {exercise.rest.replace(/\s*сек\s*$/i, ' мин')}
                                                                                         </Text>
                                                                                     </Group>
                                                                                 )}
                                                                                 {exercise.weight && (
                                                                                     <Badge variant="light" color={config.color} size="sm">
-                                                                                        {exercise.weight}
+                                                                                        {/^\d/.test(exercise.weight) ? `${exercise.weight} кг` : exercise.weight}
                                                                                     </Badge>
                                                                                 )}
                                                                             </Group>

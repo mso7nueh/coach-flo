@@ -52,6 +52,7 @@ import { fetchPayments } from '@/app/store/slices/financesSlice'
 import { fetchWorkouts, updateWorkoutAttendance, updateWorkoutApi } from '@/app/store/slices/calendarSlice'
 import { fetchBodyMetrics, fetchBodyMetricEntries, setBodyMetrics, setBodyMetricEntries } from '@/app/store/slices/metricsSlice'
 import { useEffect, useState, useMemo } from 'react'
+import { notifications } from '@mantine/notifications'
 import { apiClient } from '@/shared/api/client'
 import type { DashboardStats } from '@/shared/api/client'
 import { ClientProgramContent } from './ClientProgramPage'
@@ -284,8 +285,23 @@ export const ClientDashboardPage = () => {
     const todayWorkouts = stats?.today_workouts ?? 0
 
     // Handlers
-    const handleDisableClient = () => {
-        dispatch(updateClient({ id: client.id, updates: { isActive: false } }))
+    const handleDisableClient = async () => {
+        if (!confirm(t('trainer.clients.confirmDisable'))) return
+        try {
+            await apiClient.updateClient(client.id, { is_active: false })
+            dispatch(updateClient({ id: client.id, updates: { isActive: false } }))
+            notifications.show({
+                title: t('common.success'),
+                message: t('trainer.clients.clientDisabled'),
+                color: 'green',
+            })
+        } catch (error: any) {
+            notifications.show({
+                title: t('common.error'),
+                message: error?.response?.data?.detail || t('trainer.clients.error.updateClient'),
+                color: 'red',
+            })
+        }
     }
 
     const handleNextPhoto = () => setSelectedPhotoIndex(prev => prev < progressPhotos.length - 1 ? prev + 1 : 0)
