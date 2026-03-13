@@ -1,15 +1,10 @@
 """
 Миграция: приведение значений enum userrole в PostgreSQL к нижнему регистру.
-
-Проблема: enum type userrole в БД содержит значения в верхнем регистре
-(CLIENT, TRAINER), а SQLAlchemy ожидает нижний (client, trainer, club_admin).
-
-Решение: переименовываем существующие значения и добавляем club_admin.
+Обрабатывает ВСЕ таблицы, использующие этот enum (users, pending_registrations и др.)
 
 Запуск: python migrate_enum_case.py
 """
 import os
-import sys
 from sqlalchemy import create_engine, text
 
 DATABASE_URL = os.getenv(
@@ -22,72 +17,103 @@ engine = create_engine(DATABASE_URL)
 
 def migrate():
     with engine.connect() as conn:
-        # Шаг 1: Проверяем текущие значения enum
+        # Проверяем, в каком состоянии мы находимся
+        # (возможно скрипт уже частично выполнился ранее)
         result = conn.execute(text("""
-            SELECT unnest(enum_range(NULL::userrole))::text AS val
+            SELECT EXISTS (
+                SELECT 1 FROM pg_type WHERE typname = 'userrole_old'
+            )
         """))
-        current_values = [row[0] for row in result]
-        print(f"Текущие значения enum userrole: {current_values}")
+        has_old_type = result.scalar()
 
-        # Шаг 2: Определяем, нужна ли миграция
-        has_uppercase = any(v.isupper() or v == 'CLUB_ADMIN' for v in current_values)
-        has_lowercase = 'client' in current_values
+        if has_old_type:
+            print("🔄 Обнаружен userrole_old — продолжаю прерванную миграцию...")
 
-        if has_lowercase and not has_uppercase:
-            print("✅ Значения enum уже в нижнем регистре, миграция не требуется.")
-            # Проверим наличие club_admin
-            if 'club_admin' not in current_values:
-                print("Добавляю club_admin...")
-                conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'club_admin'"))
+            # Найдём все таблицы/столбцы, которые всё ещё используют userrole_old
+            result = conn.execute(text("""
+                SELECT c.table_name, c.column_name
+                FROM information_schema.columns c
+                JOIN pg_type t ON c.udt_name = t.typname
+                WHERE t.typname = 'userrole_old'
+            """))
+            dependent_columns = [(row[0], row[1]) for row in result]
+            print(f"Столбцы, зависящие от userrole_old: {dependent_columns}")
+
+            for table_name, column_name in dependent_columns:
+                print(f"  → Конвертирую {table_name}.{column_name}...")
+                conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE text'))
                 conn.commit()
-                print("✅ club_admin добавлен.")
-            return
+                conn.execute(text(f'UPDATE "{table_name}" SET "{column_name}" = LOWER("{column_name}")'))
+                conn.commit()
+                conn.execute(text(
+                    f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE userrole USING "{column_name}"::userrole'
+                ))
+                conn.commit()
+                print(f"  ✅ {table_name}.{column_name} сконвертирован")
 
-        if not has_uppercase:
-            print("Не найдены значения в верхнем регистре. Проверьте вручную.")
-            return
+            # Теперь можем удалить старый тип
+            conn.execute(text("DROP TYPE IF EXISTS userrole_old"))
+            conn.commit()
+            print("✅ userrole_old удалён.")
 
-        print("🔄 Обнаружены значения в верхнем регистре. Начинаю миграцию...")
+        else:
+            # Полная миграция с нуля
+            result = conn.execute(text("""
+                SELECT unnest(enum_range(NULL::userrole))::text AS val
+            """))
+            current_values = [row[0] for row in result]
+            print(f"Текущие значения enum userrole: {current_values}")
 
-        # Шаг 3: Создаём новый enum с правильными значениями (нижний регистр)
-        conn.execute(text("ALTER TYPE userrole RENAME TO userrole_old"))
-        conn.commit()
+            has_uppercase = any(v != v.lower() for v in current_values)
+            if not has_uppercase:
+                print("✅ Значения enum уже в нижнем регистре.")
+                if 'club_admin' not in current_values:
+                    conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'club_admin'"))
+                    conn.commit()
+                    print("✅ club_admin добавлен.")
+                return
 
-        conn.execute(text("CREATE TYPE userrole AS ENUM ('client', 'trainer', 'club_admin')"))
-        conn.commit()
+            print("🔄 Обнаружены значения в верхнем регистре. Начинаю миграцию...")
 
-        # Шаг 4: Обновляем столбец role — переводим в text, потом обратно в новый enum
-        conn.execute(text("""
-            ALTER TABLE users 
-            ALTER COLUMN role TYPE text
-        """))
-        conn.commit()
+            # 1. Находим ВСЕ столбцы, зависящие от userrole
+            result = conn.execute(text("""
+                SELECT c.table_name, c.column_name
+                FROM information_schema.columns c
+                WHERE c.udt_name = 'userrole'
+            """))
+            dependent_columns = [(row[0], row[1]) for row in result]
+            print(f"Столбцы, зависящие от userrole: {dependent_columns}")
 
-        # Шаг 5: Конвертируем значения в нижний регистр
-        conn.execute(text("""
-            UPDATE users SET role = LOWER(role)
-        """))
-        conn.commit()
+            # 2. Переименовываем старый enum
+            conn.execute(text("ALTER TYPE userrole RENAME TO userrole_old"))
+            conn.commit()
 
-        # Шаг 6: Переключаем на новый enum
-        conn.execute(text("""
-            ALTER TABLE users 
-            ALTER COLUMN role TYPE userrole USING role::userrole
-        """))
-        conn.commit()
+            # 3. Создаём новый enum
+            conn.execute(text("CREATE TYPE userrole AS ENUM ('client', 'trainer', 'club_admin')"))
+            conn.commit()
 
-        # Шаг 7: Удаляем старый enum
-        conn.execute(text("DROP TYPE userrole_old"))
-        conn.commit()
+            # 4. Конвертируем каждый столбец
+            for table_name, column_name in dependent_columns:
+                print(f"  → Конвертирую {table_name}.{column_name}...")
+                conn.execute(text(f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE text'))
+                conn.commit()
+                conn.execute(text(f'UPDATE "{table_name}" SET "{column_name}" = LOWER("{column_name}")'))
+                conn.commit()
+                conn.execute(text(
+                    f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" TYPE userrole USING "{column_name}"::userrole'
+                ))
+                conn.commit()
+                print(f"  ✅ {table_name}.{column_name} сконвертирован")
 
-        print("✅ Миграция завершена! Все значения теперь в нижнем регистре.")
+            # 5. Удаляем старый enum
+            conn.execute(text("DROP TYPE userrole_old"))
+            conn.commit()
 
-        # Проверка
-        result = conn.execute(text("""
-            SELECT unnest(enum_range(NULL::userrole))::text AS val
-        """))
+        # Финальная проверка
+        result = conn.execute(text("SELECT unnest(enum_range(NULL::userrole))::text AS val"))
         new_values = [row[0] for row in result]
-        print(f"Новые значения enum userrole: {new_values}")
+        print(f"\n✅ Миграция завершена!")
+        print(f"Значения enum userrole: {new_values}")
 
         result = conn.execute(text("SELECT DISTINCT role::text FROM users"))
         used_values = [row[0] for row in result]
