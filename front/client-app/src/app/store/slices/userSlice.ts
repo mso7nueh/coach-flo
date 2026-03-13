@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction, createAsyncThunk } from '@reduxjs/toolkit'
 import { apiClient, type User as ApiUser } from '@/shared/api/client'
 
-export type UserRole = 'client' | 'trainer'
+export type UserRole = 'client' | 'trainer' | 'club_admin'
 export type SupportedLocale = 'en' | 'ru'
 
 export interface TrainerInfo {
@@ -129,7 +129,7 @@ export const registerUserStep1 = createAsyncThunk(
         email: string
         password: string
         phone: string
-        role: UserRole
+        role: 'client' | 'trainer'
         connection_code?: string
     }) => {
         return await apiClient.registerStep1(data)

@@ -8,6 +8,7 @@ import enum
 class UserRole(str, enum.Enum):
     CLIENT = "client"
     TRAINER = "trainer"
+    CLUB_ADMIN = "club_admin"
 
 
 class User(Base):
@@ -24,6 +25,7 @@ class User(Base):
     avatar = Column(String, nullable=True)
     connection_code = Column(String, nullable=True, unique=True, index=True)
     trainer_id = Column(String, ForeignKey("users.id"), nullable=True)
+    club_id = Column(String, ForeignKey("clubs.id"), nullable=True)
     phone_verified = Column(Boolean, default=False)
     notification_settings = Column(Text, nullable=True)  # JSON строка с настройками уведомлений
     timezone = Column(String, nullable=True)  # Часовой пояс пользователя (IANA Time Zone Database)
@@ -44,6 +46,7 @@ class User(Base):
     # Связи
     trainer = relationship("User", remote_side=[id], foreign_keys=[trainer_id])
     clients = relationship("User", foreign_keys=[trainer_id], overlaps="trainer")
+    club = relationship("Club", back_populates="admin", foreign_keys=[club_id])
     onboarding = relationship("Onboarding", back_populates="user", uselist=False)
     sms_verifications = relationship("SMSVerification", back_populates="user")
     # Relationships - SQLAlchemy определит foreign_keys автоматически из ForeignKey определений
@@ -505,3 +508,29 @@ class DashboardSettings(Base):
 
     user = relationship("User")
 
+
+# Club models
+class Club(Base):
+    __tablename__ = "clubs"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    admin_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    connection_code = Column(String, nullable=True, unique=True, index=True)  # Код для приглашения тренеров
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    admin = relationship("User", back_populates="club", foreign_keys=[admin_id])
+    club_trainers = relationship("ClubTrainer", back_populates="club", cascade="all, delete-orphan")
+
+
+class ClubTrainer(Base):
+    __tablename__ = "club_trainers"
+
+    id = Column(String, primary_key=True, index=True)
+    club_id = Column(String, ForeignKey("clubs.id"), nullable=False, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    club = relationship("Club", back_populates="club_trainers")
+    trainer = relationship("User", foreign_keys=[trainer_id])

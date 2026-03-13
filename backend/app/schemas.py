@@ -613,3 +613,63 @@ class DashboardSettingsResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Club schemas
+class ClubCreate(BaseModel):
+    name: str
+
+
+class ClubResponse(BaseModel):
+    id: str
+    name: str
+    admin_id: str
+    connection_code: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ClubTrainerResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    phone: Optional[str] = None
+    avatar: Optional[str] = None
+    connection_code: Optional[str] = None
+    # Агрегированная статистика тренера
+    total_clients: int = 0
+    active_clients: int = 0
+    total_workouts: int = 0
+    completed_workouts: int = 0
+    total_revenue: float = 0.0
+
+    class Config:
+        from_attributes = True
+
+
+class ClubTrainerMetrics(BaseModel):
+    trainer_id: str
+    trainer_name: str
+    occupancy_rate: float = 0.0          # % занятости
+    planned_workouts: int = 0
+    conducted_workouts: int = 0
+    cancellation_rate: float = 0.0       # % отмен/переносов
+    active_clients: int = 0
+    new_clients: int = 0
+    lost_clients: int = 0
+    revenue: float = 0.0                  # Выручка
+    avg_check: float = 0.0               # Средний чек
+    avg_rating: Optional[float] = None   # Средняя оценка клиентов
+
+
+class ClubMetricsResponse(BaseModel):
+    period_days: int = 30
+    total_trainers: int = 0
+    total_clients: int = 0
+    total_revenue: float = 0.0
+    avg_occupancy_rate: float = 0.0
+    total_workouts: int = 0
+    conducted_workouts: int = 0
+    trainer_metrics: List[ClubTrainerMetrics] = []

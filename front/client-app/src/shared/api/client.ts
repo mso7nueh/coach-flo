@@ -1395,5 +1395,38 @@ export const apiClient = {
   },
   deleteNotification: async (notification_id: string): Promise<void> => {
     await api.delete<void>(`/api/notifications/${notification_id}`)
-  }
+  },
+
+  // Club API
+  getMyClub: async () => {
+    const { data } = await api.get('/api/clubs/me')
+    return data
+  },
+  createClub: async (name: string) => {
+    const { data } = await api.post('/api/clubs/', { name })
+    return data
+  },
+  getClubTrainers: async () => {
+    const { data } = await api.get('/api/clubs/trainers')
+    return data
+  },
+  addTrainerToClub: async (connection_code: string) => {
+    const { data } = await api.post('/api/clubs/trainers', { connection_code })
+    return data
+  },
+  removeTrainerFromClub: async (trainer_id: string): Promise<void> => {
+    await api.delete(`/api/clubs/trainers/${trainer_id}`)
+  },
+  getClubTrainer: async (trainer_id: string) => {
+    const { data } = await api.get(`/api/clubs/trainers/${trainer_id}`)
+    return data
+  },
+  getClubCalendar: async (params?: { start_date?: string; end_date?: string }) => {
+    const { data } = await api.get('/api/clubs/calendar', { params })
+    return data
+  },
+  getClubMetrics: async (period_days?: number) => {
+    const { data } = await api.get('/api/clubs/metrics', { params: { period_days } })
+    return data
+  },
 }

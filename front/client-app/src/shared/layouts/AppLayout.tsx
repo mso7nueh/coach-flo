@@ -23,6 +23,7 @@ import {
     IconApple,
     IconCreditCard,
     IconBell,
+    IconBuilding,
 } from '@tabler/icons-react'
 
 import { BottomNavBar } from '@/shared/components/BottomNavBar'
@@ -39,6 +40,7 @@ export const AppLayout = () => {
     const location = useLocation()
 
     const isClient = role === 'client'
+    const isClubAdmin = role === 'club_admin'
 
     const clientItems = [
         { to: '/dashboard', label: t('common.dashboard'), icon: IconLayoutDashboard },
@@ -56,7 +58,14 @@ export const AppLayout = () => {
         { to: '/trainer/finances', label: t('common.finances'), icon: IconCurrencyRubel },
     ]
 
-    const items = isClient ? clientItems : trainerItems
+    const clubItems = [
+        { to: '/club/trainers', label: 'Тренеры', icon: IconUsersGroup },
+        { to: '/club/library', label: 'Библиотека', icon: IconLibrary },
+        { to: '/club/calendar', label: 'Календарь', icon: IconCalendarStats },
+        { to: '/club/metrics', label: 'Метрики', icon: IconBuilding },
+    ]
+
+    const items = isClient ? clientItems : isClubAdmin ? clubItems : trainerItems
 
     const handleLocaleChange = (value: 'ru' | 'en') => {
         dispatch(setLocale(value))
@@ -122,7 +131,7 @@ export const AppLayout = () => {
                                                         {user.fullName}
                                                     </Text>
                                                     <Text size="xs" c="dimmed">
-                                                        {role === 'client' ? t('common.roleClient') : t('common.roleTrainer')}
+                                                        {role === 'client' ? t('common.roleClient') : role === 'club_admin' ? 'Администратор клуба' : t('common.roleTrainer')}
                                                     </Text>
                                                 </Stack>
                                                 <IconChevronDown size={16} style={{ opacity: 0.6 }} />
@@ -304,7 +313,7 @@ export const AppLayout = () => {
                         )
                     })}
                 </Stack>
-                {!isClient && (
+                {!isClient && !isClubAdmin && (
                     <Box mt="auto" pt="md">
                         <UnstyledButton
                             component={NavLink}

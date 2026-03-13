@@ -24,11 +24,18 @@ import { LibraryPage } from '@/pages/trainer/library/LibraryPage'
 import { TrainerCalendarPage } from '@/pages/trainer/calendar/TrainerCalendarPage'
 import { SubscriptionPage } from '@/pages/trainer/subscription/SubscriptionPage'
 import NotificationsPage from '@/pages/trainer/notifications/NotificationsPage'
+import { TrainersPage } from '@/pages/club/trainers/TrainersPage'
+import { TrainerCardPage } from '@/pages/club/trainers/TrainerCardPage'
+import { ClubCalendarPage } from '@/pages/club/calendar/ClubCalendarPage'
+import { ClubMetricsPage } from '@/pages/club/metrics/ClubMetricsPage'
+import { ClubLibraryPage } from '@/pages/club/library/ClubLibraryPage'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 
 const DefaultRedirect = () => {
     const role = useAppSelector((state) => state.user.role)
-    return <Navigate to={role === 'trainer' ? 'trainer/clients' : 'dashboard'} replace />
+    if (role === 'trainer') return <Navigate to="trainer/clients" replace />
+    if (role === 'club_admin') return <Navigate to="club/trainers" replace />
+    return <Navigate to="dashboard" replace />
 }
 
 export const AppRoutes = () => (
@@ -77,6 +84,12 @@ export const AppRoutes = () => (
             <Route path="trainer/finances" element={<FinancesPage />} />
             <Route path="trainer/notifications" element={<NotificationsPage />} />
             <Route path="trainer/subscription" element={<SubscriptionPage />} />
+            {/* Club Admin routes */}
+            <Route path="club/trainers" element={<TrainersPage />} />
+            <Route path="club/trainers/:trainerId" element={<TrainerCardPage />} />
+            <Route path="club/calendar" element={<ClubCalendarPage />} />
+            <Route path="club/metrics" element={<ClubMetricsPage />} />
+            <Route path="club/library" element={<ClubLibraryPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

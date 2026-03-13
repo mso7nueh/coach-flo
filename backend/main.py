@@ -4,7 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from app.database import engine, Base
 from app.routers import (
     auth, onboarding, users, workouts, programs, metrics,
-    nutrition, finances, clients, exercises, notes, dashboard, settings, library, progress_photos, notifications
+    nutrition, finances, clients, exercises, notes, dashboard, settings, library, progress_photos, notifications,
+    clubs
 )
 import logging
 import os
@@ -171,6 +172,7 @@ app.include_router(progress_photos.router, prefix="/api/progress-photos", tags=[
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 from app.routers import payments
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
+app.include_router(clubs.router, prefix="/api/clubs", tags=["clubs"])
 
 # Mount static files for uploads
 uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
