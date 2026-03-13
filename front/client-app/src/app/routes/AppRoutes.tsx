@@ -29,6 +29,7 @@ import { TrainerCardPage } from '@/pages/club/trainers/TrainerCardPage'
 import { ClubCalendarPage } from '@/pages/club/calendar/ClubCalendarPage'
 import { ClubMetricsPage } from '@/pages/club/metrics/ClubMetricsPage'
 import { ClubLibraryPage } from '@/pages/club/library/ClubLibraryPage'
+import { AdminPanel } from '@/pages/admin/AdminPanel'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
 
 const DefaultRedirect = () => {
@@ -90,6 +91,8 @@ export const AppRoutes = () => (
             <Route path="club/calendar" element={<ClubCalendarPage />} />
             <Route path="club/metrics" element={<ClubMetricsPage />} />
             <Route path="club/library" element={<ClubLibraryPage />} />
+            {/* System Admin */}
+            <Route path="admin" element={<AdminPanel />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

@@ -5,7 +5,7 @@ from app.database import engine, Base
 from app.routers import (
     auth, onboarding, users, workouts, programs, metrics,
     nutrition, finances, clients, exercises, notes, dashboard, settings, library, progress_photos, notifications,
-    clubs
+    clubs, admin
 )
 import logging
 import os
@@ -173,6 +173,7 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["not
 from app.routers import payments
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(clubs.router, prefix="/api/clubs", tags=["clubs"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 # Mount static files for uploads
 uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")

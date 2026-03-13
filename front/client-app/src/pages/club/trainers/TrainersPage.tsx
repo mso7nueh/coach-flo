@@ -5,7 +5,7 @@ import {
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { useNavigate } from 'react-router-dom'
-import { IconPlus, IconSearch, IconDotsVertical, IconTrash, IconUser } from '@tabler/icons-react'
+import { IconPlus, IconSearch, IconDotsVertical, IconTrash, IconUser, IconBuilding } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { apiClient } from '@/shared/api/client'
 
@@ -26,6 +26,9 @@ export const TrainersPage = () => {
     const navigate = useNavigate()
     const [trainers, setTrainers] = useState<ClubTrainer[]>([])
     const [loading, setLoading] = useState(true)
+    const [noClub, setNoClub] = useState(false)
+    const [clubName, setClubName] = useState('')
+    const [creatingClub, setCreatingClub] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [trainerCode, setTrainerCode] = useState('')
     const [adding, setAdding] = useState(false)
@@ -35,9 +38,12 @@ export const TrainersPage = () => {
         try {
             const data = await apiClient.getClubTrainers()
             setTrainers(data)
+            setNoClub(false)
         } catch (e: any) {
-            // If club doesn't exist yet, ignore
-            if (e?.status !== 404) {
+            const status = e?.status || e?.response?.status
+            if (status === 404) {
+                setNoClub(true)
+            } else {
                 notifications.show({ title: 'Ошибка', message: e?.message, color: 'red' })
             }
         } finally {
@@ -46,6 +52,21 @@ export const TrainersPage = () => {
     }
 
     useEffect(() => { loadTrainers() }, [])
+
+    const handleCreateClub = async () => {
+        if (!clubName.trim()) return
+        setCreatingClub(true)
+        try {
+            await apiClient.createClub(clubName.trim())
+            notifications.show({ title: 'Успешно', message: 'Клуб создан!', color: 'green' })
+            setNoClub(false)
+            await loadTrainers()
+        } catch (e: any) {
+            notifications.show({ title: 'Ошибка', message: e?.message || 'Не удалось создать клуб', color: 'red' })
+        } finally {
+            setCreatingClub(false)
+        }
+    }
 
     const handleAddTrainer = async () => {
         if (!trainerCode.trim()) return
@@ -84,6 +105,43 @@ export const TrainersPage = () => {
 
     if (loading) return <Center h={200}><Loader /></Center>
 
+    // ─── Клуб не существует: предлагаем создать ──────────────────────────────
+    if (noClub) {
+        return (
+            <Stack gap="lg">
+                <Title order={2}>Тренеры клуба</Title>
+                <Card withBorder padding="xl">
+                    <Stack align="center" gap="md" py="xl">
+                        <IconBuilding size={56} color="var(--mantine-color-violet-5)" />
+                        <Text fw={600} size="xl">Клуб ещё не создан</Text>
+                        <Text c="dimmed" ta="center" maw={440}>
+                            Введите название вашего клуба, чтобы начать работу.
+                            После создания клуба вы сможете добавлять тренеров,
+                            просматривать расписание и метрики.
+                        </Text>
+                        <Group gap="sm" style={{ width: '100%', maxWidth: 380 }}>
+                            <TextInput
+                                placeholder="Название клуба"
+                                value={clubName}
+                                onChange={e => setClubName(e.currentTarget.value)}
+                                style={{ flex: 1 }}
+                                onKeyDown={e => e.key === 'Enter' && handleCreateClub()}
+                            />
+                            <Button
+                                onClick={handleCreateClub}
+                                loading={creatingClub}
+                                disabled={!clubName.trim()}
+                            >
+                                Создать
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Card>
+            </Stack>
+        )
+    }
+
+    // ─── Обычный вид с тренерами ──────────────────────────────────────────────
     return (
         <Stack gap="lg">
             <Group justify="space-between">
@@ -215,7 +273,7 @@ export const TrainersPage = () => {
             >
                 <Stack gap="md">
                     <Text size="sm" c="dimmed">
-                        Введите код подключения тренера (connection_code). Тренер может найти его в своём профиле.
+                        Введите код подключения тренера. Тренер может найти его в своём профиле.
                     </Text>
                     <TextInput
                         label="Код подключения"

@@ -1429,4 +1429,33 @@ export const apiClient = {
     const { data } = await api.get('/api/clubs/metrics', { params: { period_days } })
     return data
   },
+
+  // Admin API (X-Admin-Secret required)
+  adminGetUsers: async (secret: string, params?: { role?: string; search?: string; limit?: number; offset?: number }) => {
+    const { data } = await api.get('/api/admin/users', { params, headers: { 'X-Admin-Secret': secret } })
+    return data
+  },
+  adminCreateClubAdmin: async (secret: string, payload: { full_name: string; email: string; password: string; phone?: string; club_name?: string }) => {
+    const { data } = await api.post('/api/admin/users/club-admin', payload, { headers: { 'X-Admin-Secret': secret } })
+    return data
+  },
+  adminChangeUserRole: async (secret: string, userId: string, role: string) => {
+    const { data } = await api.patch(`/api/admin/users/${userId}/role`, null, { params: { role }, headers: { 'X-Admin-Secret': secret } })
+    return data
+  },
+  adminGetClubs: async (secret: string, search?: string) => {
+    const { data } = await api.get('/api/admin/clubs', { params: { search }, headers: { 'X-Admin-Secret': secret } })
+    return data
+  },
+  adminCreateClub: async (secret: string, payload: { name: string; admin_email: string }) => {
+    const { data } = await api.post('/api/admin/clubs', payload, { headers: { 'X-Admin-Secret': secret } })
+    return data
+  },
+  adminReassignClubAdmin: async (secret: string, clubId: string, user_email: string) => {
+    const { data } = await api.patch(`/api/admin/clubs/${clubId}/admin`, { user_email }, { headers: { 'X-Admin-Secret': secret } })
+    return data
+  },
+  adminDeleteClub: async (secret: string, clubId: string) => {
+    await api.delete(`/api/admin/clubs/${clubId}`, { headers: { 'X-Admin-Secret': secret } })
+  },
 }
