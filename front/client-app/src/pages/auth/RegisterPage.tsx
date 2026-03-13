@@ -95,7 +95,7 @@ export const RegisterPage = () => {
                 email: form.values.email,
                 password: form.values.password,
                 phone: form.values.phone!,
-                role: form.values.role || 'client',
+                role: (form.values.role as 'client' | 'trainer') || 'client',
                 connection_code: form.values.connectionCode,
             })).unwrap()
 
