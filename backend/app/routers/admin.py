@@ -2,7 +2,7 @@
 Роутер администратора системы — управление клубами и назначение club_admin.
 Доступен только с секретным ключом ADMIN_SECRET из переменных окружения.
 """
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Query as QueryParam
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -18,8 +18,9 @@ router = APIRouter()
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "change-me-in-production")
 
 
-def require_admin(x_admin_secret: str = Header(..., alias="X-Admin-Secret")):
-    if x_admin_secret != ADMIN_SECRET:
+def require_admin(admin_secret: str = QueryParam(..., alias="secret")):
+    """Проверка секретного ключа администратора через query-параметр ?secret=..."""
+    if admin_secret != ADMIN_SECRET:
         raise HTTPException(status_code=403, detail="Недействительный ключ администратора")
 
 

@@ -95,7 +95,7 @@ export const RegisterPage = () => {
                 email: form.values.email,
                 password: form.values.password,
                 phone: form.values.phone!,
-                role: (form.values.role as 'client' | 'trainer') || 'client',
+                role: form.values.role || 'client',
                 connection_code: form.values.connectionCode,
             })).unwrap()
 
@@ -158,7 +158,9 @@ export const RegisterPage = () => {
             })).unwrap()
 
             const selectedRole = form.values.role || 'client'
-            if (selectedRole === 'trainer') {
+            if (selectedRole === 'club_admin') {
+                navigate('/club/trainers')
+            } else if (selectedRole === 'trainer') {
                 navigate('/trainer/clients')
             } else {
                 if (result.requiresOnboarding) {
@@ -215,13 +217,14 @@ export const RegisterPage = () => {
                                     value={form.values.role || 'client'}
                                     onChange={(value) => {
                                         form.setFieldValue('role', value as UserRole)
-                                        if (value === 'trainer') {
+                                        if (value !== 'client') {
                                             form.setFieldValue('connectionCode', '')
                                         }
                                     }}
                                     data={[
                                         { label: t('common.roleClient'), value: 'client' },
                                         { label: t('common.roleTrainer'), value: 'trainer' },
+                                        { label: 'Администратор клуба', value: 'club_admin' },
                                     ]}
                                     fullWidth
                                 />

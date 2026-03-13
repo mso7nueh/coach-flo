@@ -348,7 +348,7 @@ export const registerStep1 = async (data: {
   email: string
   password: string
   phone: string
-  role: 'client' | 'trainer'
+  role: 'client' | 'trainer' | 'club_admin'
   trainer_code?: string
 }): Promise<RegisterStep1Response> => {
   const { data: response } = await api.post<RegisterStep1Response>('/api/auth/register/step1', data)

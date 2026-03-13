@@ -129,7 +129,7 @@ export const registerUserStep1 = createAsyncThunk(
         email: string
         password: string
         phone: string
-        role: 'client' | 'trainer'
+        role: 'client' | 'trainer' | 'club_admin'
         connection_code?: string
     }) => {
         return await apiClient.registerStep1(data)

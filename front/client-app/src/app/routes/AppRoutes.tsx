@@ -43,6 +43,7 @@ export const AppRoutes = () => (
     <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/admin" element={<AdminPanel />} />
         <Route
             path="/"
             element={
@@ -91,8 +92,6 @@ export const AppRoutes = () => (
             <Route path="club/calendar" element={<ClubCalendarPage />} />
             <Route path="club/metrics" element={<ClubMetricsPage />} />
             <Route path="club/library" element={<ClubLibraryPage />} />
-            {/* System Admin */}
-            <Route path="admin" element={<AdminPanel />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
