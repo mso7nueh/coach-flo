@@ -46,7 +46,7 @@ class User(Base):
     # Связи
     trainer = relationship("User", remote_side=[id], foreign_keys=[trainer_id])
     clients = relationship("User", foreign_keys=[trainer_id], overlaps="trainer")
-    club = relationship("Club", back_populates="admin", foreign_keys=[club_id])
+    club = relationship("Club", foreign_keys=[club_id])
     onboarding = relationship("Onboarding", back_populates="user", uselist=False)
     sms_verifications = relationship("SMSVerification", back_populates="user")
     # Relationships - SQLAlchemy определит foreign_keys автоматически из ForeignKey определений
@@ -520,7 +520,7 @@ class Club(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    admin = relationship("User", back_populates="club", foreign_keys=[admin_id])
+    admin = relationship("User", foreign_keys=[admin_id])
     club_trainers = relationship("ClubTrainer", back_populates="club", cascade="all, delete-orphan")
 
 
