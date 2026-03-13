@@ -19,7 +19,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     phone = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String, nullable=False)
-    role = Column(SQLEnum(UserRole), nullable=False)
+    role = Column(SQLEnum(UserRole, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     onboarding_seen = Column(Boolean, default=False)
     locale = Column(String, default="ru")
     avatar = Column(String, nullable=True)
