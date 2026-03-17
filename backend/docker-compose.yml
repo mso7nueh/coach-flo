@@ -30,8 +30,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-coachflo}:${POSTGRES_PASSWORD:-coachflo}@db:5432/${POSTGRES_DB:-coachflo}
       SECRET_KEY: your-secret-key-change-in-production-please-use-strong-random-key
       CORS_ORIGINS: http://localhost:5173,http://localhost:3000
-      SMSAERO_EMAIL: ${SMSAERO_EMAIL:-}
-      SMSAERO_API_KEY: ${SMSAERO_API_KEY:-}
+      TG_GATEWAY_TOKEN: ${TG_GATEWAY_TOKEN:-}
+      SMSC_API_KEY: ${SMSC_API_KEY:-}
       ADMIN_SECRET: ${ADMIN_SECRET:-change-me-in-production}
     ports:
       - "8000:8000"
