@@ -201,7 +201,7 @@ async def register_step1(
         full_name=request.full_name,
         email=request.email,
         hashed_password=get_password_hash(request.password),
-        role=request.role.value,
+        role=request.role.value.lower(), # Ensure lowercase for DB enum
         trainer_id=trainer_id,
         connection_code=connection_code,
         expires_at=datetime.utcnow() + timedelta(minutes=30)  # Данные действительны 30 минут
@@ -323,11 +323,11 @@ async def register_step2(
         email=pending_registration.email,
         phone=pending_registration.phone,
         hashed_password=pending_registration.hashed_password,
-        role=role_val,
+        role=role_val.lower(), # Final check for lowercase
         trainer_id=pending_registration.trainer_id,
         connection_code=pending_registration.connection_code,
         phone_verified=True,  # Телефон подтвержден через SMS
-        onboarding_seen=role_val == models.UserRole.TRAINER.value  # Тренеры пропускают онбординг
+        onboarding_seen=role_val.lower() == models.UserRole.TRAINER.value  # Тренеры пропускают онбординг
     )
     
     db.add(user)

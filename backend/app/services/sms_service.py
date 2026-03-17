@@ -73,11 +73,11 @@ def send_sms_code(phone: str, code: str) -> bool:
     try:
         url = "https://smsc.ru/sys/send.php"
         params = {
-            "login": "", # SMSC требует либо пустой логин, либо не передавать его, когда используется apikey в psw
-            "psw": api_key,
+            "apikey": api_key,
             "phones": clean_phone,
             "mes": f"Код подтверждения Coach Fit: {code}",
-            "fmt": 3
+            "fmt": 3,
+            "charset": "utf-8"
         }
         response = requests.get(url, params=params)
         result = response.json()
