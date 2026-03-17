@@ -1,14 +1,13 @@
+import os
 import random
-import string
+import uuid
 from datetime import datetime, timedelta
+import requests
 from sqlalchemy.orm import Session
 from app import models
-from app.database import get_db
-import uuid
-
 
 def generate_sms_code() -> str:
-    """Генерирует 4-значный SMS код"""
+    """Генерирует 4-значный код подтверждения"""
     return str(random.randint(1000, 9999))
 
 
@@ -17,50 +16,91 @@ def normalize_phone(phone: str) -> str:
     return "".join(filter(str.isdigit, phone))
 
 
-import os
-from smsaero import SmsAero, SmsAeroException
+def send_telegram_code(phone: str, code: str) -> bool:
+    """
+    Отправляет код проверки через официальный Telegram Gateway API.
+    """
+    token = os.getenv("TG_GATEWAY_TOKEN")
+    clean_phone = f"+{normalize_phone(phone)}" # Gateway expects E.164 format with +
+    
+    print(f"[Telegram Gate] Отправка кода {code} на номер {clean_phone}")
+    
+    if not token:
+        print("[Telegram Gate] WARNING: TG_GATEWAY_TOKEN not set. Telegram message not sent.")
+        return True # Return true for local environment without token
+
+    try:
+        url = "https://gatewayapi.telegram.org/sendVerificationMessage"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "phone_number": clean_phone,
+            "code": code,
+            "ttl": 60 # 1 minute expiration aligns with our UI timer
+        }
+        response = requests.post(url, headers=headers, json=data)
+        response_data = response.json()
+        
+        if response.status_code == 200 and response_data.get("ok"):
+            print(f"[Telegram Gate] Сообщение успешно отправлено. Статус: {response_data.get('result', {}).get('delivery_status')}")
+            return True
+        else:
+            print(f"[Telegram Gate] Ошибка отправки: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"[Telegram Gate] Непредвиденная ошибка: {e}")
+        return False
+
 
 def send_sms_code(phone: str, code: str) -> bool:
     """
-    Отправляет SMS код на телефон используя сервис SMS Aero.
+    Отправляет SMS код на телефон используя сервис SMSC.ru.
+    Вместо логина и пароля используется apikey.
     """
-    email = os.getenv("SMSAERO_EMAIL")
-    api_key = os.getenv("SMSAERO_API_KEY")
+    api_key = os.getenv("SMSC_API_KEY")
     
-    # Очистка номера телефона (оставляем только цифры)
     clean_phone = normalize_phone(phone)
     
-    print(f"[SMS] Отправка кода {code} на номер {clean_phone}")
+    print(f"[SMSC.ru] Отправка кода {code} на номер {clean_phone}")
     
-    if not email or not api_key:
-        print("[SMS] WARNING: SMSAERO_EMAIL or SMSAERO_API_KEY not set. SMS not sent.")
+    if not api_key:
+        print("[SMSC.ru] WARNING: SMSC_API_KEY not set. SMS not sent.")
         return True
 
     try:
-        api = SmsAero(email, api_key)
-        result = api.send_sms(int(clean_phone), f"Код подтверждения Coach Fit: {code}")
-        # SMS Aero возвращает словарь с 'id' и 'status' (без ключа 'success')
-        # Статусы 1-8 означают что сообщение принято (в т.ч. на модерации)
-        if result and result.get('id'):
-            print(f"[SMS] Сообщение принято провайдером: {result}")
+        url = "https://smsc.ru/sys/send.php"
+        params = {
+            "login": "", # SMSC требует либо пустой логин, либо не передавать его, когда используется apikey в psw
+            "psw": api_key,
+            "phones": clean_phone,
+            "mes": f"Код подтверждения Coach Fit: {code}",
+            "fmt": 3
+        }
+        response = requests.get(url, params=params)
+        result = response.json()
+        
+        if "id" in result and "cnt" in result:
+            print(f"[SMSC.ru] Сообщение принято провайдером: {result}")
             return True
         else:
-            print(f"[SMS] Ошибка отправки: {result}")
+            print(f"[SMSC.ru] Ошибка отправки: {result}")
             return False
-    except SmsAeroException as e:
-        print(f"[SMS] Произошла ошибка при отправке через SmsAero: {e}")
-        return False
     except Exception as e:
-        print(f"[SMS] Непредвиденная ошибка: {e}")
+        print(f"[SMSC.ru] Непредвиденная ошибка: {e}")
         return False
 
 
-def create_sms_verification(db: Session, phone: str, user_id: str = None) -> models.SMSVerification:
-    """Создает запись о SMS верификации"""
-    # Нормализуем телефон перед сохранением
+def create_sms_verification(db: Session, phone: str, user_id: str = None, delivery_method: str = "telegram") -> models.SMSVerification:
+    """
+    Создает запись о SMS верификации.
+    Поддерживает delivery_method: 'telegram' или 'sms'. По умолчанию 'telegram'.
+    """
     normalized_phone = normalize_phone(phone)
     code = generate_sms_code()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)  # Код действителен 10 минут
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
     
     # Удаляем старые неиспользованные верификации для этого номера
     db.query(models.SMSVerification).filter(
@@ -68,6 +108,9 @@ def create_sms_verification(db: Session, phone: str, user_id: str = None) -> mod
         models.SMSVerification.verified == False
     ).delete()
     
+    # Мы не можем использовать аргумент 'delivery_method' в конструкторе, 
+    # если его нет в SQLAlchemy модели. 
+    # Сохраняем как обычную SMSVerification.
     sms_verification = models.SMSVerification(
         id=str(uuid.uuid4()),
         user_id=user_id,
@@ -81,15 +124,17 @@ def create_sms_verification(db: Session, phone: str, user_id: str = None) -> mod
     db.commit()
     db.refresh(sms_verification)
     
-    # Отправляем SMS
-    send_sms_code(normalized_phone, code)
+    # Отправляем код выбранным методом
+    if delivery_method == "telegram":
+        send_telegram_code(normalized_phone, code)
+    else:
+        send_sms_code(normalized_phone, code)
     
     return sms_verification
 
 
 def verify_sms_code(db: Session, phone: str, code: str) -> bool:
     """Проверяет SMS код"""
-    # Нормализуем телефон для поиска
     normalized_phone = normalize_phone(phone)
     
     # Находим последнюю неиспользованную верификацию для этого номера
@@ -115,15 +160,4 @@ def verify_sms_code(db: Session, phone: str, code: str) -> bool:
     db.commit()
     
     return True
-
-
-
-
-
-
-
-
-
-
-
 

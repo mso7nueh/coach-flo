@@ -131,7 +131,7 @@ export const RegisterPage = () => {
             setResendTimer(60)
             notifications.show({
                 title: t('auth.codeSent'),
-                message: t('auth.codeSentTo') + ' ' + form.values.phone,
+                message: "Код отправлен по SMS на номер " + form.values.phone,
                 color: 'blue',
             })
         } catch (error) {
@@ -316,25 +316,25 @@ export const RegisterPage = () => {
                                     style={{ justifyContent: 'center' }}
                                 />
                             </Stack>
-                            <Group gap="xs" justify="center">
-                                <Text size="xs" c="dimmed">
-                                    {t('auth.didNotReceiveCode')}
-                                </Text>
-                                {canResend ? (
-                                    <Button
-                                        variant="subtle"
-                                        size="xs"
-                                        leftSection={<IconRefresh size={14} />}
-                                        onClick={handleResendCode}
-                                    >
-                                        {t('auth.resendCode')}
-                                    </Button>
-                                ) : (
+                                <Group gap="xs" justify="center">
                                     <Text size="xs" c="dimmed">
-                                        {t('auth.resendIn')} {resendTimer}с
+                                        Не получили код в Telegram?
                                     </Text>
-                                )}
-                            </Group>
+                                    {canResend ? (
+                                        <Button
+                                            variant="subtle"
+                                            size="xs"
+                                            leftSection={<IconRefresh size={14} />}
+                                            onClick={handleResendCode}
+                                        >
+                                            Отправить код по SMS
+                                        </Button>
+                                    ) : (
+                                        <Text size="xs" c="dimmed">
+                                            {t('auth.resendIn')} {resendTimer}с
+                                        </Text>
+                                    )}
+                                </Group>
                             <Button
                                 fullWidth
                                 onClick={handleVerifyCode}

@@ -106,6 +106,11 @@ class VerifySMSRequest(BaseModel):
 class VerifySMSResponse(BaseModel):
     verified: bool = Field(..., description="Статус верификации")
     message: str = Field(..., description="Сообщение о результате")
+    delivery_method: Optional[str] = Field(None, description="Способ доставки кода: telegram или sms")
+
+
+class ResendSMSRequest(BaseModel):
+    phone: str = Field(..., description="Номер телефона в формате +7 (999) 123-45-67", example="+7 (999) 123-45-67")
 
 
 # Registration schemas

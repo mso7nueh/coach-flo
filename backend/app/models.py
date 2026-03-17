@@ -74,6 +74,7 @@ class SMSVerification(Base):
     phone = Column(String, nullable=False, index=True)
     code = Column(String, nullable=False)
     verified = Column(Boolean, default=False)
+    delivery_method = Column(String, default="telegram")  # 'telegram' or 'sms'
     expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
