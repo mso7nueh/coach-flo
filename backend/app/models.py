@@ -119,7 +119,7 @@ class PendingRegistration(Base):
     full_name = Column(String, nullable=False)
     email = Column(String, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
-    role = Column(SQLEnum(UserRole), nullable=False)
+    role = Column(SQLEnum(UserRole, values_callable=lambda obj: [e.value for e in obj]), nullable=False)
     trainer_id = Column(String, ForeignKey("users.id"), nullable=True)
     connection_code = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
