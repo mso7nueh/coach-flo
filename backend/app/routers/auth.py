@@ -9,7 +9,7 @@ from app.auth import (
     get_current_active_user,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from app.services.sms_service import create_sms_verification, verify_sms_code, resend_code_via_sms
+from app.services.sms_service import create_sms_verification, verify_sms_code
 from datetime import timedelta, datetime
 import uuid
 import string
@@ -48,14 +48,14 @@ async def send_sms_code_endpoint(
     request: schemas.SendSMSRequest,
     db: Session = Depends(get_db)
 ):
-    # Отправляем код (по умолчанию через telegram)
+    # Отправляем код (явно через SMSC.ru как fallback)
     try:
         if request.phone:
-            create_sms_verification(db, request.phone, delivery_method="telegram")
+            create_sms_verification(db, request.phone, delivery_method="sms")
         
         return schemas.VerifySMSResponse(
             verified=False,
-            message="Код проверки отправлен на ваш Telegram"
+            message="Код проверки отправлен по SMS"
         )
     except Exception as e:
         raise HTTPException(
@@ -104,55 +104,6 @@ async def verify_sms_code_endpoint(
         message="Телефон подтвержден"
     )
 
-
-@router.post(
-    "/resend-sms",
-    response_model=schemas.VerifySMSResponse,
-    summary="Переотправить код по SMS",
-    description="""
-    Переотправляет существующий код верификации через SMS.
-    
-    Используется когда код был отправлен в Telegram, но пользователь не получил его
-    в течение минуты и хочет получить по SMS.
-    """,
-    responses={
-        200: {
-            "description": "SMS код отправлен",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "verified": False,
-                        "message": "Код отправлен по SMS",
-                        "delivery_method": "sms"
-                    }
-                }
-            }
-        },
-        404: {"description": "Активный код не найден"},
-        500: {"description": "Ошибка отправки SMS"}
-    }
-)
-async def resend_sms_code_endpoint(
-    request: schemas.ResendSMSRequest,
-    db: Session = Depends(get_db)
-):
-    """Переотправляет существующий код по SMS"""
-    verification, sent = resend_code_via_sms(db, request.phone)
-    if not verification:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Активный код верификации не найден. Запросите новый код."
-        )
-    if not sent:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ошибка отправки SMS"
-        )
-    return schemas.VerifySMSResponse(
-        verified=False,
-        message="Код отправлен по SMS",
-        delivery_method="sms"
-    )
 
 
 @router.post(
