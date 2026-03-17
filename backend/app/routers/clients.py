@@ -88,7 +88,7 @@ async def create_client(
         email=client_data.email,
         phone=client_data.phone,
         hashed_password=get_password_hash(client_data.password),
-        role=models.UserRole.CLIENT,
+        role=models.UserRole.CLIENT.value,
         trainer_id=current_user.id,
         onboarding_seen=False,
         phone_verified=False

@@ -250,7 +250,7 @@ async def register_step1(
         full_name=request.full_name,
         email=request.email,
         hashed_password=get_password_hash(request.password),
-        role=request.role,
+        role=request.role.value,
         trainer_id=trainer_id,
         connection_code=connection_code,
         expires_at=datetime.utcnow() + timedelta(minutes=30)  # Данные действительны 30 минут
@@ -362,30 +362,34 @@ async def register_step2(
     
     # Создаем пользователя
     user_id = str(uuid.uuid4())
+    
+    # role может быть строкой или Enum, нам нужно перестраховаться и передать lowercase строку 
+    role_val = pending_registration.role.value if hasattr(pending_registration.role, "value") else pending_registration.role.lower()
+
     user = models.User(
         id=user_id,
         full_name=pending_registration.full_name,
         email=pending_registration.email,
         phone=pending_registration.phone,
         hashed_password=pending_registration.hashed_password,
-        role=pending_registration.role,
+        role=role_val,
         trainer_id=pending_registration.trainer_id,
         connection_code=pending_registration.connection_code,
         phone_verified=True,  # Телефон подтвержден через SMS
-        onboarding_seen=pending_registration.role == models.UserRole.TRAINER  # Тренеры пропускают онбординг
+        onboarding_seen=role_val == models.UserRole.TRAINER.value  # Тренеры пропускают онбординг
     )
     
     db.add(user)
     
-    # Если это тренер, создаем демо-клиента
-    if user.role == models.UserRole.TRAINER:
+        # Если это тренер, создаем демо-клиента
+    if user.role == models.UserRole.TRAINER.value or pending_registration.role == models.UserRole.TRAINER:
         demo_client_id = str(uuid.uuid4())
         demo_client = models.User(
             id=demo_client_id,
             full_name="Демо Клиент",
             email=f"demo_{user_id[:8]}@coach-flo.com",
             hashed_password=user.hashed_password, # Неважно, это демо
-            role=models.UserRole.CLIENT,
+            role=models.UserRole.CLIENT.value,
             trainer_id=user.id,
             connection_code=''.join(random.choices(string.ascii_uppercase + string.digits, k=8)),
             phone_verified=True,

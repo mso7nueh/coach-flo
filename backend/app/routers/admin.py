@@ -121,7 +121,7 @@ def admin_create_club_admin(
         email=req.email,
         phone=req.phone,
         hashed_password=get_password_hash(req.password),
-        role=models.UserRole.CLUB_ADMIN,
+        role=models.UserRole.CLUB_ADMIN.value,
         connection_code=str(uuid.uuid4())[:8].upper(),
     )
     db.add(user)
@@ -211,8 +211,8 @@ def admin_create_club(
         raise HTTPException(404, f"Пользователь с email {req.admin_email} не найден")
 
     # Повышаем до club_admin если нужно
-    if admin_user.role != models.UserRole.CLUB_ADMIN:
-        admin_user.role = models.UserRole.CLUB_ADMIN
+    if admin_user.role != models.UserRole.CLUB_ADMIN.value and admin_user.role != models.UserRole.CLUB_ADMIN:
+        admin_user.role = models.UserRole.CLUB_ADMIN.value
 
     club = models.Club(
         id=str(uuid.uuid4()),
@@ -249,7 +249,7 @@ def admin_reassign_club_admin(
     if not new_admin:
         raise HTTPException(404, f"Пользователь с email {req.user_email} не найден")
 
-    new_admin.role = models.UserRole.CLUB_ADMIN
+    new_admin.role = models.UserRole.CLUB_ADMIN.value
     club.admin_id = new_admin.id
     db.commit()
     return {"club_id": club.id, "new_admin_email": new_admin.email, "role": new_admin.role.value}
