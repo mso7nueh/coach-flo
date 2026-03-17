@@ -93,10 +93,11 @@ def send_sms_code(phone: str, code: str) -> bool:
         return False
 
 
-def create_sms_verification(db: Session, phone: str, user_id: str = None, delivery_method: str = "telegram") -> models.SMSVerification:
+def create_sms_verification(db: Session, phone: str, user_id: str = None, delivery_method: str = "telegram") -> tuple[models.SMSVerification, str]:
     """
     Создает запись о SMS верификации.
     Поддерживает delivery_method: 'telegram' или 'sms'. По умолчанию 'telegram'.
+    Автоматически переключается на SMS, если отправка через Telegram не удалась.
     """
     normalized_phone = normalize_phone(phone)
     code = generate_sms_code()
@@ -108,8 +109,6 @@ def create_sms_verification(db: Session, phone: str, user_id: str = None, delive
         models.SMSVerification.verified == False
     ).delete()
     
-    # Мы не можем использовать аргумент 'delivery_method' в конструкторе, 
-    # если его нет в SQLAlchemy модели. 
     # Сохраняем как обычную SMSVerification.
     sms_verification = models.SMSVerification(
         id=str(uuid.uuid4()),
@@ -124,13 +123,19 @@ def create_sms_verification(db: Session, phone: str, user_id: str = None, delive
     db.commit()
     db.refresh(sms_verification)
     
+    actual_method = delivery_method
+    
     # Отправляем код выбранным методом
     if delivery_method == "telegram":
-        send_telegram_code(normalized_phone, code)
+        success = send_telegram_code(normalized_phone, code)
+        if not success:
+            print(f"[Fallback] Telegram failed for {normalized_phone}, falling back to SMSC.ru")
+            send_sms_code(normalized_phone, code)
+            actual_method = "sms"
     else:
         send_sms_code(normalized_phone, code)
     
-    return sms_verification
+    return sms_verification, actual_method
 
 
 def verify_sms_code(db: Session, phone: str, code: str) -> bool:
