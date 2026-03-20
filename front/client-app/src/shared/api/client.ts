@@ -310,7 +310,11 @@ api.interceptors.response.use(
       error.response?.data?.message ||
       error.response?.data?.error ||
       JSON.stringify(error.response?.data) ||
-      `HTTP error! status: ${error.response?.status}`
+      (error.response?.status
+        ? `HTTP error! status: ${error.response.status}`
+        : (error.message === 'Network Error' || !error.response)
+          ? 'Нет соединения с сервером. Проверьте интернет-соединение или попробуйте позже.'
+          : error.message || 'Неизвестная ошибка')
     const customError = new Error(errorMessage)
       ; (customError as any).data = error.response?.data
       ; (customError as any).status = error.response?.status
