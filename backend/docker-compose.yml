@@ -29,7 +29,7 @@ services:
       POSTGRES_PORT: 5432
       DATABASE_URL: postgresql://${POSTGRES_USER:-coachflo}:${POSTGRES_PASSWORD:-coachflo}@db:5432/${POSTGRES_DB:-coachflo}
       SECRET_KEY: your-secret-key-change-in-production-please-use-strong-random-key
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://103.88.243.123,https://103.88.243.123,http://coachflo.ru,https://coachflo.ru,http://www.coachflo.ru,https://www.coachflo.ru
       TG_GATEWAY_TOKEN: ${TG_GATEWAY_TOKEN:-}
       SMSC_API_KEY: ${SMSC_API_KEY:-}
       ADMIN_SECRET: ${ADMIN_SECRET:-change-me-in-production}
