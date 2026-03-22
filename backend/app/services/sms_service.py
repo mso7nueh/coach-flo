@@ -65,7 +65,7 @@ def send_sms_code(phone: str, code: str) -> bool:
     
     clean_phone = normalize_phone(phone)
     
-    print(f"[SMSC.ru] Отправка кода {code} на номер {clean_phone}")
+    print(f"[SMSC.ru] Отправка кода {code} на номер {clean_phone}, sender={sender}")
     
     if not api_key:
         print("[SMSC.ru] WARNING: SMSC_API_KEY not set. SMS not sent.")
@@ -82,6 +82,7 @@ def send_sms_code(phone: str, code: str) -> bool:
             "charset": "utf-8",
             "translit": 1,
         }
+        print(f"[SMSC.ru] Параметры запроса: phones={clean_phone}, sender={sender}, translit=1")
         response = requests.get(url, params=params)
         print(f"[SMSC.ru] Ответ API: status={response.status_code}, body={response.text}")
         result = response.json()
