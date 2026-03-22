@@ -28,6 +28,7 @@ import {
 
 import { BottomNavBar } from '@/shared/components/BottomNavBar'
 import { Footer } from '@/shared/components/Footer'
+import { FreeTrialNotification } from '@/shared/components/FreeTrialNotification'
 
 export const AppLayout = () => {
     const [opened, { toggle }] = useDisclosure()
@@ -361,6 +362,7 @@ export const AppLayout = () => {
                     </Stack>
                 )}
             </AppShell.Main>
+            <FreeTrialNotification />
             <BottomNavBar role={role as 'client' | 'trainer'} />
         </AppShell>
     )

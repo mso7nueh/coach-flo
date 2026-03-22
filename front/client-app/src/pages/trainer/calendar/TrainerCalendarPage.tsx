@@ -170,9 +170,9 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
         loadData()
     }, [dispatch, clients.length, libraryWorkouts.length])
 
-    // Scroll calendar to 9 AM when switching to day view or on initial render
+    // Scroll calendar to 9 AM when switching to day or week view
     useEffect(() => {
-        if (view === 'day' && calendarViewportRef.current) {
+        if (calendarViewportRef.current) {
             // Each hour row is 60px tall; scroll to 9:00 = 9 * 60 = 540px
             calendarViewportRef.current.scrollTo({ top: 9 * 60, behavior: 'smooth' })
         }
@@ -678,8 +678,18 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                 </Stack>
             </Card>
 
-            <Modal opened={modalOpened} onClose={close} title={t('trainer.calendar.createWorkout')} size="lg">
-                <ScrollArea mah="70vh" offsetScrollbars>
+            <Modal
+                opened={modalOpened}
+                onClose={close}
+                title={t('trainer.calendar.createWorkout')}
+                size="lg"
+                styles={{
+                    body: {
+                        maxHeight: 'calc(90vh - 120px)',
+                        overflowY: 'auto',
+                    }
+                }}
+            >
                 <Stack gap="md">
                     <Select
                         label={t('trainer.calendar.client')}
@@ -866,7 +876,6 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                         </Button>
                     </Group>
                 </Stack>
-                </ScrollArea>
             </Modal>
 
             <Drawer
