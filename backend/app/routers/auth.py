@@ -209,20 +209,14 @@ async def register_step1(
     db.add(pending_registration)
     db.commit()
     
-    # Отправляем код верификации (без user_id, так как пользователь еще не создан)
-    delivery_method = "telegram"
+    # Отправляем код верификации через SMS (без user_id, так как пользователь еще не создан)
     if request.phone:
-        _, delivery_method = create_sms_verification(db, request.phone)
-    
-    if delivery_method == "telegram":
-        message = "Код отправлен в Telegram"
-    else:
-        message = "Код отправлен по SMS"
+        create_sms_verification(db, request.phone, delivery_method="sms")
     
     return schemas.VerifySMSResponse(
         verified=False,
-        message=message,
-        delivery_method=delivery_method
+        message="Код отправлен по SMS",
+        delivery_method="sms"
     )
 
 

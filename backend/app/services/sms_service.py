@@ -75,11 +75,13 @@ def send_sms_code(phone: str, code: str) -> bool:
         params = {
             "apikey": api_key,
             "phones": clean_phone,
-            "mes": f"Код подтверждения Coach Fit: {code}",
+            "mes": f"Kod: {code}",
             "fmt": 3,
-            "charset": "utf-8"
+            "charset": "utf-8",
+            "translit": 1,
         }
         response = requests.get(url, params=params)
+        print(f"[SMSC.ru] Ответ API: status={response.status_code}, body={response.text}")
         result = response.json()
         
         if "id" in result and "cnt" in result:
@@ -93,11 +95,9 @@ def send_sms_code(phone: str, code: str) -> bool:
         return False
 
 
-def create_sms_verification(db: Session, phone: str, user_id: str = None, delivery_method: str = "telegram") -> tuple[models.SMSVerification, str]:
+def create_sms_verification(db: Session, phone: str, user_id: str = None, delivery_method: str = "sms") -> tuple[models.SMSVerification, str]:
     """
-    Создает запись о SMS верификации.
-    Поддерживает delivery_method: 'telegram' или 'sms'. По умолчанию 'telegram'.
-    Автоматически переключается на SMS, если отправка через Telegram не удалась.
+    Создает запись о SMS верификации и отправляет код через SMSC.ru.
     """
     normalized_phone = normalize_phone(phone)
     code = generate_sms_code()
@@ -123,19 +123,10 @@ def create_sms_verification(db: Session, phone: str, user_id: str = None, delive
     db.commit()
     db.refresh(sms_verification)
     
-    actual_method = delivery_method
+    # Всегда отправляем через SMSC.ru
+    send_sms_code(normalized_phone, code)
     
-    # Отправляем код выбранным методом
-    if delivery_method == "telegram":
-        success = send_telegram_code(normalized_phone, code)
-        if not success:
-            print(f"[Fallback] Telegram failed for {normalized_phone}, falling back to SMSC.ru")
-            send_sms_code(normalized_phone, code)
-            actual_method = "sms"
-    else:
-        send_sms_code(normalized_phone, code)
-    
-    return sms_verification, actual_method
+    return sms_verification, "sms"
 
 
 def verify_sms_code(db: Session, phone: str, code: str) -> bool:
