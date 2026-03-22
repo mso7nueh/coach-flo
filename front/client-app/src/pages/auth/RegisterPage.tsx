@@ -318,7 +318,7 @@ export const RegisterPage = () => {
                             </Stack>
                                 <Group gap="xs" justify="center">
                                     <Text size="xs" c="dimmed">
-                                        Не получили код в Telegram?
+                                        Не получили код?
                                     </Text>
                                     {canResend ? (
                                         <Button
@@ -327,7 +327,7 @@ export const RegisterPage = () => {
                                             leftSection={<IconRefresh size={14} />}
                                             onClick={handleResendCode}
                                         >
-                                            Отправить код по SMS
+                                            Отправить повторно
                                         </Button>
                                     ) : (
                                         <Text size="xs" c="dimmed">
