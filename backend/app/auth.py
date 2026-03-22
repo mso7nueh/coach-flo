@@ -94,4 +94,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 def get_current_active_user(current_user: models.User = Depends(get_current_user)):
     """Получение активного пользователя"""
+    if getattr(current_user, 'is_deleted', False):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Аккаунт удален",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return current_user

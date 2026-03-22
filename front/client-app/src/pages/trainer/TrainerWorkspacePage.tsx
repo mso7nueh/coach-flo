@@ -1,4 +1,5 @@
 import { Badge, Card, Grid, Group, List, Stack, Text, Title } from '@mantine/core'
+import { FreeTrialNotification } from '@/shared/components/FreeTrialNotification'
 
 export const TrainerWorkspacePage = () => {
 
@@ -19,6 +20,7 @@ export const TrainerWorkspacePage = () => {
 
     return (
         <Stack gap="xl">
+            <FreeTrialNotification />
             <Stack gap={4}>
                 <Title order={2}>Рабочая область тренера</Title>
                 <Text c="dimmed">Заготовка для будущей реализации. Используйте переключатель ролей, чтобы вернуться в режим клиента.</Text>

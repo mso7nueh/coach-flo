@@ -134,6 +134,10 @@ class RegisterResponse(BaseModel):
     requires_onboarding: bool = Field(..., description="Требуется ли прохождение онбординга")
 
 
+class DeleteAccountRequest(BaseModel):
+    confirm: bool = Field(..., description="Подтверждение удаления аккаунта")
+
+
 # Onboarding schemas
 class OnboardingMetrics(BaseModel):
     weight: Optional[float] = Field(None, description="Вес в килограммах", example=75.5, ge=30, le=200)

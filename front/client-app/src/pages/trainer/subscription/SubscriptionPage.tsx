@@ -236,6 +236,50 @@ export const SubscriptionPage = () => {
                     </Card>
                 )}
 
+                {/* Free Trial Countdown Banner (only when no active paid subscription) */}
+                {!user.subscription_expires_at && user.created_at && (() => {
+                    const trialEndDate = dayjs(user.created_at).add(14, 'day')
+                    const daysLeft = trialEndDate.diff(dayjs(), 'day')
+                    const isExpired = daysLeft <= 0
+                    return (
+                        <Card
+                            withBorder
+                            padding="lg"
+                            radius="md"
+                            style={{
+                                borderColor: isExpired
+                                    ? 'var(--mantine-color-red-5)'
+                                    : daysLeft <= 3
+                                        ? 'var(--mantine-color-orange-5)'
+                                        : 'var(--mantine-color-yellow-5)',
+                                backgroundColor: isExpired
+                                    ? 'var(--mantine-color-red-0)'
+                                    : daysLeft <= 3
+                                        ? 'var(--mantine-color-orange-0)'
+                                        : 'var(--mantine-color-yellow-0)',
+                            }}
+                        >
+                            <Group justify="center" gap="xs">
+                                <Text fw={700} c={isExpired ? 'red' : daysLeft <= 3 ? 'orange' : 'yellow.8'}>
+                                    {isExpired
+                                        ? '⚠️ Бесплатный период завершён'
+                                        : `🎁 Бесплатный период: осталось ${daysLeft} ${daysLeft === 1 ? 'день' : daysLeft < 5 ? 'дня' : 'дней'}`}
+                                </Text>
+                                {!isExpired && (
+                                    <Text c="dimmed" size="sm">
+                                        (до {trialEndDate.format('D MMMM YYYY')})
+                                    </Text>
+                                )}
+                                {isExpired && (
+                                    <Text c="dimmed" size="sm">
+                                        Выберите тарифный план для продолжения работы.
+                                    </Text>
+                                )}
+                            </Group>
+                        </Card>
+                    )
+                })()}
+
                 {/* Payment Widget Area (Replaces Plans when in progress) */}
                 {paymentInProgress ? (
                     <Card withBorder padding="xl" radius="md">

@@ -404,6 +404,13 @@ export const unlinkTrainer = async (): Promise<void> => {
   await api.post<void>('/api/users/unlink-trainer', {})
 }
 
+export const deleteAccount = async (): Promise<{ message: string }> => {
+  const { data } = await api.delete<{ message: string }>('/api/users/me', {
+    data: { confirm: true }
+  })
+  return data
+}
+
 export const getSettings = async (): Promise<UserSettings> => {
   const { data } = await api.get<UserSettings>('/api/users/me/settings/')
   return data
@@ -1298,6 +1305,7 @@ export const apiClient = {
   updateUser,
   linkTrainer,
   unlinkTrainer,
+  deleteAccount,
   getSettings,
   updateSettings,
   completeOnboarding,

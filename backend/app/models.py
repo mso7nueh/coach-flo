@@ -39,7 +39,11 @@ class User(Base):
     subscription_plan = Column(String, nullable=True)  # starter, pro, studio, enterprise
     subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
     yookassa_payment_id = Column(String, nullable=True)  # Last payment ID
-    
+
+    # Soft delete fields
+    is_deleted = Column(Boolean, default=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

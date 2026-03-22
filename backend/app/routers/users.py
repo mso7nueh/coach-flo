@@ -228,3 +228,43 @@ async def unlink_trainer(
     db.refresh(current_user)
     return schemas.UserResponse.model_validate(current_user)
 
+
+@router.delete(
+    "/me",
+    summary="Удалить аккаунт (мягкое удаление)",
+    description="""
+    Мягко удаляет аккаунт пользователя.
+    
+    - Данные сохраняются в базе (`is_deleted = true`)
+    - Email и телефон освобождаются (скремблируются), поэтому можно снова
+      зарегистрироваться с теми же данными
+    - Токен сразу становится недействительным
+    
+    **Требуется аутентификация:** Да (JWT токен)
+    """
+)
+async def delete_account(
+    request: schemas.DeleteAccountRequest,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Мягкое удаление аккаунта пользователя"""
+    import uuid
+    from datetime import datetime
+
+    if not request.confirm:
+        raise HTTPException(status_code=400, detail="Требуется подтверждение удаления аккаунта")
+
+    # Скремблируем email и телефон, чтобы освободить их для повторной регистрации
+    uid_prefix = str(uuid.uuid4())[:8]
+    current_user.email = f"deleted_{uid_prefix}_{current_user.email}"
+    if current_user.phone:
+        current_user.phone = f"deleted_{uid_prefix}_{current_user.phone}"
+
+    # Мягкое удаление
+    current_user.is_deleted = True
+    current_user.deleted_at = datetime.utcnow()
+
+    db.commit()
+    return {"message": "Аккаунт успешно удален. Вы можете зарегистрироваться с теми же данными."}
+

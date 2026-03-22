@@ -1,8 +1,10 @@
 import {
     ActionIcon,
+    Button,
     Card,
     Divider,
     Group,
+    Modal,
     NumberInput,
     SegmentedControl,
     Stack,
@@ -14,14 +16,14 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { useAppSelector } from '@/shared/hooks/useAppSelector'
-import { updateSettingsApi, getSettingsApi } from '@/app/store/slices/userSlice'
+import { updateSettingsApi, getSettingsApi, deleteAccountApi } from '@/app/store/slices/userSlice'
 import {
     toggleNotificationChannel,
     toggleNotificationType,
     setReminderBeforeMinutes,
     updateNotificationSettings,
 } from '@/app/store/slices/notificationsSlice'
-import { useId, useEffect, useRef } from 'react'
+import { useId, useEffect, useRef, useState } from 'react'
 import { notifications } from '@mantine/notifications'
 import { IconCopy } from '@tabler/icons-react'
 
@@ -33,6 +35,8 @@ export const SettingsPage = () => {
     const labelId = useId()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const isInitialMount = useRef(true)
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     useEffect(() => {
         // Загружаем настройки при монтировании компонента (только один раз)
@@ -292,6 +296,73 @@ export const SettingsPage = () => {
                     </Stack>
                 </Stack>
             </Card>
+
+            {/* Danger Zone */}
+            <Card withBorder padding="xl" style={{ borderColor: 'var(--mantine-color-red-4)' }}>
+                <Stack gap="md">
+                    <Stack gap={4}>
+                        <Title order={4} c="red">{t('settings.dangerZone', 'Опасная зона')}</Title>
+                        <Text size="sm" c="dimmed">
+                            {t('settings.dangerZoneDescription', 'Необратимые действия с вашим аккаунтом.')}
+                        </Text>
+                    </Stack>
+                    <Divider color="red.2" />
+                    <Group justify="space-between" align="center">
+                        <Stack gap={2}>
+                            <Text fw={500}>{t('settings.deleteAccount', 'Удалить аккаунт')}</Text>
+                            <Text size="sm" c="dimmed">
+                                {t('settings.deleteAccountDescription', 'Ваши данные будут сохранены, и вы сможете снова зарегистрироваться с теми же данными.')}
+                            </Text>
+                        </Stack>
+                        <Button
+                            color="red"
+                            variant="outline"
+                            onClick={() => setDeleteModalOpen(true)}
+                        >
+                            {t('settings.deleteAccount', 'Удалить аккаунт')}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Card>
+
+            {/* Delete Account Confirmation Modal */}
+            <Modal
+                opened={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                title={t('settings.deleteAccount', 'Удалить аккаунт')}
+                centered
+            >
+                <Stack gap="md">
+                    <Text>
+                        {t('settings.deleteAccountConfirm', 'Вы уверены, что хотите удалить аккаунт? Это действие необратимо. Ваши данные будут сохранены в базе, и вы сможете зарегистрироваться снова с теми же email и телефоном.')}
+                    </Text>
+                    <Group justify="flex-end">
+                        <Button variant="subtle" onClick={() => setDeleteModalOpen(false)} disabled={isDeleting}>
+                            {t('common.cancel', 'Отмена')}
+                        </Button>
+                        <Button
+                            color="red"
+                            loading={isDeleting}
+                            onClick={async () => {
+                                setIsDeleting(true)
+                                try {
+                                    await dispatch(deleteAccountApi()).unwrap()
+                                    // deleteAccountApi already calls logout() which redirects to /login
+                                } catch (error: any) {
+                                    notifications.show({
+                                        title: t('common.error', 'Ошибка'),
+                                        message: error?.message || 'Ошибка при удалении аккаунта',
+                                        color: 'red',
+                                    })
+                                    setIsDeleting(false)
+                                }
+                            }}
+                        >
+                            {t('settings.deleteAccount', 'Удалить')}
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Stack>
     )
 }

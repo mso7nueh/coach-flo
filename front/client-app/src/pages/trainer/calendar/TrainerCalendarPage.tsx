@@ -63,7 +63,7 @@ import {
 import { fetchWorkoutTemplates } from '@/app/store/slices/librarySlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
-import { useMemo, useState, useEffect, type DragEvent } from 'react'
+import { useMemo, useState, useEffect, useRef, type DragEvent } from 'react'
 import { useDisclosure } from '@mantine/hooks'
 import { useSearchParams } from 'react-router-dom'
 import type { RecurrenceFrequency, DayOfWeek } from '@/app/store/slices/calendarSlice'
@@ -124,6 +124,8 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
     const [formState, setFormState] = useState<WorkoutFormState>(() => buildFormState(clientIdFromUrl || undefined))
     const [activeDragWorkout, setActiveDragWorkout] = useState<TrainerWorkout | null>(null)
     const [dragOverDay, setDragOverDay] = useState<string | null>(null)
+    // Ref for calendar scroll area — used to scroll to 9 AM on day view
+    const calendarViewportRef = useRef<HTMLDivElement>(null)
 
     // Если передан clientId (в режиме embedded), устанавливаем его в фильтр
     useEffect(() => {
@@ -167,6 +169,14 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
         }
         loadData()
     }, [dispatch, clients.length, libraryWorkouts.length])
+
+    // Scroll calendar to 9 AM when switching to day view or on initial render
+    useEffect(() => {
+        if (view === 'day' && calendarViewportRef.current) {
+            // Each hour row is 60px tall; scroll to 9:00 = 9 * 60 = 540px
+            calendarViewportRef.current.scrollTo({ top: 9 * 60, behavior: 'smooth' })
+        }
+    }, [view])
 
     // Загружаем тренировки при открытии календаря и при изменении периода
     useEffect(() => {
@@ -459,7 +469,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                         </Group>
                     </Group>
 
-                    <ScrollArea h={600}>
+                    <ScrollArea h={600} viewportRef={calendarViewportRef}>
                         <div style={{ display: 'grid', gridTemplateColumns: view === 'week' ? '120px repeat(7, 1fr)' : '120px 1fr', gap: '1px', backgroundColor: 'var(--mantine-color-gray-3)' }}>
                             <div style={{ backgroundColor: 'white', padding: '8px', position: 'sticky', left: 0, zIndex: 10 }}></div>
                             {calendarDays.map((day) => {
@@ -669,6 +679,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
             </Card>
 
             <Modal opened={modalOpened} onClose={close} title={t('trainer.calendar.createWorkout')} size="lg">
+                <ScrollArea mah="70vh" offsetScrollbars>
                 <Stack gap="md">
                     <Select
                         label={t('trainer.calendar.client')}
@@ -855,6 +866,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                         </Button>
                     </Group>
                 </Stack>
+                </ScrollArea>
             </Modal>
 
             <Drawer

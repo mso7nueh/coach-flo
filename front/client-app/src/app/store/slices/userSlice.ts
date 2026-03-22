@@ -30,6 +30,7 @@ interface UserState {
     token?: string
     subscription_plan?: string
     subscription_expires_at?: string
+    created_at?: string
     workoutsPackage?: number
 }
 
@@ -99,6 +100,7 @@ const mapApiUserToState = (apiUser: ApiUser): Omit<UserState, 'isAuthenticated' 
         connectionCode: apiUser.connection_code || undefined,
         subscription_plan: apiUser.subscription_plan || undefined,
         subscription_expires_at: apiUser.subscription_expires_at || undefined,
+        created_at: apiUser.created_at || undefined,
         workoutsPackage: apiUser.workouts_package || 0,
         trainer: apiUser.trainer ? {
             id: apiUser.trainer.id,
@@ -320,6 +322,18 @@ export const updateSettingsApi = createAsyncThunk(
     }
 )
 
+export const deleteAccountApi = createAsyncThunk(
+    'user/deleteAccount',
+    async (_, { rejectWithValue }) => {
+        try {
+            await apiClient.deleteAccount()
+            apiClient.logout()
+        } catch (error: any) {
+            return rejectWithValue(error?.message || 'Ошибка при удалении аккаунта')
+        }
+    }
+)
+
 const userSlice = createSlice({
     name: 'user',
     initialState,
@@ -508,4 +522,5 @@ export const {
     setToken,
 } = userSlice.actions
 export default userSlice.reducer
+
 
