@@ -61,6 +61,7 @@ def send_sms_code(phone: str, code: str) -> bool:
     Вместо логина и пароля используется apikey.
     """
     api_key = os.getenv("SMSC_API_KEY")
+    sender = os.getenv("SMSC_SENDER", "CoachFlo")
     
     clean_phone = normalize_phone(phone)
     
@@ -76,6 +77,7 @@ def send_sms_code(phone: str, code: str) -> bool:
             "apikey": api_key,
             "phones": clean_phone,
             "mes": f"Kod: {code}",
+            "sender": sender,
             "fmt": 3,
             "charset": "utf-8",
             "translit": 1,
