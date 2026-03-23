@@ -13,7 +13,18 @@ import json
 router = APIRouter()
 
 
-# Request/Response schemas for workout templates
+def _get_admin_club_id(current_user: models.User, db: Session) -> Optional[str]:
+    """Get club_id for CLUB_ADMIN. Falls back to Club.admin_id lookup if user.club_id is NULL."""
+    if current_user.club_id:
+        return current_user.club_id
+    club = db.query(models.Club).filter(models.Club.admin_id == current_user.id).first()
+    if club:
+        current_user.club_id = club.id
+        db.commit()
+        return club.id
+    return None
+
+
 class WorkoutTemplateExerciseBase(BaseModel):
     exercise_id: str
     block_type: str  # 'warmup', 'main', 'cooldown'
@@ -128,10 +139,10 @@ async def create_workout_template(
     template_id = str(uuid.uuid4())
 
     if current_user.role == models.UserRole.CLUB_ADMIN:
-        if not current_user.club_id:
+        club_id = _get_admin_club_id(current_user, db)
+        if not club_id:
             raise HTTPException(status_code=400, detail="Администратор не привязан к клубу")
         trainer_id = None
-        club_id = current_user.club_id
     else:
         trainer_id = current_user.id
         club_id = None
@@ -243,10 +254,11 @@ async def get_workout_templates(
 ):
     """Получить список шаблонов тренировок"""
     if current_user.role == models.UserRole.CLUB_ADMIN:
-        if not current_user.club_id:
+        club_id = _get_admin_club_id(current_user, db)
+        if not club_id:
             return []
         query = db.query(models.WorkoutTemplate).filter(
-            models.WorkoutTemplate.club_id == current_user.club_id
+            models.WorkoutTemplate.club_id == club_id
         )
     elif current_user.role == models.UserRole.TRAINER:
         conditions = [models.WorkoutTemplate.trainer_id == current_user.id]

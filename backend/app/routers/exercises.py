@@ -11,6 +11,19 @@ import uuid
 router = APIRouter()
 
 
+def _get_admin_club_id(current_user: models.User, db: Session) -> Optional[str]:
+    """Get club_id for CLUB_ADMIN. Falls back to Club.admin_id lookup if user.club_id is NULL."""
+    if current_user.club_id:
+        return current_user.club_id
+    club = db.query(models.Club).filter(models.Club.admin_id == current_user.id).first()
+    if club:
+        # Backfill for future calls
+        current_user.club_id = club.id
+        db.commit()
+        return club.id
+    return None
+
+
 class ExerciseUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
@@ -85,7 +98,7 @@ async def create_exercise(
     # Club admin creates club-shared exercises
     if current_user.role == models.UserRole.CLUB_ADMIN:
         trainer_id = None
-        club_id = current_user.club_id
+        club_id = _get_admin_club_id(current_user, db)
         if not club_id:
             raise HTTPException(status_code=400, detail="Администратор не привязан к клубу")
     else:

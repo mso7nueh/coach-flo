@@ -11,6 +11,18 @@ import uuid
 router = APIRouter()
 
 
+def _get_admin_club_id(current_user: models.User, db: Session) -> Optional[str]:
+    """Get club_id for CLUB_ADMIN. Falls back to Club.admin_id lookup if user.club_id is NULL."""
+    if current_user.club_id:
+        return current_user.club_id
+    club = db.query(models.Club).filter(models.Club.admin_id == current_user.id).first()
+    if club:
+        current_user.club_id = club.id
+        db.commit()
+        return club.id
+    return None
+
+
 @router.post("/{program_id}/copy", response_model=schemas.TrainingProgramResponse, status_code=status.HTTP_201_CREATED)
 async def copy_program(
     program_id: str,
@@ -162,7 +174,7 @@ async def create_program(
 
     club_id = None
     if current_user.role == models.UserRole.CLUB_ADMIN:
-        club_id = current_user.club_id
+        club_id = _get_admin_club_id(current_user, db)
 
     # Trainer can create programs for their clients
     target_user_id = current_user.id
@@ -204,10 +216,11 @@ async def get_programs(
     """Получить список программ"""
     if current_user.role == models.UserRole.CLUB_ADMIN:
         # Club admin sees all programs linked to their club
-        if not current_user.club_id:
+        club_id = _get_admin_club_id(current_user, db)
+        if not club_id:
             return []
         programs = db.query(models.TrainingProgram).filter(
-            models.TrainingProgram.club_id == current_user.club_id
+            models.TrainingProgram.club_id == club_id
         ).all()
         return programs
 
