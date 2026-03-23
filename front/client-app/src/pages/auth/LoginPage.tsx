@@ -1,18 +1,16 @@
-import { Button, Card, SegmentedControl, Stack, Text, TextInput, Title, PasswordInput } from '@mantine/core'
+import { Button, Card, Stack, Text, TextInput, Title, PasswordInput } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { loginUser, type LoginCredentials } from '@/app/store/slices/userSlice'
 import { useState } from 'react'
-import type { UserRole } from '@/app/store/slices/userSlice'
 import { notifications } from '@mantine/notifications'
 
 export const LoginPage = () => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
-    const [role, setRole] = useState<UserRole>('client')
     const [loading, setLoading] = useState(false)
 
     const form = useForm<LoginCredentials>({
@@ -107,15 +105,6 @@ export const LoginPage = () => {
                     </Stack>
                     <form onSubmit={form.onSubmit(handleSubmit)}>
                         <Stack gap="md">
-                            <SegmentedControl
-                                value={role}
-                                onChange={(value) => setRole(value as UserRole)}
-                                data={[
-                                    { label: t('common.roleClient'), value: 'client' },
-                                    { label: t('common.roleTrainer'), value: 'trainer' },
-                                ]}
-                                fullWidth
-                            />
                             <TextInput
                                 label={t('profile.email')}
                                 placeholder={t('profile.emailPlaceholder')}

@@ -11,18 +11,27 @@ import {
     IconCalendarStats,
     IconBell,
     IconApple,
-    IconCurrencyRubel
+    IconCurrencyRubel,
+    IconBuilding,
+    IconCreditCard,
 } from '@tabler/icons-react';
 
+interface NavItem {
+    to: string;
+    label: string;
+    icon: React.ComponentType<{ size?: number; color?: string; stroke?: number }>;
+    accent?: boolean;
+}
+
 interface BottomNavBarProps {
-    role: 'client' | 'trainer';
+    role: 'client' | 'trainer' | 'club_admin';
 }
 
 export const BottomNavBar = ({ role }: BottomNavBarProps) => {
     const { t } = useTranslation();
     const location = useLocation();
 
-    const clientItems = [
+    const clientItems: NavItem[] = [
         { to: '/dashboard', label: t('common.dashboard'), icon: IconLayoutDashboard },
         { to: '/calendar', label: t('common.calendar'), icon: IconCalendarTime },
         { to: '/program', label: t('common.program'), icon: IconListDetails },
@@ -30,15 +39,22 @@ export const BottomNavBar = ({ role }: BottomNavBarProps) => {
         { to: '/nutrition', label: t('common.nutrition'), icon: IconApple },
     ];
 
-    const trainerItems = [
+    const trainerItems: NavItem[] = [
         { to: '/trainer/clients', label: t('common.clients'), icon: IconUsersGroup },
         { to: '/trainer/library', label: t('common.library'), icon: IconLibrary },
         { to: '/trainer/calendar', label: t('common.trainerCalendar'), icon: IconCalendarStats },
         { to: '/trainer/notifications', label: t('notificationsPage.title'), icon: IconBell },
-        { to: '/trainer/finances', label: t('common.finances'), icon: IconCurrencyRubel },
+        { to: '/trainer/subscription', label: 'Подписка', icon: IconCreditCard, accent: true },
     ];
 
-    const items = role === 'client' ? clientItems : trainerItems;
+    const clubItems: NavItem[] = [
+        { to: '/club/trainers', label: 'Тренеры', icon: IconUsersGroup },
+        { to: '/club/library', label: 'Библиотека', icon: IconLibrary },
+        { to: '/club/calendar', label: 'Календарь', icon: IconCalendarStats },
+        { to: '/club/metrics', label: 'Метрики', icon: IconBuilding },
+    ];
+
+    const items = role === 'client' ? clientItems : role === 'club_admin' ? clubItems : trainerItems;
 
     return (
         <Box
@@ -60,6 +76,56 @@ export const BottomNavBar = ({ role }: BottomNavBarProps) => {
                 {items.map((item) => {
                     const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
                     const Icon = item.icon;
+
+                    if (item.accent) {
+                        return (
+                            <UnstyledButton
+                                key={item.to}
+                                component={NavLink}
+                                to={item.to}
+                                style={{
+                                    height: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <Stack align="center" gap={4}>
+                                    <Box
+                                        style={{
+                                            width: 36,
+                                            height: 28,
+                                            borderRadius: '8px',
+                                            background: isActive
+                                                ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)'
+                                                : 'linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(249,115,22,0.15) 100%)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s',
+                                        }}
+                                    >
+                                        <Icon
+                                            size={18}
+                                            color={isActive ? 'white' : '#f59e0b'}
+                                            stroke={isActive ? 2 : 1.5}
+                                        />
+                                    </Box>
+                                    <Text
+                                        size="10px"
+                                        fw={600}
+                                        style={{
+                                            letterSpacing: '0.2px',
+                                            color: isActive ? '#f97316' : '#f59e0b',
+                                        }}
+                                    >
+                                        {item.label}
+                                    </Text>
+                                </Stack>
+                            </UnstyledButton>
+                        );
+                    }
+
                     return (
                         <UnstyledButton
                             key={item.to}
@@ -84,7 +150,7 @@ export const BottomNavBar = ({ role }: BottomNavBarProps) => {
                                     fw={isActive ? 600 : 500}
                                     c={isActive ? 'violet.6' : 'dimmed'}
                                     style={{
-                                        letterSpacing: '0.2px'
+                                        letterSpacing: '0.2px',
                                     }}
                                 >
                                     {item.label}

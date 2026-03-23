@@ -24,6 +24,7 @@ export const ProfilePage = () => {
     const [trainerCode, setTrainerCode] = useState('')
     const [trainerMessage, setTrainerMessage] = useState<string | null>(null)
     const isTrainer = user.role === 'trainer'
+    const isClubAdmin = user.role === 'club_admin'
 
     const handleCopyCode = async () => {
         if (user.connectionCode) {
@@ -51,7 +52,7 @@ export const ProfilePage = () => {
                         <Stack gap={4}>
                             <Title order={3}>{user.fullName}</Title>
                             <Badge color="violet" variant="light">
-                                {isTrainer ? t('common.roleTrainer') : t('common.roleClient')}
+                                {isClubAdmin ? 'Администратор клуба' : isTrainer ? t('common.roleTrainer') : t('common.roleClient')}
                             </Badge>
                         </Stack>
                     </Group>
@@ -86,7 +87,7 @@ export const ProfilePage = () => {
                 </Stack>
             </Card>
 
-            {!isTrainer && (
+            {!isTrainer && !isClubAdmin && (
                 <Card withBorder padding="xl">
                     <Stack gap="md">
                         <Title order={4}>{t('common.subscription')}</Title>
@@ -154,7 +155,7 @@ export const ProfilePage = () => {
             }
 
             {
-                !isTrainer && user.trainer && (
+                !isTrainer && !isClubAdmin && user.trainer && (
                     <Card withBorder padding="xl">
                         <Stack gap="md">
                             <Title order={4}>{t('common.myTrainer')}</Title>
@@ -217,7 +218,7 @@ export const ProfilePage = () => {
             }
 
             {
-                !isTrainer && !user.trainer && (
+                !isTrainer && !isClubAdmin && !user.trainer && (
                     <Card withBorder padding="xl">
                         <Stack gap="md">
                             <Title order={4}>{t('profile.addTrainer')}</Title>

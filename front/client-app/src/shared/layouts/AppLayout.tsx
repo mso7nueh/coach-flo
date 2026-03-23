@@ -232,7 +232,7 @@ export const AppLayout = () => {
                                                         {user.fullName}
                                                     </Text>
                                                     <Text size="xs" c="dimmed">
-                                                        {t('common.roleTrainer')}
+                                                        {isClubAdmin ? 'Администратор клуба' : t('common.roleTrainer')}
                                                     </Text>
                                                 </Stack>
                                                 <IconChevronDown size={16} style={{ opacity: 0.6 }} />
@@ -322,18 +322,29 @@ export const AppLayout = () => {
                             style={{
                                 display: 'block',
                                 width: '100%',
-                                padding: '12px 16px',
+                                padding: '11px 14px',
                                 borderRadius: '8px',
                                 background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
                                 color: 'white',
                                 textDecoration: 'none',
-                                transition: 'all 0.2s',
-                                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.3)',
+                                transition: 'filter 0.2s, transform 0.15s',
+                                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.35)',
+                            }}
+                            onMouseEnter={(e) => {
+                                (e.currentTarget as HTMLElement).style.filter = 'brightness(1.1)'
+                                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'
+                            }}
+                            onMouseLeave={(e) => {
+                                (e.currentTarget as HTMLElement).style.filter = 'brightness(1)'
+                                ;(e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
                             }}
                         >
-                            <Group gap="sm" justify="center">
-                                <IconCreditCard size={18} />
-                                <Text fw={600} size="sm">Подписка</Text>
+                            <Group gap="sm" wrap="nowrap">
+                                <IconCreditCard size={18} style={{ flexShrink: 0 }} />
+                                <Stack gap={0}>
+                                    <Text fw={700} size="sm" lh={1.2}>Подписка</Text>
+                                    <Text size="10px" style={{ opacity: 0.85 }}>Управление планом</Text>
+                                </Stack>
                             </Group>
                         </UnstyledButton>
                     </Box>
@@ -363,7 +374,7 @@ export const AppLayout = () => {
                 )}
             </AppShell.Main>
             <FreeTrialNotification />
-            <BottomNavBar role={role as 'client' | 'trainer'} />
+            <BottomNavBar role={role as 'client' | 'trainer' | 'club_admin'} />
         </AppShell>
     )
 }
