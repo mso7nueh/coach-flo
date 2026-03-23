@@ -7,6 +7,7 @@ from app.auth import get_current_active_user
 from app.services.subscription_service import set_club_pro_status, revoke_club_pro_status
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
+from pydantic import BaseModel as PydanticBase
 import uuid
 
 router = APIRouter()
@@ -421,3 +422,299 @@ async def get_club_metrics(
         conducted_workouts=total_conducted,
         trainer_metrics=trainer_metrics,
     )
+
+
+# ─── Club Library — Workout Templates ─────────────────────────────────────────
+
+
+class ClubTemplateCreate(PydanticBase):
+    title: str
+    description: Optional[str] = None
+    duration: Optional[int] = None
+    level: Optional[str] = None
+    goal: Optional[str] = None
+    muscle_groups: Optional[List[str]] = None
+    equipment: Optional[List[str]] = None
+
+
+class ClubTemplateResponse(PydanticBase):
+    id: str
+    club_id: str
+    trainer_id: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    duration: Optional[int] = None
+    level: Optional[str] = None
+    goal: Optional[str] = None
+    muscle_groups: Optional[List[str]] = None
+    equipment: Optional[List[str]] = None
+    exercise_count: int = 0
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+import json as _json
+
+
+def _template_to_response(tpl: models.WorkoutTemplate) -> ClubTemplateResponse:
+    return ClubTemplateResponse(
+        id=tpl.id,
+        club_id=tpl.club_id,
+        trainer_id=tpl.trainer_id,
+        title=tpl.title,
+        description=tpl.description,
+        duration=tpl.duration,
+        level=tpl.level,
+        goal=tpl.goal,
+        muscle_groups=_json.loads(tpl.muscle_groups) if tpl.muscle_groups else None,
+        equipment=_json.loads(tpl.equipment) if tpl.equipment else None,
+        exercise_count=len(tpl.exercises),
+        created_at=tpl.created_at,
+    )
+
+
+@router.get("/library/templates", summary="Шаблоны тренировок клуба")
+async def get_club_templates(
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Для admin: шаблоны своего клуба.
+    Для тренера клуба: шаблоны клуба, к которому он принадлежит.
+    """
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        club = get_admin_club(current_user, db)
+        club_id = club.id
+    elif current_user.role == models.UserRole.TRAINER:
+        if not current_user.club_id:
+            raise HTTPException(status_code=403, detail="Вы не состоите в клубе")
+        club_id = current_user.club_id
+    else:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+
+    templates = db.query(models.WorkoutTemplate).filter(
+        models.WorkoutTemplate.club_id == club_id
+    ).order_by(models.WorkoutTemplate.created_at.desc()).all()
+
+    return [_template_to_response(t) for t in templates]
+
+
+@router.post("/library/templates", status_code=status.HTTP_201_CREATED, summary="Создать шаблон для клуба")
+async def create_club_template(
+    data: ClubTemplateCreate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Администратор клуба создаёт шаблон тренировки, доступный всем тренерам."""
+    club = get_admin_club(current_user, db)
+
+    tpl = models.WorkoutTemplate(
+        id=str(uuid.uuid4()),
+        trainer_id=current_user.id,
+        club_id=club.id,
+        title=data.title,
+        description=data.description,
+        duration=data.duration,
+        level=data.level,
+        goal=data.goal,
+        muscle_groups=_json.dumps(data.muscle_groups) if data.muscle_groups else None,
+        equipment=_json.dumps(data.equipment) if data.equipment else None,
+    )
+    db.add(tpl)
+    db.commit()
+    db.refresh(tpl)
+    return _template_to_response(tpl)
+
+
+@router.delete("/library/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Удалить шаблон клуба")
+async def delete_club_template(
+    template_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Только администратор клуба может удалить шаблон клуба."""
+    club = get_admin_club(current_user, db)
+
+    tpl = db.query(models.WorkoutTemplate).filter(
+        models.WorkoutTemplate.id == template_id,
+        models.WorkoutTemplate.club_id == club.id,
+    ).first()
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    db.delete(tpl)
+    db.commit()
+
+
+@router.post("/library/templates/{template_id}/copy", summary="Скопировать шаблон клуба в личную библиотеку")
+async def copy_club_template(
+    template_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Тренер копирует клубный шаблон в свою личную библиотеку."""
+    if current_user.role != models.UserRole.TRAINER:
+        raise HTTPException(status_code=403, detail="Только тренеры могут копировать шаблоны")
+    if not current_user.club_id:
+        raise HTTPException(status_code=403, detail="Вы не состоите в клубе")
+
+    src = db.query(models.WorkoutTemplate).filter(
+        models.WorkoutTemplate.id == template_id,
+        models.WorkoutTemplate.club_id == current_user.club_id,
+    ).first()
+    if not src:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+
+    copy = models.WorkoutTemplate(
+        id=str(uuid.uuid4()),
+        trainer_id=current_user.id,
+        club_id=None,  # личная копия
+        title=f"{src.title} (копия)",
+        description=src.description,
+        duration=src.duration,
+        level=src.level,
+        goal=src.goal,
+        muscle_groups=src.muscle_groups,
+        equipment=src.equipment,
+    )
+    db.add(copy)
+    db.flush()
+
+    for ex in src.exercises:
+        db.add(models.WorkoutTemplateExercise(
+            id=str(uuid.uuid4()),
+            template_id=copy.id,
+            exercise_id=ex.exercise_id,
+            block_type=ex.block_type,
+            sets=ex.sets,
+            reps=ex.reps,
+            duration=ex.duration,
+            rest=ex.rest,
+            weight=ex.weight,
+            notes=ex.notes,
+            order_index=ex.order_index,
+        ))
+
+    db.commit()
+    db.refresh(copy)
+    return _template_to_response(copy)
+
+
+# ─── Club Library — Programs ───────────────────────────────────────────────────
+
+
+class ClubProgramCreate(PydanticBase):
+    title: str
+    description: Optional[str] = None
+    level: Optional[str] = None
+    goal: Optional[str] = None
+    duration_weeks: Optional[int] = None
+    sessions_per_week: Optional[int] = None
+
+
+class ClubProgramResponse(PydanticBase):
+    id: str
+    club_id: str
+    creator_id: str
+    title: str
+    description: Optional[str] = None
+    level: Optional[str] = None
+    goal: Optional[str] = None
+    duration_weeks: Optional[int] = None
+    sessions_per_week: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/library/programs", summary="Программы клуба")
+async def get_club_programs(
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Возвращает программы клуба (для admin и тренеров клуба)."""
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        club = get_admin_club(current_user, db)
+        club_id = club.id
+    elif current_user.role == models.UserRole.TRAINER:
+        if not current_user.club_id:
+            raise HTTPException(status_code=403, detail="Вы не состоите в клубе")
+        club_id = current_user.club_id
+    else:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+
+    programs = db.query(models.ClubProgram).filter(
+        models.ClubProgram.club_id == club_id
+    ).order_by(models.ClubProgram.created_at.desc()).all()
+    return programs
+
+
+@router.post("/library/programs", status_code=status.HTTP_201_CREATED, summary="Создать программу клуба")
+async def create_club_program(
+    data: ClubProgramCreate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Администратор клуба создаёт программу тренировок для клуба."""
+    club = get_admin_club(current_user, db)
+
+    prog = models.ClubProgram(
+        id=str(uuid.uuid4()),
+        club_id=club.id,
+        creator_id=current_user.id,
+        title=data.title,
+        description=data.description,
+        level=data.level,
+        goal=data.goal,
+        duration_weeks=data.duration_weeks,
+        sessions_per_week=data.sessions_per_week,
+    )
+    db.add(prog)
+    db.commit()
+    db.refresh(prog)
+    return prog
+
+
+@router.put("/library/programs/{program_id}", summary="Обновить программу клуба")
+async def update_club_program(
+    program_id: str,
+    data: ClubProgramCreate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Только администратор клуба может редактировать программу."""
+    club = get_admin_club(current_user, db)
+
+    prog = db.query(models.ClubProgram).filter(
+        models.ClubProgram.id == program_id,
+        models.ClubProgram.club_id == club.id,
+    ).first()
+    if not prog:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(prog, field, value)
+    db.commit()
+    db.refresh(prog)
+    return prog
+
+
+@router.delete("/library/programs/{program_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Удалить программу клуба")
+async def delete_club_program(
+    program_id: str,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Только администратор клуба может удалить программу."""
+    club = get_admin_club(current_user, db)
+
+    prog = db.query(models.ClubProgram).filter(
+        models.ClubProgram.id == program_id,
+        models.ClubProgram.club_id == club.id,
+    ).first()
+    if not prog:
+        raise HTTPException(status_code=404, detail="Программа не найдена")
+    db.delete(prog)
+    db.commit()

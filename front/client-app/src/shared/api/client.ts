@@ -1443,6 +1443,60 @@ export const apiClient = {
     return data
   },
 
+  // Club Library
+  getClubTemplates: async (): Promise<any[]> => {
+    const { data } = await api.get('/api/clubs/library/templates')
+    return data
+  },
+  createClubTemplate: async (payload: {
+    title: string
+    description?: string
+    duration?: number
+    level?: string
+    goal?: string
+    muscle_groups?: string[]
+    equipment?: string[]
+  }): Promise<any> => {
+    const { data } = await api.post('/api/clubs/library/templates', payload)
+    return data
+  },
+  deleteClubTemplate: async (template_id: string): Promise<void> => {
+    await api.delete(`/api/clubs/library/templates/${template_id}`)
+  },
+  copyClubTemplate: async (template_id: string): Promise<any> => {
+    const { data } = await api.post(`/api/clubs/library/templates/${template_id}/copy`)
+    return data
+  },
+  getClubPrograms: async (): Promise<any[]> => {
+    const { data } = await api.get('/api/clubs/library/programs')
+    return data
+  },
+  createClubProgram: async (payload: {
+    title: string
+    description?: string
+    level?: string
+    goal?: string
+    duration_weeks?: number
+    sessions_per_week?: number
+  }): Promise<any> => {
+    const { data } = await api.post('/api/clubs/library/programs', payload)
+    return data
+  },
+  updateClubProgram: async (program_id: string, payload: {
+    title: string
+    description?: string
+    level?: string
+    goal?: string
+    duration_weeks?: number
+    sessions_per_week?: number
+  }): Promise<any> => {
+    const { data } = await api.put(`/api/clubs/library/programs/${program_id}`, payload)
+    return data
+  },
+  deleteClubProgram: async (program_id: string): Promise<void> => {
+    await api.delete(`/api/clubs/library/programs/${program_id}`)
+  },
+
   // Admin API (X-Admin-Secret required)
   adminGetUsers: async (secret: string, params?: { role?: string; search?: string; limit?: number; offset?: number }) => {
     const { data } = await api.get('/api/admin/users', { params, headers: { 'X-Admin-Secret': secret } })

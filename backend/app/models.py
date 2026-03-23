@@ -430,7 +430,8 @@ class WorkoutTemplate(Base):
     __tablename__ = "workout_templates"
 
     id = Column(String, primary_key=True, index=True)
-    trainer_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)  # null = created by club admin
+    club_id = Column(String, ForeignKey("clubs.id"), nullable=True, index=True)  # null = personal, set = club-shared
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     duration = Column(Integer, nullable=True)
@@ -442,6 +443,7 @@ class WorkoutTemplate(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     trainer = relationship("User", foreign_keys=[trainer_id])
+    club = relationship("Club", foreign_keys=[club_id])
     exercises = relationship("WorkoutTemplateExercise", back_populates="template", cascade="all, delete-orphan", order_by="WorkoutTemplateExercise.order_index")
 
 
@@ -539,3 +541,23 @@ class ClubTrainer(Base):
 
     club = relationship("Club", back_populates="club_trainers")
     trainer = relationship("User", foreign_keys=[trainer_id])
+
+
+class ClubProgram(Base):
+    """Программа клуба — создаётся администратором, доступна всем тренерам клуба."""
+    __tablename__ = "club_programs"
+
+    id = Column(String, primary_key=True, index=True)
+    club_id = Column(String, ForeignKey("clubs.id"), nullable=False, index=True)
+    creator_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)  # club admin
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    level = Column(String(20), nullable=True)  # beginner, intermediate, advanced
+    goal = Column(String(20), nullable=True)
+    duration_weeks = Column(Integer, nullable=True)
+    sessions_per_week = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    club = relationship("Club", foreign_keys=[club_id])
+    creator = relationship("User", foreign_keys=[creator_id])
