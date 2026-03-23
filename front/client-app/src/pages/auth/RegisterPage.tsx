@@ -5,7 +5,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAppDispatch } from '@/shared/hooks/useAppDispatch'
 import { registerUserStep1, registerUserStep2, sendSMS, type RegisterData } from '@/app/store/slices/userSlice'
 import { useState, useEffect } from 'react'
-import { IconPhone, IconCheck, IconRefresh, IconInfoCircle } from '@tabler/icons-react'
+import { IconPhone, IconCheck, IconRefresh, IconInfoCircle, IconBrandTelegram } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import type { UserRole } from '@/app/store/slices/userSlice'
 
@@ -44,6 +44,7 @@ export const RegisterPage = () => {
     const [canResend, setCanResend] = useState(false)
     const [resendTimer, setResendTimer] = useState(60)
     const [loading, setLoading] = useState(false)
+    const [deliveryMethod, setDeliveryMethod] = useState<'telegram' | 'sms'>('telegram')
 
     const form = useForm<RegisterData>({
         initialValues: {
@@ -90,7 +91,7 @@ export const RegisterPage = () => {
 
         setLoading(true)
         try {
-            await dispatch(registerUserStep1({
+            const result = await dispatch(registerUserStep1({
                 full_name: form.values.fullName,
                 email: form.values.email,
                 password: form.values.password,
@@ -99,13 +100,17 @@ export const RegisterPage = () => {
                 connection_code: form.values.connectionCode,
             })).unwrap()
 
+            const method = (result?.delivery_method as 'telegram' | 'sms') || 'telegram'
+            setDeliveryMethod(method)
             setPhoneVerificationStep('verify')
             setCanResend(false)
             setResendTimer(60)
             notifications.show({
                 title: t('auth.codeSent'),
-                message: t('auth.codeSentTo') + ' ' + form.values.phone,
-                color: 'blue',
+                message: method === 'telegram'
+                    ? `Код отправлен в Telegram на номер ${form.values.phone}`
+                    : `Код отправлен по SMS на номер ${form.values.phone}`,
+                color: method === 'telegram' ? 'blue' : 'green',
             })
         } catch (error) {
             notifications.show({
@@ -290,19 +295,36 @@ export const RegisterPage = () => {
                         </form>
                     ) : (
                         <Stack gap="md">
-                            <Card withBorder padding="md" style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
-                                <Group gap="sm">
-                                    <IconCheck size={20} color="var(--mantine-color-blue-6)" />
-                                    <Stack gap={2}>
-                                        <Text size="sm" fw={500}>
-                                            {t('auth.codeSent')}
-                                        </Text>
-                                        <Text size="xs" c="dimmed">
-                                            {t('auth.codeSentTo')} {form.values.phone}
-                                        </Text>
-                                    </Stack>
-                                </Group>
-                            </Card>
+                            <Card
+                            withBorder
+                            padding="md"
+                            style={{
+                                backgroundColor: deliveryMethod === 'telegram'
+                                    ? 'rgba(32, 161, 239, 0.08)'
+                                    : 'var(--mantine-color-green-0)',
+                                borderColor: deliveryMethod === 'telegram'
+                                    ? 'rgba(32, 161, 239, 0.3)'
+                                    : 'var(--mantine-color-green-3)',
+                            }}
+                        >
+                            <Group gap="sm">
+                                {deliveryMethod === 'telegram' ? (
+                                    <IconBrandTelegram size={22} color="#20A1EF" />
+                                ) : (
+                                    <IconCheck size={22} color="var(--mantine-color-green-6)" />
+                                )}
+                                <Stack gap={2}>
+                                    <Text size="sm" fw={600}>
+                                        {deliveryMethod === 'telegram' ? 'Код отправлен в Telegram' : 'Код отправлен по SMS'}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {deliveryMethod === 'telegram'
+                                            ? `Откройте Telegram — вам пришло сообщение на номер ${form.values.phone}`
+                                            : `${t('auth.codeSentTo')} ${form.values.phone}`}
+                                    </Text>
+                                </Stack>
+                            </Group>
+                        </Card>
                             <Stack gap="xs">
                                 <Text size="sm" fw={500} ta="center">
                                     {t('auth.enterCode')}
@@ -318,7 +340,7 @@ export const RegisterPage = () => {
                             </Stack>
                                 <Group gap="xs" justify="center">
                                     <Text size="xs" c="dimmed">
-                                        Не получили код?
+                                        {deliveryMethod === 'telegram' ? 'Не пришло в Telegram?' : 'Не получили SMS?'}
                                     </Text>
                                     {canResend ? (
                                         <Button

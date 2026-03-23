@@ -98,9 +98,10 @@ def send_sms_code(phone: str, code: str) -> bool:
         return False
 
 
-def create_sms_verification(db: Session, phone: str, user_id: str = None, delivery_method: str = "sms") -> tuple[models.SMSVerification, str]:
+def create_sms_verification(db: Session, phone: str, user_id: str = None, delivery_method: str = "telegram") -> tuple[models.SMSVerification, str]:
     """
-    Создает запись о SMS верификации и отправляет код через SMSC.ru.
+    Создает запись о верификации и отправляет код.
+    При delivery_method='telegram' сначала пробует Telegram Gateway, при неудаче — SMS.
     """
     normalized_phone = normalize_phone(phone)
     code = generate_sms_code()
@@ -126,10 +127,20 @@ def create_sms_verification(db: Session, phone: str, user_id: str = None, delive
     db.commit()
     db.refresh(sms_verification)
     
-    # Всегда отправляем через SMSC.ru
-    send_sms_code(normalized_phone, code)
+    # Пробуем Telegram первым, при неудаче — SMS
+    actual_method = "sms"
+    if delivery_method == "telegram":
+        telegram_ok = send_telegram_code(normalized_phone, code)
+        if telegram_ok:
+            actual_method = "telegram"
+        else:
+            print(f"[Delivery] Telegram failed, falling back to SMS for {normalized_phone}")
+            send_sms_code(normalized_phone, code)
+    else:
+        send_sms_code(normalized_phone, code)
     
-    return sms_verification, "sms"
+    return sms_verification, actual_method
+
 
 
 def verify_sms_code(db: Session, phone: str, code: str) -> bool:

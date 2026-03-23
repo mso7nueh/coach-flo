@@ -40,6 +40,7 @@ export interface OnboardingResponse {
 export interface RegisterStep1Response {
   verified: boolean
   message: string
+  delivery_method?: 'telegram' | 'sms'
 }
 
 export interface RegisterStep2Response {
