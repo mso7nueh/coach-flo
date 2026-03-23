@@ -75,7 +75,8 @@ class WorkoutTemplateUpdate(BaseModel):
 
 class WorkoutTemplateResponse(WorkoutTemplateBase):
     id: str
-    trainer_id: str
+    trainer_id: Optional[str] = None
+    club_id: Optional[str] = None
     exercises: List[WorkoutTemplateExerciseResponse]
     created_at: datetime
     updated_at: Optional[datetime] = None
