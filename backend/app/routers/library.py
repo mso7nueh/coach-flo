@@ -119,7 +119,7 @@ async def create_workout_template(
     db: Session = Depends(get_db)
 ):
     """Создать шаблон тренировки (только для тренеров)"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать шаблоны тренировок")
     
     template_id = str(uuid.uuid4())
@@ -370,7 +370,7 @@ async def update_workout_template(
     db: Session = Depends(get_db)
 ):
     """Обновить шаблон тренировки"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут обновлять шаблоны")
     
     template = db.query(models.WorkoutTemplate).filter(
@@ -491,7 +491,7 @@ async def delete_workout_template(
     db: Session = Depends(get_db)
 ):
     """Удалить шаблон тренировки"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут удалять шаблоны")
     
     template = db.query(models.WorkoutTemplate).filter(
@@ -526,7 +526,7 @@ async def create_workout_template_from_day(
     db: Session = Depends(get_db)
 ):
     """Создать шаблон из дня программы (только для тренеров)"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать шаблоны")
     
     # Получаем день программы
@@ -680,7 +680,7 @@ async def create_exercise_template(
     db: Session = Depends(get_db)
 ):
     """Создать шаблон упражнения (только для тренеров)"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать шаблоны")
     
     # Verify exercise exists and trainer has access
@@ -759,7 +759,7 @@ async def update_exercise_template(
     db: Session = Depends(get_db)
 ):
     """Обновить шаблон упражнения"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут обновлять шаблоны")
     
     template = db.query(models.ExerciseTemplate).filter(
@@ -786,7 +786,7 @@ async def delete_exercise_template(
     db: Session = Depends(get_db)
 ):
     """Удалить шаблон упражнения"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут удалять шаблоны")
     
     template = db.query(models.ExerciseTemplate).filter(

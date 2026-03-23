@@ -58,7 +58,7 @@ async def create_exercise(
     db: Session = Depends(get_db)
 ):
     """Создать упражнение (только для тренеров)"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать упражнения")
     
     # Validate visibility and client_id
@@ -215,7 +215,7 @@ async def update_exercise(
     db: Session = Depends(get_db)
 ):
     """Обновить упражнение (только для тренеров, только свои упражнения)"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут обновлять упражнения")
     
     exercise = db.query(models.Exercise).filter(
@@ -288,7 +288,7 @@ async def delete_exercise(
     db: Session = Depends(get_db)
 ):
     """Удалить упражнение (только для тренеров, только свои упражнения)"""
-    if current_user.role != models.UserRole.TRAINER:
+    if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут удалять упражнения")
     
     exercise = db.query(models.Exercise).filter(
