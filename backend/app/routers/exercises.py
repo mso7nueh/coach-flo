@@ -57,22 +57,18 @@ async def create_exercise(
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Создать упражнение (только для тренеров)"""
+    """Создать упражнение (для тренеров и администратора клуба)"""
     if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать упражнения")
-    
-    # Validate visibility and client_id
+
     exercise_data = exercise.model_dump()
     visibility = exercise_data.get("visibility", "all")
     client_id = exercise_data.get("client_id")
-    
+
     if visibility == "client" and not client_id:
         raise HTTPException(status_code=400, detail="client_id обязателен, если visibility='client'")
-    
     if visibility != "client" and client_id:
         raise HTTPException(status_code=400, detail="client_id должен быть NULL, если visibility!='client'")
-    
-    # If visibility is 'client', verify client belongs to trainer
     if visibility == "client" and client_id:
         client = db.query(models.User).filter(
             and_(
@@ -83,11 +79,23 @@ async def create_exercise(
         ).first()
         if not client:
             raise HTTPException(status_code=404, detail="Клиент не найден или не принадлежит тренеру")
-    
+
     exercise_id = str(uuid.uuid4())
+
+    # Club admin creates club-shared exercises
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        trainer_id = None
+        club_id = current_user.club_id
+        if not club_id:
+            raise HTTPException(status_code=400, detail="Администратор не привязан к клубу")
+    else:
+        trainer_id = current_user.id
+        club_id = None
+
     db_exercise = models.Exercise(
         id=exercise_id,
-        trainer_id=current_user.id,
+        trainer_id=trainer_id,
+        club_id=club_id,
         name=exercise_data["name"],
         description=exercise_data.get("description"),
         muscle_groups=exercise_data.get("muscle_groups"),
@@ -131,14 +139,21 @@ async def get_exercises(
     db: Session = Depends(get_db)
 ):
     """Получить список упражнений"""
-    # For trainers: show all their exercises (including visibility='trainer')
-    # For clients: show only exercises with visibility='all' or visibility='client' with their client_id
-    if current_user.role == models.UserRole.TRAINER:
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        # Club admin sees all exercises belonging to their club
+        if not current_user.club_id:
+            return []
         query = db.query(models.Exercise).filter(
-            models.Exercise.trainer_id == current_user.id
+            models.Exercise.club_id == current_user.club_id
         )
+    elif current_user.role == models.UserRole.TRAINER:
+        # Trainer sees their own exercises + club exercises if they belong to a club
+        conditions = [models.Exercise.trainer_id == current_user.id]
+        if current_user.club_id:
+            conditions.append(models.Exercise.club_id == current_user.club_id)
+        query = db.query(models.Exercise).filter(or_(*conditions))
     else:
-        # Client can see: visibility='all' OR (visibility='client' AND client_id=current_user.id)
+        # Client sees exercises shared by their trainer
         query = db.query(models.Exercise).filter(
             or_(
                 and_(
@@ -151,15 +166,13 @@ async def get_exercises(
                 )
             )
         )
-    
+
     if search:
         query = query.filter(models.Exercise.name.ilike(f"%{search}%"))
-    
     if muscle_group:
         query = query.filter(models.Exercise.muscle_groups.ilike(f"%{muscle_group}%"))
-    
-    exercises = query.order_by(models.Exercise.name).all()
-    return exercises
+
+    return query.order_by(models.Exercise.name).all()
 
 
 @router.get("/{exercise_id}", response_model=schemas.ExerciseResponse)
@@ -172,22 +185,21 @@ async def get_exercise(
     exercise = db.query(models.Exercise).filter(
         models.Exercise.id == exercise_id
     ).first()
-    
     if not exercise:
         raise HTTPException(status_code=404, detail="Упражнение не найдено")
-    
-    # Check access based on visibility
-    if current_user.role == models.UserRole.TRAINER:
-        if exercise.trainer_id != current_user.id:
+
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        if exercise.club_id != current_user.club_id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому упражнению")
+    elif current_user.role == models.UserRole.TRAINER:
+        if exercise.trainer_id != current_user.id and exercise.club_id != current_user.club_id:
             raise HTTPException(status_code=403, detail="Нет доступа к этому упражнению")
     else:
-        # Client can access if visibility='all' or visibility='client' with their client_id
         if not (
             (exercise.visibility == "all" and exercise.trainer_id == current_user.trainer_id) or
             (exercise.visibility == "client" and exercise.client_id == current_user.id)
         ):
             raise HTTPException(status_code=403, detail="Нет доступа к этому упражнению")
-    
     return exercise
 
 
@@ -214,33 +226,30 @@ async def update_exercise(
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Обновить упражнение (только для тренеров, только свои упражнения)"""
+    """Обновить упражнение (тренеры — свои, club admin — клубные)"""
     if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут обновлять упражнения")
-    
-    exercise = db.query(models.Exercise).filter(
-        and_(
-            models.Exercise.id == exercise_id,
-            models.Exercise.trainer_id == current_user.id
-        )
-    ).first()
-    
+
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        exercise = db.query(models.Exercise).filter(
+            and_(models.Exercise.id == exercise_id, models.Exercise.club_id == current_user.club_id)
+        ).first()
+    else:
+        exercise = db.query(models.Exercise).filter(
+            and_(models.Exercise.id == exercise_id, models.Exercise.trainer_id == current_user.id)
+        ).first()
+
     if not exercise:
         raise HTTPException(status_code=404, detail="Упражнение не найдено")
-    
+
     update_data = exercise_update.model_dump(exclude_unset=True)
-    
-    # Validate visibility and client_id if provided
     visibility = update_data.get("visibility")
     client_id = update_data.get("client_id")
-    
     if visibility is not None:
         if visibility == "client" and not client_id:
             raise HTTPException(status_code=400, detail="client_id обязателен, если visibility='client'")
         if visibility != "client" and client_id:
             raise HTTPException(status_code=400, detail="client_id должен быть NULL, если visibility!='client'")
-        
-        # If visibility is 'client', verify client belongs to trainer
         if visibility == "client" and client_id:
             client = db.query(models.User).filter(
                 and_(
@@ -251,31 +260,14 @@ async def update_exercise(
             ).first()
             if not client:
                 raise HTTPException(status_code=404, detail="Клиент не найден или не принадлежит тренеру")
-    
-    # Update fields
-    if "name" in update_data:
-        exercise.name = update_data["name"]
-    if "description" in update_data:
-        exercise.description = update_data.get("description")
-    if "muscle_groups" in update_data:
-        exercise.muscle_groups = update_data.get("muscle_groups")
-    if "equipment" in update_data:
-        exercise.equipment = update_data.get("equipment")
-    if "difficulty" in update_data:
-        exercise.difficulty = update_data.get("difficulty")
-    if "starting_position" in update_data:
-        exercise.starting_position = update_data.get("starting_position")
-    if "execution_instructions" in update_data:
-        exercise.execution_instructions = update_data.get("execution_instructions")
-    if "video_url" in update_data:
-        exercise.video_url = update_data.get("video_url")
-    if "notes" in update_data:
-        exercise.notes = update_data.get("notes")
-    if "visibility" in update_data:
-        exercise.visibility = update_data["visibility"]
+
+    for field in ["name", "description", "muscle_groups", "equipment", "difficulty",
+                  "starting_position", "execution_instructions", "video_url", "notes", "visibility"]:
+        if field in update_data:
+            setattr(exercise, field, update_data.get(field))
     if "client_id" in update_data:
         exercise.client_id = update_data.get("client_id") if update_data.get("visibility") == "client" else None
-    
+
     db.commit()
     db.refresh(exercise)
     return exercise
@@ -287,26 +279,25 @@ async def delete_exercise(
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Удалить упражнение (только для тренеров, только свои упражнения)"""
+    """Удалить упражнение (тренеры — свои, club admin — клубные)"""
     if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут удалять упражнения")
-    
-    exercise = db.query(models.Exercise).filter(
-        and_(
-            models.Exercise.id == exercise_id,
-            models.Exercise.trainer_id == current_user.id
-        )
-    ).first()
-    
+
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        exercise = db.query(models.Exercise).filter(
+            and_(models.Exercise.id == exercise_id, models.Exercise.club_id == current_user.club_id)
+        ).first()
+    else:
+        exercise = db.query(models.Exercise).filter(
+            and_(models.Exercise.id == exercise_id, models.Exercise.trainer_id == current_user.id)
+        ).first()
+
     if not exercise:
         raise HTTPException(status_code=404, detail="Упражнение не найдено")
-    
-    # Удаляем все связанные записи из workout_template_exercises перед удалением упражнения
-    # Это необходимо, так как ограничение внешнего ключа может блокировать удаление
+
     db.query(models.WorkoutTemplateExercise).filter(
         models.WorkoutTemplateExercise.exercise_id == exercise_id
     ).delete()
-    
     db.delete(exercise)
     db.commit()
     return None

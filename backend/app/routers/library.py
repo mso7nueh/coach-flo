@@ -75,11 +75,14 @@ class WorkoutTemplateResponse(WorkoutTemplateBase):
 
 def _check_template_access(template: models.WorkoutTemplate, current_user: models.User, db: Session) -> bool:
     """Check if user has access to template"""
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        return template.club_id == current_user.club_id
     if current_user.role == models.UserRole.TRAINER:
-        return template.trainer_id == current_user.id
-    else:
-        # Client can access templates from their trainer
-        return template.trainer_id == current_user.trainer_id
+        return template.trainer_id == current_user.id or (
+            current_user.club_id and template.club_id == current_user.club_id
+        )
+    # Client can access templates from their trainer
+    return template.trainer_id == current_user.trainer_id
 
 
 @router.post(
@@ -118,14 +121,25 @@ async def create_workout_template(
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Создать шаблон тренировки (только для тренеров)"""
+    """Создать шаблон тренировки (тренеры — личный, club admin — клубный)"""
     if current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать шаблоны тренировок")
-    
+
     template_id = str(uuid.uuid4())
+
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        if not current_user.club_id:
+            raise HTTPException(status_code=400, detail="Администратор не привязан к клубу")
+        trainer_id = None
+        club_id = current_user.club_id
+    else:
+        trainer_id = current_user.id
+        club_id = None
+
     db_template = models.WorkoutTemplate(
         id=template_id,
-        trainer_id=current_user.id,
+        trainer_id=trainer_id,
+        club_id=club_id,
         title=template.title,
         description=template.description,
         duration=template.duration,
@@ -228,10 +242,18 @@ async def get_workout_templates(
     db: Session = Depends(get_db)
 ):
     """Получить список шаблонов тренировок"""
-    if current_user.role == models.UserRole.TRAINER:
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        if not current_user.club_id:
+            return []
         query = db.query(models.WorkoutTemplate).filter(
-            models.WorkoutTemplate.trainer_id == current_user.id
+            models.WorkoutTemplate.club_id == current_user.club_id
         )
+    elif current_user.role == models.UserRole.TRAINER:
+        conditions = [models.WorkoutTemplate.trainer_id == current_user.id]
+        if current_user.club_id:
+            conditions.append(models.WorkoutTemplate.club_id == current_user.club_id)
+        from sqlalchemy import or_ as sql_or
+        query = db.query(models.WorkoutTemplate).filter(sql_or(*conditions))
     else:
         # Clients see templates from their trainer
         if not current_user.trainer_id:
@@ -239,7 +261,7 @@ async def get_workout_templates(
         query = db.query(models.WorkoutTemplate).filter(
             models.WorkoutTemplate.trainer_id == current_user.trainer_id
         )
-    
+
     if search:
         query = query.filter(models.WorkoutTemplate.title.ilike(f"%{search}%"))
     if level:

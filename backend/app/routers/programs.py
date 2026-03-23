@@ -153,14 +153,20 @@ async def create_program(
 ):
     """Создать программу тренировок"""
     program_id = str(uuid.uuid4())
-    
-    # Определяем для кого создаётся программа
+
+    # Determine owner and club_id
+    if current_user.role in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
+        owner = "trainer"
+    else:
+        owner = "client"
+
+    club_id = None
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        club_id = current_user.club_id
+
+    # Trainer can create programs for their clients
     target_user_id = current_user.id
-    owner = "trainer" if current_user.role in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN) else "client"
-    
-    # Тренер может создавать программы для своих клиентов
-    if program.user_id and current_user.role == models.UserRole.TRAINER:
-        # Проверяем, что клиент связан с тренером
+    if program.user_id and current_user.role in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         client = db.query(models.User).filter(
             and_(
                 models.User.id == program.user_id,
@@ -171,15 +177,17 @@ async def create_program(
             raise HTTPException(status_code=404, detail="Клиент не найден")
         target_user_id = program.user_id
         owner = "client"
+        club_id = None  # client programs are never club-shared
     elif program.user_id and current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут создавать программы для других пользователей")
-    
+
     db_program = models.TrainingProgram(
         id=program_id,
         user_id=target_user_id,
         title=program.title,
         description=program.description,
-        owner=owner
+        owner=owner,
+        club_id=club_id,
     )
     db.add(db_program)
     db.commit()
@@ -194,10 +202,17 @@ async def get_programs(
     db: Session = Depends(get_db)
 ):
     """Получить список программ"""
-    # Тренеры могут просматривать программы своих клиентов
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        # Club admin sees all programs linked to their club
+        if not current_user.club_id:
+            return []
+        programs = db.query(models.TrainingProgram).filter(
+            models.TrainingProgram.club_id == current_user.club_id
+        ).all()
+        return programs
+
     target_user_id = current_user.id
     if user_id and current_user.role == models.UserRole.TRAINER:
-        # Проверяем, что клиент связан с тренером
         client = db.query(models.User).filter(
             and_(
                 models.User.id == user_id,
@@ -209,7 +224,21 @@ async def get_programs(
         target_user_id = user_id
     elif user_id and current_user.role not in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         raise HTTPException(status_code=403, detail="Только тренеры могут просматривать программы других пользователей")
-    
+
+    if current_user.role == models.UserRole.TRAINER and not user_id:
+        # Trainer also sees club programs if they belong to a club
+        from sqlalchemy import or_ as sql_or
+        programs = db.query(models.TrainingProgram).filter(
+            sql_or(
+                models.TrainingProgram.user_id == current_user.id,
+                and_(
+                    models.TrainingProgram.club_id == current_user.club_id,
+                    current_user.club_id != None
+                )
+            )
+        ).all()
+        return programs
+
     programs = db.query(models.TrainingProgram).filter(
         models.TrainingProgram.user_id == target_user_id
     ).all()
@@ -550,8 +579,13 @@ async def delete_program_day(
 
 def _check_program_access(program: models.TrainingProgram, current_user: models.User, db: Session) -> bool:
     """Check if user has access to program"""
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        return program.club_id == current_user.club_id or program.user_id == current_user.id
     if current_user.role in (models.UserRole.TRAINER, models.UserRole.CLUB_ADMIN):
         if program.user_id == current_user.id:
+            return True
+        # Club program accessible to this trainer?
+        if current_user.club_id and program.club_id == current_user.club_id:
             return True
         # Check if client belongs to trainer
         client = db.query(models.User).filter(

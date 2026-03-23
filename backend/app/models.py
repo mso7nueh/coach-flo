@@ -178,12 +178,14 @@ class TrainingProgram(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    owner = Column(String, nullable=False)  # 'trainer' or 'client'
+    owner = Column(String(20), nullable=False, default="client")  # 'trainer', 'client'
+    club_id = Column(String, ForeignKey("clubs.id"), nullable=True, index=True)  # null = personal, set = club-shared
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    user = relationship("User")
-    days = relationship("ProgramDay", back_populates="program", cascade="all, delete-orphan")
+    user = relationship("User", foreign_keys=[user_id], back_populates="training_programs")
+    club = relationship("Club", foreign_keys=[club_id])
+    days = relationship("ProgramDay", back_populates="program", cascade="all, delete-orphan", lazy="select")
 
 
 class ProgramDay(Base):
@@ -359,7 +361,8 @@ class Exercise(Base):
     __tablename__ = "exercises"
 
     id = Column(String, primary_key=True, index=True)
-    trainer_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)  # null = общая библиотека
+    trainer_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)  # null = public library
+    club_id = Column(String, ForeignKey("clubs.id"), nullable=True, index=True)  # null = personal, set = club-shared
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     muscle_groups = Column(String, nullable=True)  # comma-separated
@@ -375,6 +378,7 @@ class Exercise(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     trainer = relationship("User", foreign_keys=[trainer_id], back_populates="exercises")
+    club = relationship("Club", foreign_keys=[club_id])
     client = relationship("User", foreign_keys=[client_id], back_populates="client_exercises")
 
 
