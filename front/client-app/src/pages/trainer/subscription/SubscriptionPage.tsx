@@ -222,6 +222,24 @@ export const SubscriptionPage = () => {
                     </Card>
                 )}
 
+                {/* Club Trainer Pro Banner */}
+                {user.subscription_plan === 'pro' && user.role === 'trainer' && (() => {
+                    // Показываем клубный баннер только если тренер в клубе (club_id придёт позже, пока проверяем через план)
+                    // В текущей архитектуре фронтенд не знает club_id — проверяем через subscription_plan
+                    return (
+                        <Card withBorder padding="lg" radius="md" style={{ borderColor: 'var(--mantine-color-blue-5)', backgroundColor: 'var(--mantine-color-blue-0)' }}>
+                            <Group justify="center" gap="xs">
+                                <Text fw={600} c="blue">
+                                    🏆 Тариф Pro — включён через клуб
+                                </Text>
+                                <Text c="dimmed" size="sm">
+                                    Вы состоите в клубе. Подписка Pro активна автоматически — до 30 клиентов.
+                                </Text>
+                            </Group>
+                        </Card>
+                    )
+                })()}
+
                 {/* Active Subscription Status */}
                 {user.subscription_expires_at && dayjs(user.subscription_expires_at).isAfter(dayjs()) && (
                     <Card withBorder padding="lg" radius="md" style={{ borderColor: 'var(--mantine-color-violet-5)', backgroundColor: 'var(--mantine-color-violet-0)' }}>

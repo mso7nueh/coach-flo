@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_active_user
+from app.services.subscription_service import check_client_limit
 from pydantic import BaseModel, Field
 
 router = APIRouter()
@@ -189,7 +190,12 @@ async def link_trainer_or_client(
             
         if other_user.trainer_id:
              raise HTTPException(status_code=400, detail="Клиент уже связан с другим тренером")
-             
+        
+        # Проверяем лимит клиентов по плану тренера
+        ok, msg = check_client_limit(user, db)
+        if not ok:
+            raise HTTPException(status_code=403, detail=msg)
+
         other_user.trainer_id = user.id
         db.commit()
     

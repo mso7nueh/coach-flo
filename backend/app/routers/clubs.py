@@ -4,6 +4,7 @@ from sqlalchemy import and_, func as sqlfunc
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_active_user
+from app.services.subscription_service import set_club_pro_status, revoke_club_pro_status
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import uuid
@@ -162,7 +163,12 @@ async def add_trainer_to_club(
         trainer_id=trainer.id,
     )
     db.add(ct)
+
+    # Устанавливаем тренеру club_id и Pro-подписку
+    trainer.club_id = club.id
     db.commit()
+    set_club_pro_status(trainer, db)
+
     return {"message": "Тренер успешно добавлен в клуб", "trainer_id": trainer.id}
 
 
@@ -183,6 +189,14 @@ async def remove_trainer_from_club(
     ).first()
     if not ct:
         raise HTTPException(status_code=404, detail="Тренер не состоит в клубе")
+
+    # Снимаем Pro и club_id у тренера
+    trainer = db.query(models.User).filter(models.User.id == trainer_id).first()
+    if trainer:
+        trainer.club_id = None
+        db.commit()
+        revoke_club_pro_status(trainer, db)
+
     db.delete(ct)
     db.commit()
 
