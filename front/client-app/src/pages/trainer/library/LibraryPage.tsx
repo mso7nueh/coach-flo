@@ -104,6 +104,8 @@ export const LibraryPage = () => {
     const { workouts, exercises, exerciseTemplates, workoutFilters, exerciseFilters } = useAppSelector((state) => state.library)
     const { programs, days, selectedProgramId, selectedDayId } = useAppSelector((state) => state.program)
     const clients = useAppSelector((state) => state.clients.clients)
+    const userRole = useAppSelector((state) => state.user.role)
+    const isClubAdmin = userRole === 'club_admin'
     const [activeTab, setActiveTab] = useState<string>('exercises')
     const [workoutModalOpened, { open: openWorkoutModal, close: closeWorkoutModal }] = useDisclosure(false)
     const [viewWorkoutModalOpened, { open: openViewWorkoutModal, close: closeViewWorkoutModal }] = useDisclosure(false)
@@ -2359,23 +2361,33 @@ export const LibraryPage = () => {
                             <Stack gap="xs">
                                 <Radio
                                     value="trainer"
-                                    label={t('trainer.library.exerciseForm.visibilityTrainer')}
-                                    description={t('trainer.library.exerciseForm.visibilityTrainerDescription')}
+                                    label={isClubAdmin
+                                        ? t('trainer.library.exerciseForm.visibilityClubOnly')
+                                        : t('trainer.library.exerciseForm.visibilityTrainer')}
+                                    description={isClubAdmin
+                                        ? t('trainer.library.exerciseForm.visibilityClubOnlyDescription')
+                                        : t('trainer.library.exerciseForm.visibilityTrainerDescription')}
                                 />
                                 <Radio
                                     value="all"
-                                    label={t('trainer.library.exerciseForm.visibilityAll')}
-                                    description={t('trainer.library.exerciseForm.visibilityAllDescription')}
+                                    label={isClubAdmin
+                                        ? t('trainer.library.exerciseForm.visibilityClubAll')
+                                        : t('trainer.library.exerciseForm.visibilityAll')}
+                                    description={isClubAdmin
+                                        ? t('trainer.library.exerciseForm.visibilityClubAllDescription')
+                                        : t('trainer.library.exerciseForm.visibilityAllDescription')}
                                 />
-                                <Radio
-                                    value="client"
-                                    label={t('trainer.library.exerciseForm.visibilityClient')}
-                                    description={t('trainer.library.exerciseForm.visibilityClientDescription')}
-                                />
+                                {!isClubAdmin && (
+                                    <Radio
+                                        value="client"
+                                        label={t('trainer.library.exerciseForm.visibilityClient')}
+                                        description={t('trainer.library.exerciseForm.visibilityClientDescription')}
+                                    />
+                                )}
                             </Stack>
                         </Radio.Group>
 
-                        {exerciseForm.values.visibility === 'client' && (
+                        {!isClubAdmin && exerciseForm.values.visibility === 'client' && (
                             <Select
                                 label={t('trainer.library.exerciseForm.selectClient')}
                                 placeholder={t('trainer.library.exerciseForm.selectClientPlaceholder')}
