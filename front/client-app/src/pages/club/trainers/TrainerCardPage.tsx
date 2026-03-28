@@ -122,7 +122,7 @@ export const TrainerCardPage = () => {
                         // Finance stats from trainer card
                         break
                     case 'library':
-                        const exData = await apiClient.getExercises()
+                        const exData = await apiClient.getClubTrainerExercises(trainerId)
                         setExercises(exData as ExerciseItem[])
                         break
                 }

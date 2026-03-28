@@ -154,10 +154,11 @@ async def get_exercises(
     """Получить список упражнений"""
     if current_user.role == models.UserRole.CLUB_ADMIN:
         # Club admin sees all exercises belonging to their club
-        if not current_user.club_id:
+        club_id = _get_admin_club_id(current_user, db)
+        if not club_id:
             return []
         query = db.query(models.Exercise).filter(
-            models.Exercise.club_id == current_user.club_id
+            models.Exercise.club_id == club_id
         )
     elif current_user.role == models.UserRole.TRAINER:
         # Trainer sees their own exercises + club exercises if they belong to a club

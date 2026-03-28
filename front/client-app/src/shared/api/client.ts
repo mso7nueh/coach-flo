@@ -466,6 +466,7 @@ export const createWorkout = async (data: {
   trainer_id?: string
   user_id?: string // Для тренеров: ID клиента, для которого создается тренировка
   program_day_id?: string
+  template_id?: string // ID шаблона тренировки
   recurrence_series_id?: string
   recurrence_frequency?: string // 'daily' | 'weekly' | 'monthly'
   recurrence_interval?: number
@@ -1432,6 +1433,12 @@ export const apiClient = {
   },
   getClubTrainer: async (trainer_id: string) => {
     const { data } = await api.get(`/api/clubs/trainers/${trainer_id}`)
+    return data
+  },
+  getClubTrainerExercises: async (trainer_id: string, search?: string): Promise<any[]> => {
+    const { data } = await api.get(`/api/clubs/trainers/${trainer_id}/exercises`, {
+      params: search ? { search } : undefined
+    })
     return data
   },
   getClubCalendar: async (params?: { start_date?: string; end_date?: string }) => {

@@ -101,6 +101,7 @@ async def create_workout(
         location=workout.location,
         format=workout.format,
         program_day_id=program_day_id,
+        template_id=workout.template_id,
         trainer_id=trainer_id,
         recurrence_series_id=series_id if workout.recurrence_frequency else None,
         recurrence_frequency=workout.recurrence_frequency,

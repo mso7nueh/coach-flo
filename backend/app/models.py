@@ -156,6 +156,7 @@ class Workout(Base):
     attendance = Column(SQLEnum(AttendanceStatus), default=AttendanceStatus.SCHEDULED)
     coach_note = Column(Text, nullable=True)
     program_day_id = Column(String, ForeignKey("program_days.id"), nullable=True)
+    template_id = Column(String, ForeignKey("workout_templates.id"), nullable=True, index=True)  # Шаблон тренировки
     format = Column(SQLEnum(WorkoutFormat), nullable=True)
     recurrence_series_id = Column(String, nullable=True, index=True)
     recurrence_frequency = Column(String, nullable=True)  # daily, weekly, monthly
@@ -168,6 +169,7 @@ class Workout(Base):
 
     user = relationship("User", foreign_keys=[user_id])
     trainer = relationship("User", foreign_keys=[trainer_id])
+    template = relationship("WorkoutTemplate", foreign_keys=[template_id])
 
 
 # Training Program models

@@ -173,6 +173,7 @@ class WorkoutBase(BaseModel):
     location: Optional[str] = None
     format: Optional[WorkoutFormat] = None
     program_day_id: Optional[str] = None
+    template_id: Optional[str] = None  # ID шаблона тренировки
     trainer_id: Optional[str] = None  # Для тренеров: ID клиента, для клиентов: ID тренера
     user_id: Optional[str] = None  # Для тренеров: ID клиента (альтернатива trainer_id)
 
@@ -194,6 +195,7 @@ class WorkoutUpdate(BaseModel):
     attendance: Optional[AttendanceStatus] = None
     coach_note: Optional[str] = None
     format: Optional[WorkoutFormat] = None
+    template_id: Optional[str] = None  # ID шаблона тренировки
 
 
 class WorkoutResponse(WorkoutBase):

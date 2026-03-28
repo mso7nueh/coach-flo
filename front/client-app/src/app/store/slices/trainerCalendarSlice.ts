@@ -25,6 +25,7 @@ export interface TrainerWorkout {
     location?: string
     format: 'online' | 'offline'
     programDayId?: string
+    templateId?: string
     attendance: AttendanceStatus
     coachNote?: string
     recurrence?: RecurrenceRule
@@ -46,6 +47,7 @@ const mapApiWorkoutToTrainerWorkout = (workout: any): TrainerWorkout => ({
     location: workout.location || undefined,
     format: (workout.format || 'offline') as 'online' | 'offline',
     programDayId: workout.program_day_id || undefined,
+    templateId: workout.template_id || undefined,
     attendance: (workout.attendance || 'scheduled') as AttendanceStatus,
     coachNote: workout.coach_note || undefined,
 })
@@ -86,6 +88,7 @@ export const createTrainerWorkout = createAsyncThunk(
             location?: string
             format?: 'online' | 'offline'
             programDayId?: string
+            templateId?: string
         },
         { rejectWithValue }
     ) => {
@@ -98,6 +101,7 @@ export const createTrainerWorkout = createAsyncThunk(
                 format: workoutData.format,
                 user_id: workoutData.clientId, // Для тренера передаем ID клиента
                 program_day_id: workoutData.programDayId,
+                template_id: workoutData.templateId,
             })
             return mapApiWorkoutToTrainerWorkout(workout)
         } catch (error: any) {

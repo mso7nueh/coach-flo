@@ -256,6 +256,32 @@ async def get_trainer_card(
     )
 
 
+@router.get("/trainers/{trainer_id}/exercises", summary="Упражнения тренера клуба")
+async def get_trainer_exercises(
+    trainer_id: str,
+    search: Optional[str] = Query(None),
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Администратор клуба просматривает упражнения тренера."""
+    club = get_admin_club(current_user, db)
+
+    # Убедимся, что тренер состоит в клубе
+    ct = db.query(models.ClubTrainer).filter(
+        and_(
+            models.ClubTrainer.club_id == club.id,
+            models.ClubTrainer.trainer_id == trainer_id,
+        )
+    ).first()
+    if not ct:
+        raise HTTPException(status_code=404, detail="Тренер не состоит в клубе")
+
+    query = db.query(models.Exercise).filter(models.Exercise.trainer_id == trainer_id)
+    if search:
+        query = query.filter(models.Exercise.name.ilike(f"%{search}%"))
+    return query.order_by(models.Exercise.name).all()
+
+
 # ─── Calendar ─────────────────────────────────────────────────────────────────
 
 @router.get("/calendar", response_model=List[schemas.WorkoutResponse],

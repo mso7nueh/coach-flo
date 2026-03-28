@@ -254,6 +254,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
             end: endDateTime.toISOString(),
             location: formState.location,
             format: formState.format,
+            templateId: formState.templateId,
             recurrence: formState.isRecurring
                 ? {
                     frequency: formState.recurrenceFrequency,
@@ -619,6 +620,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                                                     endTime: dayjs(workout.end).format('HH:mm'),
                                                                     location: workout.location,
                                                                     format: workout.format,
+                                                                    templateId: workout.templateId,
                                                                     isRecurring: !!workout.recurrence,
                                                                     recurrenceFrequency: workout.recurrence?.frequency || 'weekly',
                                                                     recurrenceInterval: workout.recurrence?.interval || 1,
@@ -662,6 +664,11 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                                                                 {duration >= 45 && workout.location && (
                                                                     <Text size="9px" c="dimmed" lineClamp={1}>
                                                                         {workout.location}
+                                                                    </Text>
+                                                                )}
+                                                                {duration >= 60 && workout.templateId && (
+                                                                    <Text size="9px" c="dimmed" lineClamp={1} style={{ fontStyle: 'italic' }}>
+                                                                        📋 {libraryWorkouts.find(w => w.id === workout.templateId)?.name || ''}
                                                                     </Text>
                                                                 )}
                                                             </Stack>
