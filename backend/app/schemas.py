@@ -483,7 +483,7 @@ class ExerciseCreate(ExerciseBase):
 
 class ExerciseResponse(ExerciseBase):
     id: str
-    trainer_id: str
+    trainer_id: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -88,7 +88,10 @@ class WorkoutTemplateResponse(WorkoutTemplateBase):
 def _check_template_access(template: models.WorkoutTemplate, current_user: models.User, db: Session) -> bool:
     """Check if user has access to template"""
     if current_user.role == models.UserRole.CLUB_ADMIN:
-        return template.club_id == current_user.club_id
+        admin_club_id = _get_admin_club_id(current_user, db)
+        if not admin_club_id:
+            return False
+        return template.club_id == admin_club_id
     if current_user.role == models.UserRole.TRAINER:
         return template.trainer_id == current_user.id or (
             current_user.club_id and template.club_id == current_user.club_id
@@ -415,7 +418,12 @@ async def update_workout_template(
     if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    if template.trainer_id != current_user.id:
+    # Check access: club_admin accesses via club_id, trainer via trainer_id
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        admin_club_id = _get_admin_club_id(current_user, db)
+        if template.club_id != admin_club_id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    elif template.trainer_id != current_user.id:
         raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
     
     update_data = template_update.model_dump(exclude_unset=True)
@@ -536,7 +544,12 @@ async def delete_workout_template(
     if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
     
-    if template.trainer_id != current_user.id:
+    # Check access: club_admin accesses via club_id, trainer via trainer_id
+    if current_user.role == models.UserRole.CLUB_ADMIN:
+        admin_club_id = _get_admin_club_id(current_user, db)
+        if template.club_id != admin_club_id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    elif template.trainer_id != current_user.id:
         raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
     
     db.delete(template)

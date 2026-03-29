@@ -322,7 +322,7 @@ async def register_step2(
         trainer_id=pending_registration.trainer_id,
         connection_code=pending_registration.connection_code,
         phone_verified=True,  # Телефон подтвержден через SMS
-        onboarding_seen=role_val.lower() == models.UserRole.TRAINER.value  # Тренеры пропускают онбординг
+        onboarding_seen=role_val.lower() in (models.UserRole.TRAINER.value, models.UserRole.CLUB_ADMIN.value)  # Тренеры и администраторы клуба пропускают онбординг
     )
     
     db.add(user)
