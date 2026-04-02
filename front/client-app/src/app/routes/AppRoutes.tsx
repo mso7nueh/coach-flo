@@ -35,7 +35,7 @@ import { useAppSelector } from '@/shared/hooks/useAppSelector'
 const DefaultRedirect = () => {
     const role = useAppSelector((state) => state.user.role)
     if (role === 'trainer') return <Navigate to="trainer/clients" replace />
-    if (role === 'club_admin') return <Navigate to="club/trainers" replace />
+    if (role === 'club_admin') return <Navigate to="club/metrics" replace />
     return <Navigate to="dashboard" replace />
 }
 

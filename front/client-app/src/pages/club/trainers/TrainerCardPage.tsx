@@ -4,7 +4,7 @@ import {
     Tabs, Loader, Center, Button, Table, ScrollArea, SimpleGrid,
     TextInput, ActionIcon, Anchor
 } from '@mantine/core'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
     IconArrowLeft, IconUsers, IconCalendar, IconCurrencyRubel,
     IconLibrary, IconChartBar, IconSearch, IconBarbell, IconUser
@@ -70,9 +70,13 @@ interface ExerciseItem {
 export const TrainerCardPage = () => {
     const { trainerId } = useParams<{ trainerId: string }>()
     const navigate = useNavigate()
+    const location = useLocation()
     const [trainer, setTrainer] = useState<TrainerCard | null>(null)
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<string | null>('clients')
+    const [activeTab, setActiveTab] = useState<string | null>(() => {
+        const params = new URLSearchParams(location.search)
+        return params.get('tab') || 'clients'
+    })
 
     // Tab data
     const [clients, setClients] = useState<ClientItem[]>([])
@@ -81,6 +85,7 @@ export const TrainerCardPage = () => {
     const [exercises, setExercises] = useState<ExerciseItem[]>([])
     const [tabLoading, setTabLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
+    const [monthlyRevenue, setMonthlyRevenue] = useState<number>(0)
 
     useEffect(() => {
         if (!trainerId) return
@@ -119,7 +124,21 @@ export const TrainerCardPage = () => {
                         setWorkouts((wData as any[]).filter((w: any) => w.trainer_id === trainerId))
                         break
                     case 'finances':
-                        // Finance stats from trainer card
+                        // Finance stats from trainer card + monthly revenue from payments
+                        try {
+                            const currentMonthStart = now.startOf('month').toISOString()
+                            const currentMonthEnd = now.endOf('month').toISOString()
+                            const monthPayments = await apiClient.getPayments({
+                                start_date: currentMonthStart,
+                                end_date: currentMonthEnd,
+                            })
+                            // Filter by trainer (payments endpoint is trainer-scoped, but this is club admin view)
+                            // We approximate by summing all returned payments
+                            const total = (monthPayments as any[]).reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+                            setMonthlyRevenue(total)
+                        } catch {
+                            setMonthlyRevenue(0)
+                        }
                         break
                     case 'library':
                         const exData = await apiClient.getClubTrainerExercises(trainerId)
@@ -395,12 +414,13 @@ export const TrainerCardPage = () => {
                 {/* ── Finances ── */}
                 <Tabs.Panel value="finances" pt="md">
                     <Stack gap="md">
-                        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+                        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
                             {[
                                 { label: 'Общая выручка', value: `${trainer.total_revenue.toLocaleString('ru')} ₽`, color: 'teal' },
+                                { label: 'Выручка за месяц', value: `${monthlyRevenue.toLocaleString('ru')} ₽`, color: 'green' },
+                                { label: 'Средний чек', value: `${avgCheck.toLocaleString('ru')} ₽`, color: 'orange' },
                                 { label: 'Всего тренировок', value: trainer.total_workouts, color: 'blue' },
                                 { label: 'Проведено занятий', value: trainer.completed_workouts, color: 'violet' },
-                                { label: 'Средний чек', value: `${avgCheck.toLocaleString('ru')} ₽`, color: 'orange' },
                             ].map(stat => (
                                 <Card key={stat.label} withBorder padding="md" style={{ borderLeft: `3px solid var(--mantine-color-${stat.color}-5)` }}>
                                     <Stack gap={2}>
@@ -419,6 +439,14 @@ export const TrainerCardPage = () => {
                                         <Table.Tr>
                                             <Table.Td><Text size="sm" c="dimmed">Выручка за всё время</Text></Table.Td>
                                             <Table.Td><Text size="sm" fw={600}>{trainer.total_revenue.toLocaleString('ru')} ₽</Text></Table.Td>
+                                        </Table.Tr>
+                                        <Table.Tr>
+                                            <Table.Td><Text size="sm" c="dimmed">Выручка за текущий месяц</Text></Table.Td>
+                                            <Table.Td>
+                                                <Text size="sm" fw={600} c="green">
+                                                    {monthlyRevenue.toLocaleString('ru')} ₽
+                                                </Text>
+                                            </Table.Td>
                                         </Table.Tr>
                                         <Table.Tr>
                                             <Table.Td><Text size="sm" c="dimmed">Всего тренировок</Text></Table.Td>

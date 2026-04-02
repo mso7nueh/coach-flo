@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import {
     Stack, Title, Group, Card, Text, Badge, Loader, Center,
-    Grid, Table, Select, Progress
+    Grid, Table, Select, Progress, Anchor
 } from '@mantine/core'
-import { IconUsers, IconCalendar, IconCurrencyRubel, IconChartBar, IconTrendingUp } from '@tabler/icons-react'
+import { IconUsers, IconCalendar, IconCurrencyRubel, IconChartBar, IconTrendingUp, IconExternalLink } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { apiClient } from '@/shared/api/client'
+import { useNavigate } from 'react-router-dom'
 
 interface TrainerMetrics {
     trainer_id: string
@@ -43,6 +44,7 @@ export const ClubMetricsPage = () => {
     const [metrics, setMetrics] = useState<ClubMetrics | null>(null)
     const [loading, setLoading] = useState(true)
     const [period, setPeriod] = useState('30')
+    const navigate = useNavigate()
 
     const loadMetrics = async (days: number) => {
         setLoading(true)
@@ -136,7 +138,7 @@ export const ClubMetricsPage = () => {
                             Нет тренеров в клубе
                         </Text>
                     ) : (
-                        <Table>
+                        <Table highlightOnHover>
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th>Тренер</Table.Th>
@@ -146,11 +148,16 @@ export const ClubMetricsPage = () => {
                                     <Table.Th>Клиенты</Table.Th>
                                     <Table.Th>Выручка</Table.Th>
                                     <Table.Th>Средний чек</Table.Th>
+                                    <Table.Th></Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
                                 {metrics.trainer_metrics.map(tm => (
-                                    <Table.Tr key={tm.trainer_id}>
+                                    <Table.Tr
+                                        key={tm.trainer_id}
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => navigate(`/club/trainers/${tm.trainer_id}`)}
+                                    >
                                         <Table.Td>
                                             <Text fw={500}>{tm.trainer_name}</Text>
                                         </Table.Td>
@@ -195,6 +202,14 @@ export const ClubMetricsPage = () => {
                                             <Text size="sm">
                                                 {tm.avg_check > 0 ? `${tm.avg_check.toLocaleString('ru')} ₽` : '—'}
                                             </Text>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Anchor
+                                                size="sm"
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/club/trainers/${tm.trainer_id}?tab=finances`) }}
+                                            >
+                                                Подробнее →
+                                            </Anchor>
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}

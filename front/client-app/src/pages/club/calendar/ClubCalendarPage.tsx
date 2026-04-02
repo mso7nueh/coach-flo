@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
     Stack, Title, Group, Card, Text, Badge, Loader, Center,
-    Select,
 } from '@mantine/core'
+import { IconUser } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { apiClient } from '@/shared/api/client'
 import dayjs from 'dayjs'
@@ -21,15 +21,26 @@ interface ClubWorkout {
     location?: string | null
 }
 
-interface TrainerOption { value: string; label: string }
+interface ClubTrainer {
+    id: string
+    full_name: string
+}
 
 export const ClubCalendarPage = () => {
     const [workouts, setWorkouts] = useState<ClubWorkout[]>([])
+    const [trainers, setTrainers] = useState<ClubTrainer[]>([])
     const [loading, setLoading] = useState(true)
     const [weekOffset, setWeekOffset] = useState(0)
 
     const startOfWeek = dayjs().startOf('week').add(weekOffset, 'week')
     const endOfWeek = startOfWeek.add(6, 'day').endOf('day')
+
+    // Load trainers once for name resolution
+    useEffect(() => {
+        apiClient.getClubTrainers()
+            .then(data => setTrainers(data.map((t: any) => ({ id: t.id, full_name: t.full_name }))))
+            .catch(() => {})
+    }, [])
 
     useEffect(() => {
         setLoading(true)
@@ -41,6 +52,12 @@ export const ClubCalendarPage = () => {
             .catch(e => notifications.show({ title: 'Ошибка', message: e?.message, color: 'red' }))
             .finally(() => setLoading(false))
     }, [weekOffset])
+
+    const getTrainerName = (trainerId: string | null): string | null => {
+        if (!trainerId) return null
+        const t = trainers.find(tr => tr.id === trainerId)
+        return t ? t.full_name : null
+    }
 
     const days = Array.from({ length: 7 }, (_, i) => startOfWeek.add(i, 'day'))
 
@@ -98,6 +115,14 @@ export const ClubCalendarPage = () => {
                                             <Text size="xs" c="dimmed">
                                                 {dayjs(w.start).format('HH:mm')} – {dayjs(w.end).format('HH:mm')}
                                             </Text>
+                                            {getTrainerName(w.trainer_id) && (
+                                                <Group gap={4} mt={2}>
+                                                    <IconUser size={10} color="var(--mantine-color-gray-5)" />
+                                                    <Text size="xs" c="dimmed" lineClamp={1}>
+                                                        {getTrainerName(w.trainer_id)}
+                                                    </Text>
+                                                </Group>
+                                            )}
                                             <Badge size="xs" color={getStatusColor(w.attendance)} mt={4}>
                                                 {w.attendance === 'completed' ? 'Завершено' :
                                                     w.attendance === 'missed' ? 'Пропущено' : 'Запланировано'}
