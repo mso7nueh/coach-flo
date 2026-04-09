@@ -1120,7 +1120,7 @@ export const getWorkoutTemplates = async (params?: {
   muscle_group?: string
   equipment?: string
 }): Promise<any[]> => {
-  const { data } = await api.get<any[]>('/api/library/workout-templates', { params })
+  const { data } = await api.get<any[]>('/api/library/workout-templates/', { params })
   return data
 }
 

@@ -60,7 +60,7 @@ import {
     type TrainerCalendarView,
     type TrainerWorkout,
 } from '@/app/store/slices/trainerCalendarSlice'
-import { fetchWorkoutTemplates } from '@/app/store/slices/librarySlice'
+import { fetchWorkoutTemplates, fetchExercises } from '@/app/store/slices/librarySlice'
 import { setClients } from '@/app/store/slices/clientsSlice'
 import { apiClient } from '@/shared/api/client'
 import { useMemo, useState, useEffect, useRef, type DragEvent } from 'react'
@@ -117,7 +117,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
 
     const { workouts, view, currentDate, selectedClientIds } = useAppSelector((state) => state.trainerCalendar)
     const { clients } = useAppSelector((state) => state.clients)
-    const { workouts: libraryWorkouts } = useAppSelector((state) => state.library)
+    const { workouts: libraryWorkouts, exercises: libraryExercises } = useAppSelector((state) => state.library)
 
     const [modalOpened, { open, close }] = useDisclosure(false)
     const [logOpened, setLogOpened] = useState(false)
@@ -159,16 +159,15 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                     dispatch(setClients(mappedClients))
                 }
 
-                // Загружаем шаблоны тренировок, если их еще нет
-                if (libraryWorkouts.length === 0) {
-                    await dispatch(fetchWorkoutTemplates())
-                }
+                // Загружаем упражнения и шаблоны тренировок
+                await dispatch(fetchExercises())
+                await dispatch(fetchWorkoutTemplates())
             } catch (error) {
                 console.error('Error loading initial data:', error)
             }
         }
         loadData()
-    }, [dispatch, clients.length, libraryWorkouts.length])
+    }, [dispatch])
 
     // Scroll calendar to 9 AM when switching to day or week view
     useEffect(() => {
@@ -775,6 +774,66 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                             }
                         }}
                     />
+
+                    {/* Показываем упражнения выбранного шаблона */}
+                    {formState.templateId && (() => {
+                        const selectedTemplate = libraryWorkouts.find(w => w.id === formState.templateId)
+                        if (!selectedTemplate) return null
+                        const allExercises = [
+                            ...selectedTemplate.warmup,
+                            ...selectedTemplate.main,
+                            ...selectedTemplate.cooldown,
+                        ]
+                        if (allExercises.length === 0) return null
+                        return (
+                            <Card withBorder radius="md" padding="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                                <Stack gap="xs">
+                                    <Text size="sm" fw={600} c="dimmed">
+                                        {t('trainer.calendar.templateExercises') || 'Упражнения шаблона'}:
+                                    </Text>
+                                    {selectedTemplate.warmup.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">🔥 Разминка</Text>
+                                            {selectedTemplate.warmup.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                    {selectedTemplate.main.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">💪 Основная часть</Text>
+                                            {selectedTemplate.main.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                    {selectedTemplate.cooldown.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">🧘 Заминка</Text>
+                                            {selectedTemplate.cooldown.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                </Stack>
+                            </Card>
+                        )
+                    })()}
 
                     <Card radius="lg" padding="md" withBorder style={{ backgroundColor: 'var(--mantine-color-violet-0)' }}>
                         <Stack gap="sm">
