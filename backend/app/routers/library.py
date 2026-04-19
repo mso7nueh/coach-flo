@@ -227,7 +227,7 @@ async def create_workout_template(
 
 
 @router.get(
-    "/workout-templates",
+    "/workout-templates/",
     response_model=List[WorkoutTemplateResponse],
     summary="Получить список шаблонов тренировок",
     description="""
