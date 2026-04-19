@@ -77,7 +77,7 @@ const mapGlobalToTrainerWorkout = (workout: any): TrainerWorkout => ({
 
 export const fetchTrainerWorkouts = createAsyncThunk(
     'trainerCalendar/fetchWorkouts',
-    async (params?: { start_date?: string; end_date?: string; client_id?: string }, { rejectWithValue }) => {
+    async (params: { start_date?: string; end_date?: string; client_id?: string }, { rejectWithValue }) => {
         try {
             const workouts = await apiClient.getTrainerWorkouts({
                 ...params,
