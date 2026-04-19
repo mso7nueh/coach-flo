@@ -124,8 +124,10 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
     const [formState, setFormState] = useState<WorkoutFormState>(() => buildFormState(clientIdFromUrl || undefined))
     const [activeDragWorkout, setActiveDragWorkout] = useState<TrainerWorkout | null>(null)
     const [dragOverDay, setDragOverDay] = useState<string | null>(null)
-    // Ref for calendar scroll area — used to scroll to 9 AM on day view
+    // Ref for calendar scroll area — used to scroll to 8 AM
     const calendarViewportRef = useRef<HTMLDivElement>(null)
+    // Track whether the component is mounted for scroll timing
+    const scrollRafRef = useRef<number | null>(null)
 
     // Если передан clientId (в режиме embedded), устанавливаем его в фильтр
     useEffect(() => {
@@ -169,24 +171,61 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
         loadData()
     }, [dispatch])
 
-    // Scroll calendar to 9 AM when switching to day or week view
-    useEffect(() => {
-        if (calendarViewportRef.current) {
-            // Each hour row is 60px tall; scroll to 9:00 = 9 * 60 = 540px
-            calendarViewportRef.current.scrollTo({ top: 9 * 60, behavior: 'smooth' })
+    // Scroll calendar to 8 AM on mount and every time the view changes.
+    // Uses double-rAF so the DOM has fully painted before we scroll —
+    // this covers Chrome, Firefox, Safari, and Edge reliably.
+    const scrollTo8AM = () => {
+        if (scrollRafRef.current !== null) {
+            cancelAnimationFrame(scrollRafRef.current)
         }
+        // First rAF: layout pass complete; second rAF: paint complete
+        scrollRafRef.current = requestAnimationFrame(() => {
+            scrollRafRef.current = requestAnimationFrame(() => {
+                const el = calendarViewportRef.current
+                if (!el) return
+                // Each hour row is 60px tall; 8 * 60 = 480px
+                if (typeof el.scrollTo === 'function') {
+                    try {
+                        el.scrollTo({ top: 8 * 60, behavior: 'auto' })
+                    } catch {
+                        // Fallback for browsers that don't support scroll options
+                        el.scrollTop = 8 * 60
+                    }
+                } else {
+                    el.scrollTop = 8 * 60
+                }
+                scrollRafRef.current = null
+            })
+        })
+    }
+
+    // Fire on mount (initial navigation to the page)
+    useEffect(() => {
+        scrollTo8AM()
+        return () => {
+            if (scrollRafRef.current !== null) {
+                cancelAnimationFrame(scrollRafRef.current)
+            }
+        }
+    }, [])
+
+    // Fire again whenever the user switches between Week / Day views
+    useEffect(() => {
+        scrollTo8AM()
     }, [view])
 
-    // Загружаем тренировки при открытии календаря и при изменении периода
+    // Загружаем тренировки при открытии календаря и при изменении периода.
+    // При перезагрузке страницы используем расширенный диапазон (-4 нед / +8 нед),
+    // чтобы тренировки вне текущего окна не пропадали.
     useEffect(() => {
         const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
         const endDate = view === 'week'
-            ? startDate.endOf('isoWeek').add(1, 'week') // Для недели загружаем на неделю вперед
-            : startDate.endOf('day').add(7, 'days') // Для дня загружаем на неделю вперед
+            ? startDate.endOf('isoWeek').add(8, 'week')
+            : startDate.endOf('day').add(56, 'days')
         dispatch(fetchTrainerWorkouts({
-            start_date: startDate.subtract(1, 'week').toISOString(), // Загружаем неделю назад для плавной прокрутки
+            start_date: startDate.subtract(4, 'week').toISOString(),
             end_date: endDate.toISOString(),
-            client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined, // Если выбран один клиент, фильтруем по нему
+            client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined,
         }))
     }, [dispatch, currentDate, view, selectedClientIds])
 
@@ -286,13 +325,15 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                     icon: <IconCalendarEvent size={16} />
                 })
             }
-            // Перезагружаем тренировки после создания/обновления
+            // Перезагружаем тренировки после создания/обновления.
+            // Используем расширенный диапазон и await, чтобы избежать race condition
+            // (сервер должен успеть закоммитить транзакцию до следующего fetch).
             const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
             const endDate = view === 'week'
-                ? startDate.endOf('isoWeek').add(1, 'week')
-                : startDate.endOf('day').add(7, 'days')
-            dispatch(fetchTrainerWorkouts({
-                start_date: startDate.subtract(1, 'week').toISOString(),
+                ? startDate.endOf('isoWeek').add(8, 'week')
+                : startDate.endOf('day').add(56, 'days')
+            await dispatch(fetchTrainerWorkouts({
+                start_date: startDate.subtract(4, 'week').toISOString(),
                 end_date: endDate.toISOString(),
                 client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined,
             }))
@@ -319,10 +360,10 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                 // Перезагружаем тренировки после удаления
                 const startDate = dayjs(currentDate).startOf(view === 'week' ? 'isoWeek' : 'day')
                 const endDate = view === 'week'
-                    ? startDate.endOf('isoWeek').add(1, 'week')
-                    : startDate.endOf('day').add(7, 'days')
-                dispatch(fetchTrainerWorkouts({
-                    start_date: startDate.subtract(1, 'week').toISOString(),
+                    ? startDate.endOf('isoWeek').add(8, 'week')
+                    : startDate.endOf('day').add(56, 'days')
+                await dispatch(fetchTrainerWorkouts({
+                    start_date: startDate.subtract(4, 'week').toISOString(),
                     end_date: endDate.toISOString(),
                     client_id: selectedClientIds.length === 1 ? selectedClientIds[0] : undefined,
                 }))
@@ -707,6 +748,87 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                         onChange={(value) => setFormState({ ...formState, clientId: value || '' })}
                         disabled={!!clientId} // Disable selection if clientId is fixed (embedded mode)
                     />
+                    <Select
+                        label="Шаблон тренировки"
+                        placeholder="Без шаблона"
+                        data={libraryWorkouts.map((w) => ({ value: w.id, label: w.name }))}
+                        clearable
+                        searchable
+                        value={formState.templateId}
+                        onChange={(value) => {
+                            const template = libraryWorkouts.find((w) => w.id === value)
+                            if (template) {
+                                setFormState({
+                                    ...formState,
+                                    templateId: value || undefined,
+                                    title: formState.title ? formState.title : template.name
+                                })
+                            } else {
+                                setFormState({ ...formState, templateId: value || undefined })
+                            }
+                        }}
+                    />
+
+                    {/* Показываем упражнения выбранного шаблона */}
+                    {formState.templateId && (() => {
+                        const selectedTemplate = libraryWorkouts.find(w => w.id === formState.templateId)
+                        if (!selectedTemplate) return null
+                        const allExercises = [
+                            ...selectedTemplate.warmup,
+                            ...selectedTemplate.main,
+                            ...selectedTemplate.cooldown,
+                        ]
+                        if (allExercises.length === 0) return null
+                        return (
+                            <Card withBorder radius="md" padding="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                                <Stack gap="xs">
+                                    <Text size="sm" fw={600} c="dimmed">
+                                        Упражнения шаблона:
+                                    </Text>
+                                    {selectedTemplate.warmup.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">🔥 Разминка</Text>
+                                            {selectedTemplate.warmup.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                    {selectedTemplate.main.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">💪 Основная часть</Text>
+                                            {selectedTemplate.main.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                    {selectedTemplate.cooldown.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">🧘 Заминка</Text>
+                                            {selectedTemplate.cooldown.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                </Stack>
+                            </Card>
+                        )
+                    })()}
+
                     <TextInput
                         label={t('trainer.calendar.workoutTitle')}
                         placeholder={t('trainer.calendar.workoutTitlePlaceholder')}
@@ -753,87 +875,6 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
                         onChange={(e) => setFormState({ ...formState, location: e.target.value })}
                         leftSection={<IconMapPin size={16} />}
                     />
-                    <Select
-                        label={t('trainer.calendar.template')}
-                        placeholder={t('trainer.calendar.noTemplate')}
-                        data={libraryWorkouts.map((w) => ({ value: w.id, label: w.name }))}
-                        clearable
-                        searchable
-                        value={formState.templateId}
-                        onChange={(value) => {
-                            const template = libraryWorkouts.find((w) => w.id === value)
-                            if (template) {
-                                // Only update title if it's empty
-                                setFormState({
-                                    ...formState,
-                                    templateId: value || undefined,
-                                    title: formState.title ? formState.title : template.name
-                                })
-                            } else {
-                                setFormState({ ...formState, templateId: value || undefined })
-                            }
-                        }}
-                    />
-
-                    {/* Показываем упражнения выбранного шаблона */}
-                    {formState.templateId && (() => {
-                        const selectedTemplate = libraryWorkouts.find(w => w.id === formState.templateId)
-                        if (!selectedTemplate) return null
-                        const allExercises = [
-                            ...selectedTemplate.warmup,
-                            ...selectedTemplate.main,
-                            ...selectedTemplate.cooldown,
-                        ]
-                        if (allExercises.length === 0) return null
-                        return (
-                            <Card withBorder radius="md" padding="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
-                                <Stack gap="xs">
-                                    <Text size="sm" fw={600} c="dimmed">
-                                        {t('trainer.calendar.templateExercises') || 'Упражнения шаблона'}:
-                                    </Text>
-                                    {selectedTemplate.warmup.length > 0 && (
-                                        <>
-                                            <Text size="xs" fw={500} c="violet">🔥 Разминка</Text>
-                                            {selectedTemplate.warmup.map((ex, i) => {
-                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
-                                                return (
-                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
-                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
-                                                    </Text>
-                                                )
-                                            })}
-                                        </>
-                                    )}
-                                    {selectedTemplate.main.length > 0 && (
-                                        <>
-                                            <Text size="xs" fw={500} c="violet">💪 Основная часть</Text>
-                                            {selectedTemplate.main.map((ex, i) => {
-                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
-                                                return (
-                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
-                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
-                                                    </Text>
-                                                )
-                                            })}
-                                        </>
-                                    )}
-                                    {selectedTemplate.cooldown.length > 0 && (
-                                        <>
-                                            <Text size="xs" fw={500} c="violet">🧘 Заминка</Text>
-                                            {selectedTemplate.cooldown.map((ex, i) => {
-                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
-                                                return (
-                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
-                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
-                                                    </Text>
-                                                )
-                                            })}
-                                        </>
-                                    )}
-                                </Stack>
-                            </Card>
-                        )
-                    })()}
 
                     <Card radius="lg" padding="md" withBorder style={{ backgroundColor: 'var(--mantine-color-violet-0)' }}>
                         <Stack gap="sm">

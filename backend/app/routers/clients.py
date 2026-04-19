@@ -238,6 +238,54 @@ async def delete_client(
     if not client:
         raise HTTPException(status_code=404, detail="Клиент не найден")
 
+    # Удаляем все связанные данные вручную, чтобы избежать FK constraint violations
+
+    # 1. Тренировки клиента
+    db.query(models.Workout).filter(models.Workout.user_id == client_id).delete(synchronize_session=False)
+
+    # 2. Заметки тренера о клиенте
+    db.query(models.TrainerNote).filter(models.TrainerNote.client_id == client_id).delete(synchronize_session=False)
+
+    # 3. Онбординг: сначала цели и ограничения, потом сам онбординг
+    onboarding = db.query(models.Onboarding).filter(models.Onboarding.user_id == client_id).first()
+    if onboarding:
+        db.query(models.OnboardingGoal).filter(models.OnboardingGoal.onboarding_id == onboarding.id).delete(synchronize_session=False)
+        db.query(models.OnboardingRestriction).filter(models.OnboardingRestriction.onboarding_id == onboarding.id).delete(synchronize_session=False)
+        db.delete(onboarding)
+        db.flush()
+
+    # 4. Метрики тела (записи → метрики)
+    body_metrics = db.query(models.BodyMetric).filter(models.BodyMetric.user_id == client_id).all()
+    for metric in body_metrics:
+        db.query(models.BodyMetricEntry).filter(models.BodyMetricEntry.metric_id == metric.id).delete(synchronize_session=False)
+        db.delete(metric)
+    db.flush()
+
+    # 5. Метрики упражнений (записи → метрики)
+    exercise_metrics = db.query(models.ExerciseMetric).filter(models.ExerciseMetric.user_id == client_id).all()
+    for metric in exercise_metrics:
+        db.query(models.ExerciseMetricEntry).filter(models.ExerciseMetricEntry.exercise_metric_id == metric.id).delete(synchronize_session=False)
+        db.delete(metric)
+    db.flush()
+
+    # 6. Питание
+    db.query(models.NutritionEntry).filter(models.NutritionEntry.user_id == client_id).delete(synchronize_session=False)
+
+    # 7. Цели клиента
+    db.query(models.UserGoal).filter(models.UserGoal.user_id == client_id).delete(synchronize_session=False)
+
+    # 8. Фото прогресса
+    db.query(models.ProgressPhoto).filter(models.ProgressPhoto.user_id == client_id).delete(synchronize_session=False)
+
+    # 9. Платежи (клиент как получатель)
+    db.query(models.Payment).filter(models.Payment.client_id == client_id).delete(synchronize_session=False)
+
+    # 10. Уведомления
+    db.query(models.Notification).filter(
+        (models.Notification.user_id == client_id) | (models.Notification.sender_id == client_id)
+    ).delete(synchronize_session=False)
+
+    # 11. Наконец, удаляем самого пользователя
     db.delete(client)
     db.commit()
 

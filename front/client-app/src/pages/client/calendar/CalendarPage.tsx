@@ -263,6 +263,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
             end: end.toISOString(),
             location: formState.location,
             programDayId: formState.programDayId,
+            templateId: formState.templateId,
             trainerId: formState.withTrainer ? formState.trainerId ?? trainerInfo?.id : undefined,
             format: formState.format,
             recurrence: formState.isRecurring
@@ -743,20 +744,18 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                         />
                     )}
 
-                    {!formState.templateId && (
-                        <TextInput
-                            label={t('calendar.workoutTitle')}
-                            placeholder={t('calendar.workoutTitlePlaceholder')}
-                            value={formState.title}
-                            leftSection={<IconTypography size={16} />}
-                            radius="lg"
-                            onChange={(event) => {
-                                const { value } = event.currentTarget
-                                setFormState((state) => ({ ...state, title: value }))
-                            }}
-                            required
-                        />
-                    )}
+                    <TextInput
+                        label={t('calendar.workoutTitle')}
+                        placeholder={t('calendar.workoutTitlePlaceholder')}
+                        value={formState.title}
+                        leftSection={<IconTypography size={16} />}
+                        radius="lg"
+                        onChange={(event) => {
+                            const { value } = event.currentTarget
+                            setFormState((state) => ({ ...state, title: value }))
+                        }}
+                        required
+                    />
                     <DateInput
                         label={t('calendar.date')}
                         value={formState.date}
@@ -850,16 +849,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             }))
                         }
                     />
-                    <Select
-                        label={t('program.assignToCalendar')}
-                        placeholder={t('program.assignToCalendar')}
-                        data={programDays.map((day) => ({ label: day.name, value: day.id }))}
-                        value={formState.programDayId}
-                        leftSection={<IconListDetails size={16} />}
-                        radius="lg"
-                        onChange={(value) => setFormState((state) => ({ ...state, programDayId: value ?? undefined }))}
-                        clearable
-                    />
+
                     {role === 'trainer' && (
                         <Card radius="lg" padding="md" withBorder style={{ backgroundColor: 'var(--mantine-color-violet-0)' }}>
                             <Stack gap="sm">

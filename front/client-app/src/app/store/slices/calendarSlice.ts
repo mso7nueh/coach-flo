@@ -106,6 +106,7 @@ export const createWorkout = createAsyncThunk(
       userId?: string // ID клиента (для тренера)
       programDayId?: string
       recurrence?: RecurrenceRule
+      templateId?: string
     },
     { rejectWithValue }
   ) => {
@@ -119,6 +120,7 @@ export const createWorkout = createAsyncThunk(
         trainer_id: workoutData.trainerId,
         user_id: workoutData.userId,
         program_day_id: workoutData.programDayId,
+        template_id: workoutData.templateId,
       }
 
       // Преобразуем recurrence в формат API

@@ -50,6 +50,15 @@ const mapApiWorkoutToTrainerWorkout = (workout: any): TrainerWorkout => ({
     templateId: workout.template_id || undefined,
     attendance: (workout.attendance || 'scheduled') as AttendanceStatus,
     coachNote: workout.coach_note || undefined,
+    // Map recurrence fields from snake_case API response
+    recurrence: workout.recurrence_frequency ? {
+        frequency: workout.recurrence_frequency as any,
+        interval: workout.recurrence_interval ?? 1,
+        daysOfWeek: workout.recurrence_days_of_week ?? undefined,
+        endDate: workout.recurrence_end_date ?? undefined,
+        occurrences: workout.recurrence_occurrences ?? undefined,
+        seriesId: workout.recurrence_series_id ?? undefined,
+    } : undefined,
 })
 
 const mapGlobalToTrainerWorkout = (workout: any): TrainerWorkout => ({
@@ -68,12 +77,17 @@ const mapGlobalToTrainerWorkout = (workout: any): TrainerWorkout => ({
 
 export const fetchTrainerWorkouts = createAsyncThunk(
     'trainerCalendar/fetchWorkouts',
-    async (params?: { start_date?: string; end_date?: string; client_id?: string }) => {
-        const workouts = await apiClient.getTrainerWorkouts({
-            ...params,
-            trainer_view: true, // Получаем все тренировки команды тренера
-        })
-        return workouts.map(mapApiWorkoutToTrainerWorkout)
+    async (params?: { start_date?: string; end_date?: string; client_id?: string }, { rejectWithValue }) => {
+        try {
+            const workouts = await apiClient.getTrainerWorkouts({
+                ...params,
+                trainer_view: true, // Получаем все тренировки команды тренера
+            })
+            return workouts.map(mapApiWorkoutToTrainerWorkout)
+        } catch (error: any) {
+            console.error('[TrainerCalendar] fetchTrainerWorkouts failed:', error?.message || error)
+            return rejectWithValue(error?.message || 'Ошибка загрузки тренировок')
+        }
     }
 )
 
@@ -89,10 +103,18 @@ export const createTrainerWorkout = createAsyncThunk(
             format?: 'online' | 'offline'
             programDayId?: string
             templateId?: string
+            recurrence?: {
+                frequency: string
+                interval?: number
+                daysOfWeek?: number[]
+                endDate?: string
+                occurrences?: number
+            }
         },
         { rejectWithValue }
     ) => {
         try {
+            const rec = workoutData.recurrence
             const workout = await apiClient.createWorkout({
                 title: workoutData.title,
                 start: workoutData.start,
@@ -102,6 +124,12 @@ export const createTrainerWorkout = createAsyncThunk(
                 user_id: workoutData.clientId, // Для тренера передаем ID клиента
                 program_day_id: workoutData.programDayId,
                 template_id: workoutData.templateId,
+                // Передаём recurrence поля в API
+                recurrence_frequency: rec?.frequency,
+                recurrence_interval: rec?.interval,
+                recurrence_days_of_week: rec?.daysOfWeek,
+                recurrence_end_date: rec?.endDate,
+                recurrence_occurrences: rec?.occurrences,
             })
             return mapApiWorkoutToTrainerWorkout(workout)
         } catch (error: any) {
@@ -123,7 +151,7 @@ export const updateTrainerWorkout = createAsyncThunk(
                 end: updates.end,
                 location: updates.location,
                 format: updates.format,
-                attendance: updates.attendance === 'missed' ? 'cancelled' : (updates.attendance as 'scheduled' | 'completed' | 'cancelled' | undefined),
+                attendance: updates.attendance as 'scheduled' | 'completed' | 'missed' | undefined,
                 coach_note: updates.coachNote,
             })
             return mapApiWorkoutToTrainerWorkout(workout)
