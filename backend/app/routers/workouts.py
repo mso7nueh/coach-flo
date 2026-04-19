@@ -199,12 +199,25 @@ async def get_workouts(
     db: Session = Depends(get_db)
 ):
     """Получить список тренировок"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if trainer_view and current_user.role == models.UserRole.TRAINER:
-        # Тренер видит все тренировки своих клиентов
-        query = db.query(models.Workout).join(
-            models.User, models.Workout.user_id == models.User.id
-        ).filter(
+        # Тренер видит все тренировки своих клиентов И тренировки, где он указан как тренер
+        # Используем подзапрос для получения ID всех клиентов тренера
+        client_ids = db.query(models.User.id).filter(
             models.User.trainer_id == current_user.id
+        ).all()
+        client_id_list = [c[0] for c in client_ids]
+        
+        logger.info(f"[GET workouts] trainer_view=True, trainer={current_user.id}, clients={client_id_list}")
+        
+        # Тренировки клиентов + тренировки самого тренера (где trainer_id = current_user.id)
+        query = db.query(models.Workout).filter(
+            or_(
+                models.Workout.user_id.in_(client_id_list),
+                models.Workout.trainer_id == current_user.id,
+            )
         )
         
         if client_id:
@@ -239,6 +252,7 @@ async def get_workouts(
         query = query.filter(models.Workout.start <= end_date)
     
     workouts = query.order_by(models.Workout.start).all()
+    logger.info(f"[GET workouts] Returning {len(workouts)} workouts for user={current_user.id}, start_date={start_date}, end_date={end_date}")
     return workouts
 
 

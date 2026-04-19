@@ -264,7 +264,19 @@ const trainerCalendarSlice = createSlice({
                 // Можно добавить loading state если нужно
             })
             .addCase(fetchTrainerWorkouts.fulfilled, (state, action) => {
-                state.workouts = action.payload
+                // Мёрж: обновляем существующие + добавляем новые (не затираем state целиком)
+                const fetchedMap = new Map(action.payload.map(w => [w.id, w]))
+                // Обновляем существующие тренировки данными с сервера
+                const updated = state.workouts.map(existing => {
+                    const fresh = fetchedMap.get(existing.id)
+                    if (fresh) {
+                        fetchedMap.delete(existing.id)
+                        return fresh
+                    }
+                    return existing
+                })
+                // Добавляем новые тренировки, которых не было в state
+                state.workouts = [...updated, ...fetchedMap.values()]
             })
             .addCase(fetchTrainerWorkouts.rejected, (_state) => {
                 // Можно добавить error state если нужно
