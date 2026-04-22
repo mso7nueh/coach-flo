@@ -85,6 +85,7 @@ export interface Workout {
   attendance: string
   coach_note?: string
   program_day_id?: string
+  template_id?: string
   recurrence_series_id?: string
   recurrence_frequency?: string
   recurrence_interval?: number
