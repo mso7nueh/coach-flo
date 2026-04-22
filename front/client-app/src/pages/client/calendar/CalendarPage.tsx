@@ -1004,38 +1004,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                         </Card>
                     )}
 
-                    {formState.programDayId && (
-                        <Card radius="lg" padding="md" withBorder>
-                            <Stack gap="sm">
-                                <Text fw={600} size="sm">Упражнения программы:</Text>
-                                {programDays.find(d => d.id === formState.programDayId)?.blocks.map(block => (
-                                    <Stack key={block.id} gap="xs">
-                                        <Text size="xs" fw={700} c="dimmed" tt="uppercase">{t(`program.sections.${block.type}`)}</Text>
-                                        {block.exercises.map((exercise, idx) => (
-                                            <Card key={exercise.id} padding="xs" withBorder radius="md">
-                                                <Group justify="space-between">
-                                                    <Group gap="xs">
-                                                        <Badge size="xs" variant="light" color="violet">{idx + 1}</Badge>
-                                                        <Text size="sm" fw={500}>{exercise.title}</Text>
-                                                    </Group>
-                                                    <Group gap="xs">
-                                                        {exercise.sets && <Text size="xs" c="dimmed">{exercise.sets}×{exercise.reps || '?'}</Text>}
-                                                        {exercise.weight && <Badge size="xs" variant="light">{exercise.weight}</Badge>}
-                                                    </Group>
-                                                </Group>
-                                                {(exercise.duration || exercise.rest) && (
-                                                    <Group gap="md" mt={4} ml={32}>
-                                                        {exercise.duration && <Text size="xs" c="dimmed">⏳ {exercise.duration}</Text>}
-                                                        {exercise.rest && <Text size="xs" c="dimmed">💤 {exercise.rest.replace(/\s*сек\s*$/i, ' мин')}</Text>}
-                                                    </Group>
-                                                )}
-                                            </Card>
-                                        ))}
-                                    </Stack>
-                                ))}
-                            </Stack>
-                        </Card>
-                    )}
+
 
                     <Group justify="flex-end" mt="md">
                         <Button variant="subtle" onClick={close}>
