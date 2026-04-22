@@ -4,6 +4,7 @@ import {
     Tabs, Loader, Center, Button, Table, ScrollArea, SimpleGrid,
     TextInput, ActionIcon, Anchor
 } from '@mantine/core'
+import { DateInput } from '@mantine/dates'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
     IconArrowLeft, IconUsers, IconCalendar, IconCurrencyRubel,
@@ -86,6 +87,8 @@ export const TrainerCardPage = () => {
     const [tabLoading, setTabLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [monthlyRevenue, setMonthlyRevenue] = useState<number>(0)
+    const [periodStart, setPeriodStart] = useState<Date>(() => dayjs().startOf('month').toDate())
+    const [periodEnd, setPeriodEnd] = useState<Date>(() => dayjs().endOf('month').toDate())
 
     useEffect(() => {
         if (!trainerId) return
@@ -124,17 +127,12 @@ export const TrainerCardPage = () => {
                         setWorkouts((wData as any[]).filter((w: any) => w.trainer_id === trainerId))
                         break
                     case 'finances':
-                        // Finance stats from trainer card + monthly revenue from payments
                         try {
-                            const currentMonthStart = now.startOf('month').toISOString()
-                            const currentMonthEnd = now.endOf('month').toISOString()
-                            const monthPayments = await apiClient.getPayments({
-                                start_date: currentMonthStart,
-                                end_date: currentMonthEnd,
+                            const payments = await apiClient.getPayments({
+                                start_date: dayjs(periodStart).startOf('day').toISOString(),
+                                end_date: dayjs(periodEnd).endOf('day').toISOString(),
                             })
-                            // Filter by trainer (payments endpoint is trainer-scoped, but this is club admin view)
-                            // We approximate by summing all returned payments
-                            const total = (monthPayments as any[]).reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+                            const total = (payments as any[]).reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
                             setMonthlyRevenue(total)
                         } catch {
                             setMonthlyRevenue(0)
@@ -153,6 +151,24 @@ export const TrainerCardPage = () => {
         }
         load()
     }, [activeTab, trainerId])
+
+    // Reload revenue when period changes
+    useEffect(() => {
+        if (activeTab !== 'finances' || !trainerId) return
+        const load = async () => {
+            try {
+                const payments = await apiClient.getPayments({
+                    start_date: dayjs(periodStart).startOf('day').toISOString(),
+                    end_date: dayjs(periodEnd).endOf('day').toISOString(),
+                })
+                const total = (payments as any[]).reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+                setMonthlyRevenue(total)
+            } catch {
+                setMonthlyRevenue(0)
+            }
+        }
+        load()
+    }, [periodStart, periodEnd, activeTab, trainerId])
 
     if (loading) return <Center h={200}><Loader /></Center>
     if (!trainer) return <Text c="dimmed">Тренер не найден</Text>
@@ -417,7 +433,7 @@ export const TrainerCardPage = () => {
                         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
                             {[
                                 { label: 'Общая выручка', value: `${trainer.total_revenue.toLocaleString('ru')} ₽`, color: 'teal' },
-                                { label: 'Выручка за месяц', value: `${monthlyRevenue.toLocaleString('ru')} ₽`, color: 'green' },
+                                { label: `Выручка за период`, value: `${monthlyRevenue.toLocaleString('ru')} ₽`, color: 'green', sub: `${dayjs(periodStart).format('DD.MM')} — ${dayjs(periodEnd).format('DD.MM.YYYY')}` },
                                 { label: 'Средний чек', value: `${avgCheck.toLocaleString('ru')} ₽`, color: 'orange' },
                                 { label: 'Всего тренировок', value: trainer.total_workouts, color: 'blue' },
                                 { label: 'Проведено занятий', value: trainer.completed_workouts, color: 'violet' },
@@ -426,6 +442,7 @@ export const TrainerCardPage = () => {
                                     <Stack gap={2}>
                                         <Text size="xs" c="dimmed" tt="uppercase" fw={500}>{stat.label}</Text>
                                         <Text size="xl" fw={800}>{stat.value}</Text>
+                                        {'sub' in stat && stat.sub && <Text size="xs" c="dimmed">{stat.sub}</Text>}
                                     </Stack>
                                 </Card>
                             ))}
@@ -433,7 +450,30 @@ export const TrainerCardPage = () => {
 
                         <Card withBorder padding="md">
                             <Stack gap="sm">
-                                <Text fw={600}>Финансовая сводка</Text>
+                                <Group justify="space-between" align="flex-end" wrap="wrap">
+                                    <Text fw={600}>Финансовая сводка</Text>
+                                    <Group gap="sm" align="flex-end">
+                                        <DateInput
+                                            label="Период с"
+                                            placeholder="дд.мм.гггг"
+                                            value={periodStart}
+                                            onChange={(v) => v && setPeriodStart(v)}
+                                            valueFormat="DD.MM.YYYY"
+                                            size="xs"
+                                            style={{ width: 140 }}
+                                        />
+                                        <DateInput
+                                            label="по"
+                                            placeholder="дд.мм.гггг"
+                                            value={periodEnd}
+                                            onChange={(v) => v && setPeriodEnd(v)}
+                                            valueFormat="DD.MM.YYYY"
+                                            minDate={periodStart}
+                                            size="xs"
+                                            style={{ width: 140 }}
+                                        />
+                                    </Group>
+                                </Group>
                                 <Table>
                                     <Table.Tbody>
                                         <Table.Tr>
@@ -441,7 +481,7 @@ export const TrainerCardPage = () => {
                                             <Table.Td><Text size="sm" fw={600}>{trainer.total_revenue.toLocaleString('ru')} ₽</Text></Table.Td>
                                         </Table.Tr>
                                         <Table.Tr>
-                                            <Table.Td><Text size="sm" c="dimmed">Выручка за текущий месяц</Text></Table.Td>
+                                            <Table.Td><Text size="sm" c="dimmed">Выручка за период ({dayjs(periodStart).format('DD.MM')} — {dayjs(periodEnd).format('DD.MM.YYYY')})</Text></Table.Td>
                                             <Table.Td>
                                                 <Text size="sm" fw={600} c="green">
                                                     {monthlyRevenue.toLocaleString('ru')} ₽

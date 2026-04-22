@@ -111,7 +111,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
     const { t } = useTranslation()
     const dispatch = useAppDispatch()
     const { workouts, selectedDate, currentStartDate, trainerAvailability } = useAppSelector((state) => state.calendar)
-    const { workouts: libraryWorkouts } = useAppSelector((state) => state.library)
+    const { workouts: libraryWorkouts, exercises: libraryExercises } = useAppSelector((state) => state.library)
     const role = useAppSelector((state) => state.user.role)
     const programDays = useAppSelector((state) => state.program.days)
     const trainerInfo = useAppSelector((state) => state.user.trainer)
@@ -743,6 +743,66 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                         }}
                         mb="xs"
                     />
+
+                    {/* Показываем упражнения выбранного шаблона */}
+                    {formState.templateId && (() => {
+                        const selectedTemplate = libraryWorkouts.find(w => w.id === formState.templateId)
+                        if (!selectedTemplate) return null
+                        const allExercises = [
+                            ...selectedTemplate.warmup,
+                            ...selectedTemplate.main,
+                            ...selectedTemplate.cooldown,
+                        ]
+                        if (allExercises.length === 0) return null
+                        return (
+                            <Card withBorder radius="md" padding="sm" style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                                <Stack gap="xs">
+                                    <Text size="sm" fw={600} c="dimmed">
+                                        Упражнения шаблона:
+                                    </Text>
+                                    {selectedTemplate.warmup.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">🔥 Разминка</Text>
+                                            {selectedTemplate.warmup.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                    {selectedTemplate.main.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">💪 Основная часть</Text>
+                                            {selectedTemplate.main.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                    {selectedTemplate.cooldown.length > 0 && (
+                                        <>
+                                            <Text size="xs" fw={500} c="violet">🧘 Заминка</Text>
+                                            {selectedTemplate.cooldown.map((ex, i) => {
+                                                const exInfo = libraryExercises.find(e => e.id === ex.exerciseId)
+                                                return (
+                                                    <Text key={i} size="xs" c="dimmed" pl="sm">
+                                                        • {exInfo?.name || ex.exerciseId}{ex.sets ? ` — ${ex.sets} подх.` : ''}{ex.reps ? ` × ${ex.reps} повт.` : ''}{ex.weight ? ` (${ex.weight} кг)` : ''}
+                                                    </Text>
+                                                )
+                                            })}
+                                        </>
+                                    )}
+                                </Stack>
+                            </Card>
+                        )
+                    })()}
 
                     <TextInput
                         label={t('calendar.workoutTitle')}
