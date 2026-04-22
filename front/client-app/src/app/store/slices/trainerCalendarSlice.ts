@@ -153,6 +153,7 @@ export const updateTrainerWorkout = createAsyncThunk(
                 format: updates.format,
                 attendance: updates.attendance as 'scheduled' | 'completed' | 'missed' | undefined,
                 coach_note: updates.coachNote,
+                template_id: updates.templateId,
             })
             return mapApiWorkoutToTrainerWorkout(workout)
         } catch (error: any) {

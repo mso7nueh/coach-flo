@@ -796,6 +796,7 @@ const resources = {
                     day: 'День',
                     today: 'Сегодня',
                     createWorkout: 'Создать тренировку',
+                    editWorkout: 'Редактировать тренировку',
                     client: 'Клиент',
                     selectClient: 'Выберите клиента',
                     date: 'Дата',

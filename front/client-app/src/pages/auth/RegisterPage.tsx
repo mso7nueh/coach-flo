@@ -1,4 +1,4 @@
-import { Button, Card, Group, SegmentedControl, Stack, Text, TextInput, Title, PasswordInput, PinInput, Alert } from '@mantine/core'
+import { Button, Card, Group, SegmentedControl, Stack, Text, TextInput, Title, PasswordInput, PinInput, Alert, Checkbox } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
@@ -45,6 +45,7 @@ export const RegisterPage = () => {
     const [resendTimer, setResendTimer] = useState(60)
     const [loading, setLoading] = useState(false)
     const [deliveryMethod, setDeliveryMethod] = useState<'telegram' | 'sms'>('telegram')
+    const [agreedToTerms, setAgreedToTerms] = useState(false)
 
     const form = useForm<RegisterData>({
         initialValues: {
@@ -282,7 +283,40 @@ export const RegisterPage = () => {
                                         disabled={!!trainerCodeFromUrl}
                                     />
                                 )}
-                                <Button type="submit" fullWidth disabled={!form.values.phone || !validatePhoneNumber(form.values.phone)} loading={loading}>
+                                <Checkbox
+                                    id="register-terms-checkbox"
+                                    checked={agreedToTerms}
+                                    onChange={(e) => setAgreedToTerms(e.currentTarget.checked)}
+                                    label={
+                                        <Text size="xs" c="dimmed">
+                                            Я согласен с{' '}
+                                            <Text
+                                                component="a"
+                                                href="/terms"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                size="xs"
+                                                c="violet"
+                                                style={{ textDecoration: 'none' }}
+                                            >
+                                                пользовательским соглашением
+                                            </Text>
+                                            {' '}и{' '}
+                                            <Text
+                                                component="a"
+                                                href="/privacy"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                size="xs"
+                                                c="violet"
+                                                style={{ textDecoration: 'none' }}
+                                            >
+                                                политикой обработки персональных данных
+                                            </Text>
+                                        </Text>
+                                    }
+                                />
+                                <Button type="submit" fullWidth disabled={!form.values.phone || !validatePhoneNumber(form.values.phone) || !agreedToTerms} loading={loading}>
                                     {t('auth.sendCode')}
                                 </Button>
                                 <Text size="sm" c="dimmed" ta="center">

@@ -214,6 +214,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
             endTime: dayjs(target.end).format('HH:mm'),
             location: target.location ?? '',
             programDayId: target.programDayId,
+            templateId: target.templateId,
             isRecurring: !!target.recurrence,
             recurrenceFrequency: target.recurrence?.frequency ?? 'weekly',
             recurrenceInterval: target.recurrence?.interval ?? 1,
@@ -293,6 +294,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                             location: workoutData.location,
                             format: workoutData.format,
                             attendance: formState.attendance,
+                            template_id: formState.templateId,
                         },
                     }),
                 ).unwrap()
@@ -708,41 +710,39 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                         </Group>
                     </Card>
 
-                    {!formState.id && (
-                        <Select
-                            label={t('library.calendar.template')}
-                            placeholder={t('library.calendar.selectTemplate')}
-                            data={libraryWorkouts.map((w) => ({ label: w.name, value: w.id }))}
-                            searchable
-                            clearable
-                            leftSection={<IconTemplate size={16} />}
-                            radius="lg"
-                            onChange={(value) => {
-                                if (!value) {
-                                    setFormState((state) => ({
-                                        ...state,
-                                        title: '',
-                                        templateId: undefined,
-                                    }))
-                                    return
-                                }
-                                const template = libraryWorkouts.find((w) => w.id === value)
-                                if (template) {
-                                    const start = dayjs(formState.date)
-                                        .hour(Number(formState.startTime.split(':')[0]))
-                                        .minute(Number(formState.startTime.split(':')[1]))
-                                    const end = start.add(template.duration, 'minute')
-                                    setFormState((state) => ({
-                                        ...state,
-                                        title: template.name,
-                                        endTime: end.format('HH:mm'),
-                                        templateId: template.id,
-                                    }))
-                                }
-                            }}
-                            mb="xs"
-                        />
-                    )}
+                    <Select
+                        label={t('library.calendar.template')}
+                        placeholder={t('library.calendar.selectTemplate')}
+                        data={libraryWorkouts.map((w) => ({ label: w.name, value: w.id }))}
+                        searchable
+                        clearable
+                        leftSection={<IconTemplate size={16} />}
+                        radius="lg"
+                        value={formState.templateId ?? null}
+                        onChange={(value) => {
+                            if (!value) {
+                                setFormState((state) => ({
+                                    ...state,
+                                    templateId: undefined,
+                                }))
+                                return
+                            }
+                            const template = libraryWorkouts.find((w) => w.id === value)
+                            if (template) {
+                                const start = dayjs(formState.date)
+                                    .hour(Number(formState.startTime.split(':')[0]))
+                                    .minute(Number(formState.startTime.split(':')[1]))
+                                const end = start.add(template.duration, 'minute')
+                                setFormState((state) => ({
+                                    ...state,
+                                    title: state.title || template.name,
+                                    endTime: end.format('HH:mm'),
+                                    templateId: template.id,
+                                }))
+                            }
+                        }}
+                        mb="xs"
+                    />
 
                     <TextInput
                         label={t('calendar.workoutTitle')}

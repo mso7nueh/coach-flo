@@ -1,4 +1,4 @@
-import { Button, Card, Stack, Text, TextInput, Title, PasswordInput } from '@mantine/core'
+import { Button, Card, Stack, Text, TextInput, Title, PasswordInput, Checkbox } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useForm } from '@mantine/form'
 import { useNavigate, Link } from 'react-router-dom'
@@ -12,6 +12,7 @@ export const LoginPage = () => {
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
     const [loading, setLoading] = useState(false)
+    const [agreedToTerms, setAgreedToTerms] = useState(false)
 
     const form = useForm<LoginCredentials>({
         initialValues: {
@@ -34,6 +35,8 @@ export const LoginPage = () => {
 
             if (result.user.role === 'trainer') {
                 navigate('/trainer/clients')
+            } else if (result.user.role === 'club_admin') {
+                navigate('/club/metrics')
             } else {
                 if (result.user.onboardingSeen) {
                     navigate('/dashboard')
@@ -117,7 +120,40 @@ export const LoginPage = () => {
                                 required
                                 {...form.getInputProps('password')}
                             />
-                            <Button type="submit" fullWidth loading={loading}>
+                            <Checkbox
+                                id="login-terms-checkbox"
+                                checked={agreedToTerms}
+                                onChange={(e) => setAgreedToTerms(e.currentTarget.checked)}
+                                label={
+                                    <Text size="xs" c="dimmed">
+                                        Я согласен с{' '}
+                                        <Text
+                                            component="a"
+                                            href="/terms"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            size="xs"
+                                            c="violet"
+                                            style={{ textDecoration: 'none' }}
+                                        >
+                                            пользовательским соглашением
+                                        </Text>
+                                        {' '}и{' '}
+                                        <Text
+                                            component="a"
+                                            href="/privacy"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            size="xs"
+                                            c="violet"
+                                            style={{ textDecoration: 'none' }}
+                                        >
+                                            политикой обработки персональных данных
+                                        </Text>
+                                    </Text>
+                                }
+                            />
+                            <Button type="submit" fullWidth loading={loading} disabled={!agreedToTerms}>
                                 {t('auth.login')}
                             </Button>
                             <Text size="sm" c="dimmed" ta="center">

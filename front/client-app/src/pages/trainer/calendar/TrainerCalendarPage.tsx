@@ -728,7 +728,7 @@ export const TrainerCalendarContent = ({ embedded = false, clientId }: TrainerCa
             <Modal
                 opened={modalOpened}
                 onClose={close}
-                title={t('trainer.calendar.createWorkout')}
+                title={formState.id ? t('trainer.calendar.editWorkout') : t('trainer.calendar.createWorkout')}
                 size="lg"
                 styles={{
                     body: {
