@@ -505,6 +505,7 @@ export const updateWorkout = async (
     format?: 'online' | 'offline'
     attendance?: AttendanceStatus
     coach_note?: string
+    template_id?: string
   }
 ): Promise<Workout> => {
   const { data: response } = await api.put<Workout>(`/api/workouts/${workout_id}`, data)

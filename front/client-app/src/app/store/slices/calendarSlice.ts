@@ -28,6 +28,7 @@ export interface ClientWorkout {
   end: string
   location?: string
   programDayId?: string
+  templateId?: string
   attendance: AttendanceStatus
   coachNote?: string
   userId?: string
@@ -65,6 +66,7 @@ const mapApiWorkoutToState = (workout: Workout): ClientWorkout => ({
   end: workout.end,
   location: workout.location || undefined,
   programDayId: workout.program_day_id || undefined,
+  templateId: workout.template_id || undefined,
   attendance: workout.attendance as AttendanceStatus,
   coachNote: workout.coach_note || undefined,
   trainerId: workout.trainer_id || undefined,
@@ -153,6 +155,7 @@ export const updateWorkoutApi = createAsyncThunk(
         format?: 'online' | 'offline'
         attendance?: AttendanceStatus
         coach_note?: string
+        template_id?: string
       }
     },
     { rejectWithValue }
@@ -166,6 +169,7 @@ export const updateWorkoutApi = createAsyncThunk(
         format: data.updates.format,
         attendance: data.updates.attendance,
         coach_note: data.updates.coach_note,
+        template_id: data.updates.template_id,
       })
       return mapApiWorkoutToState(workout)
     } catch (error: any) {
