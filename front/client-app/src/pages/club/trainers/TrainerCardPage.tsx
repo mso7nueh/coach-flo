@@ -87,8 +87,8 @@ export const TrainerCardPage = () => {
     const [tabLoading, setTabLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [monthlyRevenue, setMonthlyRevenue] = useState<number>(0)
-    const [periodStart, setPeriodStart] = useState<Date>(() => dayjs().startOf('month').toDate())
-    const [periodEnd, setPeriodEnd] = useState<Date>(() => dayjs().endOf('month').toDate())
+    const [periodStart, setPeriodStart] = useState<Date | null>(() => dayjs().startOf('month').toDate())
+    const [periodEnd, setPeriodEnd] = useState<Date | null>(() => dayjs().endOf('month').toDate())
 
     useEffect(() => {
         if (!trainerId) return
@@ -457,7 +457,7 @@ export const TrainerCardPage = () => {
                                             label="Период с"
                                             placeholder="дд.мм.гггг"
                                             value={periodStart}
-                                            onChange={(v) => v && setPeriodStart(v)}
+                                            onChange={(v) => setPeriodStart(v ? new Date(v as any) : dayjs().startOf('month').toDate())}
                                             valueFormat="DD.MM.YYYY"
                                             size="xs"
                                             style={{ width: 140 }}
@@ -466,9 +466,9 @@ export const TrainerCardPage = () => {
                                             label="по"
                                             placeholder="дд.мм.гггг"
                                             value={periodEnd}
-                                            onChange={(v) => v && setPeriodEnd(v)}
+                                            onChange={(v) => setPeriodEnd(v ? new Date(v as any) : dayjs().endOf('month').toDate())}
                                             valueFormat="DD.MM.YYYY"
-                                            minDate={periodStart}
+                                            minDate={periodStart ?? undefined}
                                             size="xs"
                                             style={{ width: 140 }}
                                         />
