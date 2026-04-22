@@ -1007,7 +1007,7 @@ export const CalendarPage = ({ clientId }: { clientId?: string }) => {
                     {formState.programDayId && (
                         <Card radius="lg" padding="md" withBorder>
                             <Stack gap="sm">
-                                <Text fw={600} size="sm">{t('program.exercises')}</Text>
+                                <Text fw={600} size="sm">Упражнения программы:</Text>
                                 {programDays.find(d => d.id === formState.programDayId)?.blocks.map(block => (
                                     <Stack key={block.id} gap="xs">
                                         <Text size="xs" fw={700} c="dimmed" tt="uppercase">{t(`program.sections.${block.type}`)}</Text>
