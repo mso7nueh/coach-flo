@@ -130,11 +130,14 @@ export const LoginPage = () => {
                                         <Text
                                             component="a"
                                             href="/user_agere.pdf"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
                                             size="xs"
                                             c="violet"
-                                            style={{ textDecoration: 'none' }}
+                                            style={{ textDecoration: 'none', cursor: 'pointer' }}
+                                            onClick={(e: React.MouseEvent) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                window.open('/user_agere.pdf', '_blank')
+                                            }}
                                         >
                                             пользовательским соглашением
                                         </Text>
@@ -142,11 +145,14 @@ export const LoginPage = () => {
                                         <Text
                                             component="a"
                                             href="/pers_data.pdf"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
                                             size="xs"
                                             c="violet"
-                                            style={{ textDecoration: 'none' }}
+                                            style={{ textDecoration: 'none', cursor: 'pointer' }}
+                                            onClick={(e: React.MouseEvent) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                window.open('/pers_data.pdf', '_blank')
+                                            }}
                                         >
                                             политикой обработки персональных данных
                                         </Text>
