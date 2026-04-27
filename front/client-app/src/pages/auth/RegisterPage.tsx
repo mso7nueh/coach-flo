@@ -164,9 +164,7 @@ export const RegisterPage = () => {
             })).unwrap()
 
             const selectedRole = form.values.role || 'client'
-            if (selectedRole === 'club_admin') {
-                navigate('/club/trainers')
-            } else if (selectedRole === 'trainer') {
+            if (selectedRole === 'trainer') {
                 navigate('/trainer/clients')
             } else {
                 if (result.requiresOnboarding) {
@@ -230,7 +228,6 @@ export const RegisterPage = () => {
                                     data={[
                                         { label: t('common.roleClient'), value: 'client' },
                                         { label: t('common.roleTrainer'), value: 'trainer' },
-                                        { label: 'Администратор клуба', value: 'club_admin' },
                                     ]}
                                     fullWidth
                                 />
@@ -292,7 +289,7 @@ export const RegisterPage = () => {
                                             Я согласен с{' '}
                                             <Text
                                                 component="a"
-                                                href="/terms"
+                                                href="/user_agere.pdf"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 size="xs"
@@ -304,7 +301,7 @@ export const RegisterPage = () => {
                                             {' '}и{' '}
                                             <Text
                                                 component="a"
-                                                href="/privacy"
+                                                href="/pers_data.pdf"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 size="xs"

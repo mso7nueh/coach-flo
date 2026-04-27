@@ -1443,6 +1443,10 @@ export const apiClient = {
     })
     return data
   },
+  getClubTrainerPayments: async (trainer_id: string, params?: { start_date?: string; end_date?: string }): Promise<any[]> => {
+    const { data } = await api.get(`/api/clubs/trainers/${trainer_id}/payments`, { params })
+    return data
+  },
   getClubCalendar: async (params?: { start_date?: string; end_date?: string }) => {
     const { data } = await api.get('/api/clubs/calendar', { params })
     return data

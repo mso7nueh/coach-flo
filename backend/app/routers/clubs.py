@@ -282,6 +282,39 @@ async def get_trainer_exercises(
     return query.order_by(models.Exercise.name).all()
 
 
+@router.get("/trainers/{trainer_id}/payments", response_model=List[schemas.PaymentResponse],
+            summary="Платежи тренера клуба")
+async def get_trainer_payments(
+    trainer_id: str,
+    start_date: Optional[datetime] = Query(None, description="Начало периода"),
+    end_date: Optional[datetime] = Query(None, description="Конец периода"),
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Администратор клуба просматривает платежи тренера за выбранный период."""
+    club = get_admin_club(current_user, db)
+
+    # Убедимся, что тренер состоит в клубе
+    ct = db.query(models.ClubTrainer).filter(
+        and_(
+            models.ClubTrainer.club_id == club.id,
+            models.ClubTrainer.trainer_id == trainer_id,
+        )
+    ).first()
+    if not ct:
+        raise HTTPException(status_code=404, detail="Тренер не состоит в клубе")
+
+    query = db.query(models.Payment).filter(
+        models.Payment.trainer_id == trainer_id
+    )
+    if start_date:
+        query = query.filter(models.Payment.date >= start_date)
+    if end_date:
+        query = query.filter(models.Payment.date <= end_date)
+
+    return query.order_by(models.Payment.date.desc()).all()
+
+
 # ─── Calendar ─────────────────────────────────────────────────────────────────
 
 @router.get("/calendar", response_model=List[schemas.WorkoutResponse],

@@ -128,7 +128,7 @@ export const TrainerCardPage = () => {
                         break
                     case 'finances':
                         try {
-                            const payments = await apiClient.getPayments({
+                            const payments = await apiClient.getClubTrainerPayments(trainerId, {
                                 start_date: dayjs(periodStart).startOf('day').toISOString(),
                                 end_date: dayjs(periodEnd).endOf('day').toISOString(),
                             })
@@ -157,7 +157,7 @@ export const TrainerCardPage = () => {
         if (activeTab !== 'finances' || !trainerId) return
         const load = async () => {
             try {
-                const payments = await apiClient.getPayments({
+                const payments = await apiClient.getClubTrainerPayments(trainerId, {
                     start_date: dayjs(periodStart).startOf('day').toISOString(),
                     end_date: dayjs(periodEnd).endOf('day').toISOString(),
                 })
