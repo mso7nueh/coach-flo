@@ -129,7 +129,7 @@ export const LoginPage = () => {
                                         Я согласен с{' '}
                                         <Text
                                             component="a"
-                                            href="/terms"
+                                            href="/user_agere.pdf"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             size="xs"
@@ -141,7 +141,7 @@ export const LoginPage = () => {
                                         {' '}и{' '}
                                         <Text
                                             component="a"
-                                            href="/privacy"
+                                            href="/pers_data.pdf"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             size="xs"
