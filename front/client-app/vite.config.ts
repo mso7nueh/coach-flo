@@ -12,6 +12,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       workbox: {
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MiB (main chunk ~3 MB)
+        navigateFallbackDenylist: [/\.pdf$/, /\.doc$/, /\.docx$/, /\.xls$/, /\.xlsx$/],
       },
       manifest: {
         name: 'Coach Flo',
