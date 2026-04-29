@@ -558,13 +558,24 @@ export const ProgramPage = () => {
       try {
         if (editingExercise.exercise) {
           // Обновляем существующее упражнение
+          // Explicitly set null for cleared optional fields so they overwrite old values
+          const mergedExercise = {
+            ...editingExercise.exercise,
+            ...exerciseForm,
+            weight: exerciseForm.weight || null,
+            reps: exerciseForm.reps || null,
+            duration: exerciseForm.duration || null,
+            rest: exerciseForm.rest || null,
+            description: exerciseForm.description || null,
+            videoUrl: exerciseForm.videoUrl || null,
+          }
           await dispatch(
             updateExerciseInProgramDayApi({
               programId: selectedDay.programId,
               dayId: selectedDay.id,
               blockId: editingExercise.blockId,
               exerciseId: editingExercise.exercise.id,
-              exercise: { ...editingExercise.exercise, ...exerciseForm },
+              exercise: mergedExercise,
             })
           ).unwrap()
           // Перезагружаем дни программы после обновления упражнения
