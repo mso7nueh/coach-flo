@@ -1543,6 +1543,7 @@ export const ProgramPage = () => {
 
       <Modal opened={viewExerciseModalOpened} onClose={closeViewExerciseModal} title={t('trainer.library.viewExercise')} size="lg" radius="md">
         {viewingExercise && (
+          <ScrollArea.Autosize mah="75vh" offsetScrollbars>
           <Stack gap="xl">
             <Stack gap="xs">
               <Title order={2} style={{ color: 'var(--mantine-color-violet-7)' }}>
@@ -1552,7 +1553,9 @@ export const ProgramPage = () => {
                 <Badge color="violet" variant="light" size="lg" radius="sm">
                   {t(`trainer.library.muscle${viewingExercise.muscle_groups ? viewingExercise.muscle_groups.charAt(0).toUpperCase() + viewingExercise.muscle_groups.slice(1) : 'FullBody'}`)}
                 </Badge>
-                {viewingExercise.equipment && (Array.isArray(viewingExercise.equipment) ? viewingExercise.equipment : [viewingExercise.equipment]).map((eq: string) => (
+                {viewingExercise.equipment && (Array.isArray(viewingExercise.equipment) ? viewingExercise.equipment : [viewingExercise.equipment])
+                  .filter((eq: string) => !(eq === 'bodyweight' && viewingProgramExercise?.weight))
+                  .map((eq: string) => (
                   <Badge key={eq} color="gray" variant="outline" size="lg" radius="sm">
                     {t(`trainer.library.equipment.${eq}`)}
                   </Badge>
@@ -1726,6 +1729,7 @@ export const ProgramPage = () => {
               </Button>
             </Group>
           </Stack>
+          </ScrollArea.Autosize>
         )}
       </Modal>
     </Group>
