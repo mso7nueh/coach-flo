@@ -334,11 +334,11 @@ export const updateExerciseInProgramDayApi = createAsyncThunk(
       await apiClient.updateExerciseInProgramDay(programId, dayId, blockId, exerciseId, {
         title: exercise.title,
         sets: exercise.sets,
-        reps: exercise.reps ? parseInt(String(exercise.reps)) : null,
-        weight: exercise.weight ? String(exercise.weight) : null,
-        duration: exercise.duration ? String(exercise.duration) : null,
-        rest: exercise.rest ? String(exercise.rest) : null,
-        description: exercise.description ? String(exercise.description) : null,
+        reps: exercise.reps ? parseInt(String(exercise.reps)) : undefined,
+        weight: exercise.weight ? String(exercise.weight) : undefined,
+        duration: exercise.duration ? String(exercise.duration) : undefined,
+        rest: exercise.rest ? String(exercise.rest) : undefined,
+        description: exercise.description ? String(exercise.description) : undefined,
       })
       // После обновления упражнения нужно перезагрузить день программы
       const day = await apiClient.getProgramDay(programId, dayId)

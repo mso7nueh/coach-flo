@@ -562,12 +562,12 @@ export const ProgramPage = () => {
           const mergedExercise = {
             ...editingExercise.exercise,
             ...exerciseForm,
-            weight: exerciseForm.weight || null,
-            reps: exerciseForm.reps || null,
-            duration: exerciseForm.duration || null,
-            rest: exerciseForm.rest || null,
-            description: exerciseForm.description || null,
-            videoUrl: exerciseForm.videoUrl || null,
+            weight: exerciseForm.weight || undefined,
+            reps: exerciseForm.reps || undefined,
+            duration: exerciseForm.duration || undefined,
+            rest: exerciseForm.rest || undefined,
+            description: exerciseForm.description || undefined,
+            videoUrl: exerciseForm.videoUrl || undefined,
           }
           await dispatch(
             updateExerciseInProgramDayApi({
